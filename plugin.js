@@ -1,8 +1,7 @@
-// qol - built from packages/web/mods/qol/plugin.ts by
-// packages/web/scripts/build-mod-plugins.mjs in the Neo Angband repository.
-// Generated: edit the TypeScript source, not this file.
+// qol - generated from plugin.ts by neo-angband-mod-build
+// (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
-// packages/web/mods/qol/plugin.ts
+// plugin.ts
 var plugin_default = {
   api: 1,
   hooks(ctx) {
