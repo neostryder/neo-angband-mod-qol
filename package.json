@@ -36,9 +36,13 @@
     "@types/node": "^22.20.1",
     "esbuild": "^0.28.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22"
+  },
+  "//allowScripts": ["npm 12 blocks a dependency postinstall unless it is named here; npm 10, which this","repo CI still runs on Node 22, just runs it. Denied rather than approved because it","was MEASURED to be unnecessary: esbuild resolves its binary through the platform","optionalDependency (@esbuild/<plat>), and `require(\"esbuild\").version` answers with the","postinstall skipped. Written down so the two npm versions do not quietly disagree."],
+  "allowScripts": {
+    "esbuild": false
   }
 }
