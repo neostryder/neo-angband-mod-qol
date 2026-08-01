@@ -1,14 +1,14 @@
 # Typecheck, test, and prove the committed plugin.js is current.
 #
-# WHY THE GAME IS CHECKED OUT TOO. This mod is tested by booting a REAL game: its
-# hooks run against a level generated from Angband 4.2.6 gamedata, because a
-# convenience proven against a hand-built cave is a convenience proven against a
-# fixture. The engine itself comes from npm (@rpgm-tools/neo-angband-core), but the
-# content pack is not published - so it is read from a checkout of the game, and
-# NEO_ANGBAND_REPO is how both the tests and the build step find it.
-#
-# Sparse, and only the two paths that are actually used: the game's repository carries
-# the original C tree in reference/, which is large and has nothing to do with this.
+# EVERYTHING COMES FROM npm. This mod is tested by booting a REAL game: its hooks
+# run against a level generated from Angband 4.2.6 gamedata, because a fix proven
+# against a hand-built cave is a fix proven against a fixture. That gamedata used to
+# require a sparse checkout of the game's repository, because
+# @rpgm-tools/neo-angband-content was not published. It is, from 0.12.0, and it
+# exports the pack - so the checkout, the NEO_ANGBAND_REPO variable and the guard
+# that the pack had actually landed are all gone. This workflow now proves the mod
+# against exactly what a third-party author would install.
+
 name: ci
 
 on:
@@ -22,28 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check out the game, for the content pack and the plugin builder
-        uses: actions/checkout@v7
-        with:
-          repository: neostryder/neo-angband
-          path: .neo-angband
-          sparse-checkout: |
-            packages/content/pack
-            packages/mod-sdk/bin
-          sparse-checkout-cone-mode: false
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-
-      - run: echo "NEO_ANGBAND_REPO=$GITHUB_WORKSPACE/.neo-angband" >> "$GITHUB_ENV"
-
-      # Fail loudly here rather than letting the test suite throw its own (good, but
-      # longer) message. If the sparse paths above ever stop matching, this is the line
-      # that says so.
-      - name: The content pack must actually be there
-        run: test -f "$NEO_ANGBAND_REPO/packages/content/pack/constants.json"
 
       - run: npm ci
 

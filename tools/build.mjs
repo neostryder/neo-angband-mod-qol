@@ -28,15 +28,26 @@ import { join } from "node:path";
 
 const REL = join("packages", "mod-sdk", "bin", "neo-angband-mod-build.mjs");
 
+/* Order matters, and it used to be the other way round.
+ *
+ * The INSTALLED SDK is the default: it is the version this repository pins, the
+ * one CI installs, and the one a third-party author would get. A sibling checkout
+ * of the game is whatever is in that working tree right now - possibly mid-edit,
+ * possibly a different branch - and plugin.js is a SHIPPED artefact whose SHA-256
+ * goes in the catalogue, so building it against an unpinned tree is a way to
+ * publish something nobody else can reproduce. The sibling stays available, below
+ * the pinned copy, for working on the SDK and a mod together.
+ *
+ * NEO_ANGBAND_REPO still wins outright, because setting it is a deliberate act. */
 const candidates = [];
 const explicit = process.env["NEO_ANGBAND_REPO"];
 if (explicit !== undefined && explicit !== "") candidates.push(join(explicit, REL));
-candidates.push(fileURLToPath(new URL(`../../neo-angband/${REL.replace(/\\/g, "/")}`, import.meta.url)));
 candidates.push(
   fileURLToPath(
     new URL("../node_modules/@rpgm-tools/neo-angband-mod-sdk/bin/neo-angband-mod-build.mjs", import.meta.url),
   ),
 );
+candidates.push(fileURLToPath(new URL(`../../neo-angband/${REL.replace(/\\/g, "/")}`, import.meta.url)));
 
 const bin = candidates.find((p) => existsSync(p));
 if (bin === undefined) {
