@@ -1,6 +1,6 @@
 {
   "name": "neo-angband-mod-qol",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Quality-of-life conveniences for Neo Angband, as a mod",
   "license": "GPL-2.0-only",
@@ -32,7 +32,9 @@
     "verify": "npm run typecheck && npm run test && npm run check"
   },
   "devDependencies": {
-    "@rpgm-tools/neo-angband-core": "^0.10.0",
+    "@rpgm-tools/neo-angband-content": "^0.12.0",
+    "@rpgm-tools/neo-angband-core": "^0.12.0",
+    "@rpgm-tools/neo-angband-mod-sdk": "^0.12.0",
     "@types/node": "^22.20.1",
     "esbuild": "^0.28.1",
     "typescript": "^5.9.3",
@@ -41,7 +43,13 @@
   "engines": {
     "node": ">=22"
   },
-  "//allowScripts": ["npm 12 blocks a dependency postinstall unless it is named here; npm 10, which this","repo CI still runs on Node 22, just runs it. Denied rather than approved because it","was MEASURED to be unnecessary: esbuild resolves its binary through the platform","optionalDependency (@esbuild/<plat>), and `require(\"esbuild\").version` answers with the","postinstall skipped. Written down so the two npm versions do not quietly disagree."],
+  "//allowScripts": [
+    "npm 12 blocks a dependency postinstall unless it is named here; npm 10, which this",
+    "repo CI still runs on Node 22, just runs it. Denied rather than approved because it",
+    "was MEASURED to be unnecessary: esbuild resolves its binary through the platform",
+    "optionalDependency (@esbuild/<plat>), and `require(\"esbuild\").version` answers with the",
+    "postinstall skipped. Written down so the two npm versions do not quietly disagree."
+  ],
   "allowScripts": {
     "esbuild": false
   }
