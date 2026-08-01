@@ -86,6 +86,24 @@ from npm; only the pack and the build tool need the checkout.
 npm run build     # rebuild plugin.js after editing plugin.ts
 ```
 
+### Testing against an unreleased engine
+
+By default the tests import the **published** engine from `node_modules` - the
+version a player runs, which is the right default and the reason the dependency
+is pinned rather than linked. When you need to run against an engine change that
+has not shipped yet:
+
+```bash
+NEO_ANGBAND_LOCAL_CORE=1 npm test
+```
+
+That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling
+checkout (build it first). It is a separate variable from `NEO_ANGBAND_REPO` on
+purpose: nearly everyone here has the checkout already, so keying off its presence
+would silently swap the engine under every run. If `NEO_ANGBAND_REPO` is set it is
+authoritative - a wrong path fails rather than falling back to a checkout you did
+not name.
+
 ## Licence
 
 Same dual licence as Neo Angband and Angband — GPL v2 or the Angband licence. See
