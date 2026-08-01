@@ -20,10 +20,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check out the game, for the content pack and the plugin builder
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: neostryder/neo-angband
           path: .neo-angband
@@ -32,7 +32,7 @@ jobs:
             packages/mod-sdk/bin
           sparse-checkout-cone-mode: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
