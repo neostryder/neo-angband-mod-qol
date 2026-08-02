@@ -19,11 +19,41 @@ behaviour Angband does not have.
 | Toggle | Default | What it does |
 |---|---|---|
 | **Auto-dig on walk** (`qol.autoDig`) | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move. |
+| **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |
+| **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 
-One tweak, honestly. The mod exists as its own repository because a mod that is going
-to grow should not need a game release to do it, and because a third-party mod and a
-first-party one should be the same shape — installed by the same code, gated by the
-same checks.
+The mod exists as its own repository because a mod that is going to grow should not
+need a game release to do it, and because a third-party mod and a first-party one
+should be the same shape — installed by the same code, gated by the same checks.
+
+**From 0.13.0 this mod needs engine 0.18.0 or later** (`"engine": ">=0.18.0"`), and
+the game refuses to load it on anything older rather than showing you two toggles it
+cannot honour. 0.12.0 remains the version for a 0.17.0 game.
+
+### Why remembering settings is a mod and not a fix
+
+Angband keeps a character's options inside that character's save and nowhere else, so
+they die with the character — every new life starts by setting them all again.
+Upstream's answer is the pref file (`s` / `r` in the options menu), a file you have to
+know exists and remember to write. That is not a bug either, so core keeps it, and the
+convenience lives here.
+
+It needs three things from the engine, and all three are general seams rather than
+anything named after this mod: `ModHooks.optionsChanged` (the game says when you have
+finished changing settings), `ctx.prefs` (somewhere to keep data that outlives a
+character — the mod's save bag is *inside* the save and dies with it), and
+`ctx.newCharacter` (whether this character was just created, which a mod cannot work
+out for itself because the game autosaves the moment one is born).
+
+Three deliberate exclusions. **Birth options** are frozen at creation and the engine
+refuses to change them afterwards — they already carry forward by the game's own route,
+because the birth options editor is seeded from your last character. **Cheat and score
+options** are excluded unless you turn the second toggle on: switching a cheat option
+on forces its `score_` twin, which permanently bars that character from the high score
+list, and inheriting that without being asked is the one case where remembering a
+setting does real damage. The filter applies when settings are read back as well as
+when they are stored, so turning the toggle off takes effect against what is already
+saved.
 
 ### Why auto-dig is a mod and not a fix
 
