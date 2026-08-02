@@ -88,7 +88,9 @@ const pack: GamePack = {
   },
 } as unknown as GamePack;
 
-const ALL_ON = { "qol.autoDig": true };
+/* Only the auto-dig rule. NOT every rule - the mod has three now, and the two
+ * "remember my settings" ones need a prefs store to install anything. */
+const DIG_ON = { "qol.autoDig": true };
 
 /**
  * A real game with a diggable wall next to the player and a digger strong enough
@@ -135,7 +137,7 @@ describe("the qol mod's entry point", () => {
   });
 
   it("installs walkBlockedByDiggable, and ONLY that, for qol.autoDig", () => {
-    const hooks = qolHooks(ALL_ON);
+    const hooks = qolHooks(DIG_ON);
     expect(Object.keys(hooks)).toEqual(["walkBlockedByDiggable"]);
   });
 
@@ -149,7 +151,7 @@ describe("the qol mod's entry point", () => {
 describe("qol.autoDig: walking into diggable terrain", () => {
   it("digs once, spends a move, and does not step onto the grid", () => {
     const { state, dir, grid } = dugGame();
-    state.modHooks = qolHooks(ALL_ON);
+    state.modHooks = qolHooks(DIG_ON);
     const before = loc(state.actor.grid.x, state.actor.grid.y);
 
     const spent = walkAction(state, { code: "walk", dir });
@@ -162,7 +164,7 @@ describe("qol.autoDig: walking into diggable terrain", () => {
   it("declines an unknown grid, drawing no RNG - the faithful bump", () => {
     const { state, grid } = dugGame();
     state.known.feat[grid.y * state.chunk.width + grid.x] = -1; // un-memorize it (-1 = unknown)
-    const hook = qolHooks(ALL_ON).walkBlockedByDiggable!;
+    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
     const rngBefore = JSON.stringify(state.rng.getState());
 
     expect(hook(state, grid, { env: {} })).toBeNull();
@@ -176,7 +178,7 @@ describe("qol.autoDig: walking into diggable terrain", () => {
 
   it("declines permanent rock, drawing no RNG", () => {
     const { state, grid } = dugGame(FEAT.PERM);
-    const hook = qolHooks(ALL_ON).walkBlockedByDiggable!;
+    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
     const rngBefore = JSON.stringify(state.rng.getState());
     expect(hook(state, grid, { env: {} })).toBeNull();
     expect(JSON.stringify(state.rng.getState())).toBe(rngBefore);
@@ -184,7 +186,7 @@ describe("qol.autoDig: walking into diggable terrain", () => {
 
   it("declines terrain no digger could get through at this skill", () => {
     const { state, grid } = dugGame(FEAT.GRANITE, 20); // granite chance = (20-40) -> 0
-    const hook = qolHooks(ALL_ON).walkBlockedByDiggable!;
+    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
     expect(hook(state, grid, { env: {} })).toBeNull();
   });
 
@@ -194,9 +196,230 @@ describe("qol.autoDig: walking into diggable terrain", () => {
      * essentially always fails. The turn is still spent - that is the source
      * fork's behaviour, and it is what makes repeated walks dig through a vein. */
     const { state, dir, grid } = dugGame(FEAT.GRANITE, 45); // chance = (45-40) > 0
-    state.modHooks = qolHooks(ALL_ON);
+    state.modHooks = qolHooks(DIG_ON);
     const spent = walkAction(state, { code: "walk", dir });
     expect(spent).toBe(state.z.moveEnergy);
     expect(state.chunk.feat(grid)).toBe(FEAT.GRANITE); // still there
+  });
+});
+
+/**
+ * "Remember my settings" (qol.rememberSettings / qol.rememberCheats).
+ *
+ * Driven exactly as the host drives it: `hooks()` returns the optionsChanged
+ * notification the '=' menu fires, and `register()` is the half that runs once
+ * at boot. Both are given a real OptionState from the engine, so the birth /
+ * cheat / score classification is the engine's own and not a list this file
+ * keeps in step by hand.
+ */
+describe("remember my settings", () => {
+  /** A prefs store like the host's ctx.prefs, in memory. */
+  function fakePrefs(): { get(): unknown; set(v: unknown): void } {
+    let value: unknown = null;
+    return {
+      get: () => value,
+      set: (v) => {
+        value = v;
+      },
+    };
+  }
+
+  /** The context shape the host passes, with the pieces a test wants to vary. */
+  function ctxFor(
+    opts: neoCore.OptionState,
+    flags: Record<string, boolean>,
+    extra: { prefs?: ReturnType<typeof fakePrefs>; newCharacter?: boolean } = {},
+  ): Parameters<typeof plugin.register>[1] {
+    return {
+      flags,
+      core: neoCore,
+      state: { options: opts },
+      log: () => undefined,
+      ...(extra.prefs ? { prefs: extra.prefs } : {}),
+      ...(extra.newCharacter !== undefined ? { newCharacter: extra.newCharacter } : {}),
+    };
+  }
+
+  /**
+   * Fire the capture half the way the host actually does it.
+   *
+   * NO `state`, and that is the point of this helper existing. The host composes
+   * every mod's hooks BEFORE it starts the game - the composed ModHooks is an
+   * argument to startGame - so `hooks()` is called with a context that has no
+   * `state` on it, ever. An earlier draft of this test passed one, and the mod
+   * read `ctx.state.options`: every assertion here passed against a context
+   * shape the game never produces, and the feature would have been dead on
+   * arrival with a green suite behind it.
+   */
+  function change(
+    opts: neoCore.OptionState,
+    flags: Record<string, boolean>,
+    prefs: ReturnType<typeof fakePrefs>,
+  ): void {
+    const hooks = plugin.hooks({ flags, core: neoCore, prefs, log: () => undefined });
+    hooks.optionsChanged?.(opts.snapshot());
+  }
+
+  const ON = { "qol.rememberSettings": true, "qol.rememberCheats": false };
+  const WITH_CHEATS = { "qol.rememberSettings": true, "qol.rememberCheats": true };
+
+  it("installs no hook at all when the toggle is off", () => {
+    /* "A disabled mod's patches DO NOT EXIST": off means ABSENT, not a function
+     * that checks the flag and returns. */
+    const hooks = plugin.hooks({
+      flags: { "qol.rememberSettings": false },
+      core: neoCore,
+      prefs: fakePrefs(),
+    });
+    expect(hooks.optionsChanged).toBeUndefined();
+  });
+
+  it("stores what the player chose, and applies it to the next character", () => {
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    expect(first.get("use_sound")).toBe(false);
+    first.set("use_sound", true);
+    first.hitpointWarn = 7;
+    first.delayFactor = 12;
+    change(first, ON, prefs);
+
+    /* A brand-new character: table defaults, nothing carried in memory. */
+    const next = new neoCore.OptionState();
+    expect(next.get("use_sound")).toBe(false);
+    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    expect(next.get("use_sound")).toBe(true);
+    expect(next.hitpointWarn).toBe(7);
+    expect(next.delayFactor).toBe(12);
+  });
+
+  it("leaves a LOADED character exactly as its save had it", () => {
+    /* The whole reason ctx.newCharacter exists. A player who set one character
+     * up one way must not have it rewritten because they changed something on a
+     * different character. */
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    first.set("use_sound", true);
+    change(first, ON, prefs);
+
+    const loaded = new neoCore.OptionState();
+    plugin.register(null, ctxFor(loaded, ON, { prefs, newCharacter: false }));
+    expect(loaded.get("use_sound")).toBe(false);
+  });
+
+  it("does nothing when the host cannot say whether it is new", () => {
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    first.set("use_sound", true);
+    change(first, ON, prefs);
+
+    const next = new neoCore.OptionState();
+    plugin.register(null, ctxFor(next, ON, { prefs }));
+    expect(next.get("use_sound")).toBe(false);
+  });
+
+  it("never remembers a cheat option by default", () => {
+    /* The damage this prevents: cheat_live forces score_live, and a character
+     * carrying score_live is barred from the score list for a choice the player
+     * made on somebody else. */
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    first.set("cheat_live", true);
+    expect(first.get("cheat_live")).toBe(true);
+    expect(first.get("score_live")).toBe(true); // the engine's own coupling
+    first.set("use_sound", true);
+    change(first, ON, prefs);
+
+    const stored = prefs.get() as { values: Record<string, boolean> };
+    expect(stored.values).not.toHaveProperty("cheat_live");
+    expect(stored.values).not.toHaveProperty("score_live");
+    expect(stored.values["use_sound"]).toBe(true);
+
+    const next = new neoCore.OptionState();
+    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    expect(next.get("cheat_live")).toBe(false);
+    expect(next.get("score_live")).toBe(false);
+    expect(next.get("use_sound")).toBe(true);
+  });
+
+  it("remembers cheat options when the player asks for it", () => {
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    first.set("cheat_live", true);
+    change(first, WITH_CHEATS, prefs);
+
+    const next = new neoCore.OptionState();
+    plugin.register(null, ctxFor(next, WITH_CHEATS, { prefs, newCharacter: true }));
+    expect(next.get("cheat_live")).toBe(true);
+    /* And the engine's coupling still applies on the way back in, so the score
+     * twin is set by core rather than by anything this mod stored. */
+    expect(next.get("score_live")).toBe(true);
+  });
+
+  it("stops applying stored cheats the moment the toggle goes off", () => {
+    /* Filtered on the way IN as well as OUT. Turning the toggle off has to take
+     * effect against what is ALREADY stored, or the player's only remedy would
+     * be to find and clear the storage themselves. */
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState();
+    first.set("cheat_live", true);
+    change(first, WITH_CHEATS, prefs);
+    expect((prefs.get() as { values: Record<string, boolean> }).values["cheat_live"]).toBe(true);
+
+    const next = new neoCore.OptionState();
+    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    expect(next.get("cheat_live")).toBe(false);
+  });
+
+  it("never stores a birth option, because it could never apply one", () => {
+    /* Birth options are frozen at creation and OptionState.set refuses them.
+     * They carry forward by the game's own route - the birth options editor is
+     * seeded from the last character - not through here. */
+    const prefs = fakePrefs();
+    const first = new neoCore.OptionState({ overrides: { birth_force_descend: true } });
+    expect(first.get("birth_force_descend")).toBe(true);
+    change(first, ON, prefs);
+    const stored = prefs.get() as { values: Record<string, boolean> };
+    expect(stored.values).not.toHaveProperty("birth_force_descend");
+  });
+
+  it("ignores a stored blob it does not understand", () => {
+    const prefs = fakePrefs();
+    prefs.set({ v: 99, values: { use_sound: true } });
+    const next = new neoCore.OptionState();
+    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    expect(next.get("use_sound")).toBe(false);
+  });
+
+  it("survives an option name this engine no longer has", () => {
+    /* A stored name from an older engine. set() answers false and the mod moves
+     * on: the option is gone, so there is nothing to restore. */
+    const prefs = fakePrefs();
+    prefs.set({
+      v: 1,
+      values: { an_option_that_was_removed: true, use_sound: true },
+      hitpointWarn: 3,
+      delayFactor: 40,
+      lazymoveDelay: 0,
+    });
+    const next = new neoCore.OptionState();
+    expect(() =>
+      plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true })),
+    ).not.toThrow();
+    expect(next.get("use_sound")).toBe(true);
+  });
+
+  it("is inert on a host too old to have ctx.prefs", () => {
+    /* The engine range should refuse this pairing outright; if it somehow does
+     * not, the mod must not throw at boot. */
+    const opts = new neoCore.OptionState();
+    expect(plugin.hooks({ flags: ON, core: neoCore }).optionsChanged).toBeUndefined();
+    expect(() =>
+      plugin.register(null, {
+        flags: ON,
+        core: neoCore,
+        state: { options: opts },
+        newCharacter: true,
+      }),
+    ).not.toThrow();
   });
 });
