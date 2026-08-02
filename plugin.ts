@@ -124,25 +124,6 @@ interface OptionSnapshot {
 }
 
 /**
- * ModHooks, plus the notification this mod listens to.
- *
- * `optionsChanged` is a real member of core's ModHooks from 0.18.0 on, and the
- * `engine` range in manifest.json is what stops this mod loading on a game that
- * lacks it. It is declared structurally here for the same reason HookCtx is:
- * this repository typechecks against the PUBLISHED engine, so a seam is
- * unavailable to it for exactly as long as it takes the release carrying that
- * seam to reach npm - and a mod that cannot be written until after the engine
- * ships is a mod that ships one release late, every time.
- *
- * Nothing is claimed that is not true. On a host that does not call it, the
- * field is set and never invoked: the mod is inert, not broken. Delete this
- * declaration once the published engine's ModHooks has the member.
- */
-type QolHooks = ModHooks & {
-  optionsChanged?: (options: OptionSnapshot) => void;
-};
-
-/**
  * Whether this mod may remember `name`.
  *
  * THREE EXCLUSIONS, and each is a decision rather than a limitation:
@@ -169,9 +150,9 @@ function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): bool
 export default {
   api: 1,
 
-  hooks(ctx: HookCtx): QolHooks {
+  hooks(ctx: HookCtx): ModHooks {
     const { flags, core } = ctx;
-    const hooks: QolHooks = {};
+    const hooks: ModHooks = {};
 
     /*
      * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork
