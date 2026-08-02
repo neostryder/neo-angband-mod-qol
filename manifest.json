@@ -1,7 +1,7 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "shape": "content",
   "facets": [
     "content",
@@ -14,7 +14,7 @@
   },
   "author": "neostryder (RPGM Tools)",
   "license": "GPL-2.0-only",
-  "description": "A fully-removable quality-of-life mod, installed from its own repository. It adds NEW conveniences that are not part of faithful Angband (the built-in Angband options ship in core with their upstream defaults and are NOT touched here). The mod itself is OFF by default, like every mod; enable it and you get the whole set, with each tweak a named, described toggle in this mod's Fixes & tweaks submenu that you can switch off individually. See docs/modding/QOL.md.",
+  "description": "Conveniences that faithful Angband does not have. Angband's own options are core and are not touched here.\n\nEnable it and you get the whole set; each tweak is a named toggle you can switch off on its own. Fully removable - turn it off and the base game is exactly as it was.",
   "rules": [
     {
       "flag": "qol.autoDig",
