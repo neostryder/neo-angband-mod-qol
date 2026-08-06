@@ -1,7 +1,7 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "shape": "content",
   "facets": [
     "content",
@@ -12,7 +12,7 @@
   "dependencies": {
     "core": "*"
   },
-  "author": "neostryder (RPGM Tools)",
+  "author": "neostryder",
   "license": "GPL-2.0-only",
   "description": "Conveniences that faithful Angband does not have. Angband's own options are core and are not touched here.\n\nEnable it and you get the whole set; each tweak is a named toggle you can switch off on its own. Fully removable - turn it off and the base game is exactly as it was.",
   "rules": [
@@ -34,5 +34,6 @@
       "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default because turning a cheat option on permanently bars that character from the high score list, and inheriting that without asking is not a surprise anyone wants. Needs \"Remember my settings\" to be on.",
       "default": false
     }
-  ]
+  ],
+  "repository": "https://github.com/neostryder/neo-angband-mod-qol"
 }
