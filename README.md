@@ -21,6 +21,7 @@ behaviour Angband does not have.
 | **Auto-dig on walk** (`qol.autoDig`) | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move. |
 | **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
+| **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
@@ -54,6 +55,28 @@ list, and inheriting that without being asked is the one case where remembering 
 setting does real damage. The filter applies when settings are read back as well as
 when they are stored, so turning the toggle off takes effect against what is already
 saved.
+
+### Why reading past a mistake is a mod, and why it used to be in the game
+
+Angband 4.2.6 stops dead at the first line of a pref file it cannot parse:
+`process_pref_file_named` prints one error and breaks out of the read loop
+(`ui-prefs.c`). One typo near the top of a converted graphics pack therefore
+costs you the whole rest of the pack, silently. That is a wart, not a bug, so
+core keeps it.
+
+The engine used to be forgiving instead — it carried a twenty-error cap of its
+own, with an environment variable to change it. A citation sweep found no such
+thing anywhere in Angband 4.2.6, which made it an improvement the port had added
+rather than a behaviour it had reproduced, and the port adds nothing. So it was
+removed from the engine and rebuilt here, better than it was: the old cap still
+threw away everything below the twentieth error, and this one applies the entire
+file and only limits what you are **told**.
+
+It needs one general seam, named after nothing in this mod:
+`setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks`
+member because the three readers it governs — the `=` menu's "Load a user pref
+file", a mod's own `prefs` resource and the graphics pack loader — have no game
+state to hang a hook on, and two of them run before there is a game at all.
 
 ### Why auto-dig is a mod and not a fix
 

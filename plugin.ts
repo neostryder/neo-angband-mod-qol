@@ -63,9 +63,35 @@ type CoreApi = typeof import("@rpgm-tools/neo-angband-core");
  * structural subset also states exactly what the mod touches, which is the honest
  * form of "the mod uses no private path".
  */
+/**
+ * `PrefErrorPolicy` (core, visuals/prefs.ts), structurally.
+ *
+ * Two axes rather than one number, because one number could not say both
+ * things: whether the REST of a pref file is applied after a bad line, and how
+ * many errors the player is told about.
+ */
+interface PrefErrorPolicyLike {
+  continueAfterError: boolean;
+  reportLimit: number;
+}
+
+/**
+ * The engine, plus the one seam this mod needs that an older engine may not
+ * have.
+ *
+ * `setPrefErrorPolicy` arrived with the engine that removed core's own error cap
+ * (#272). Declared OPTIONAL for exactly the reason `ctx.prefs` is: manifest.json's
+ * `engine` range is the gate, and this is the seatbelt for the day the two
+ * disagree. On an engine that has it, `CoreApi` already declares it and this
+ * intersection changes nothing.
+ */
+type CoreWithPrefPolicy = CoreApi & {
+  readonly setPrefErrorPolicy?: (policy: PrefErrorPolicyLike | null) => void;
+};
+
 interface HookCtx {
   readonly flags: Readonly<Record<string, boolean>>;
-  readonly core: CoreApi;
+  readonly core: CoreWithPrefPolicy;
   /**
    * This mod's own storage, kept OUTSIDE the character's save - the host's
    * `ctx.prefs`. Optional here because a host older than the one that added it
@@ -141,6 +167,20 @@ interface OptionSnapshot {
  *    toggle: they are the record of having cheated, so carrying one onto a fresh
  *    character would mark a character that never did.
  */
+/**
+ * How many parse errors one pref file may report before the rest go unmentioned.
+ *
+ * TWENTY, which is the number core itself used to carry as `PARSE_ERROR_LIMIT`
+ * before #272 established it had no counterpart in Angband 4.2.6 and moved it
+ * here. Kept at the familiar value rather than picked afresh: a player who had
+ * a mangled pref file under the old engine sees the same message run.
+ *
+ * It is a REPORT cap only. Core keeps applying the file either way, which is the
+ * half of the old behaviour that was actually worth having - the old cap threw
+ * away everything below the twentieth error, and nobody wanted that.
+ */
+const PREF_ERROR_REPORT_LIMIT = 20;
+
 function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): boolean {
   if (opts.isBirth(name)) return false;
   if (opts.isCheat(name) || opts.isScore(name)) return cheats;
@@ -187,6 +227,64 @@ export default {
         core.tunnelAux(state, grid, deps as CaveCmdDeps);
         return state.z.moveEnergy;
       };
+    }
+
+    /*
+     * "Keep reading a pref file past a mistake" (qol.forgivingPrefFiles).
+     *
+     * Angband 4.2.6 stops dead at the first line of a pref file it cannot parse:
+     * process_pref_file_named (ui-prefs.c L1225-1231) prints one error and
+     * `break`s out of the read loop, so one typo on line 3 of a 900-line
+     * graphics pack silently costs you lines 4 to 900. Core reproduces that,
+     * because core reproduces 4.2.6.
+     *
+     * Until #272 the port did not: it carried a 20-error cap of its own, with an
+     * environment override, which is a convenience Angband never shipped. The
+     * owner's ruling was that a convenience belongs in a mod, so here it is -
+     * and it is BETTER than the thing it replaces, because the old cap still
+     * threw the rest of the file away once it was reached. This applies the
+     * whole file and only limits what you are TOLD.
+     *
+     * NOT A ModHooks MEMBER, and that is core's shape rather than this mod's
+     * choice. The three readers this governs - the '=' menu's "Load a user pref
+     * file", a mod's own `prefs` resource, and the graphics pack loader - have
+     * no GameState in scope, and two of them run before there is one, so there
+     * is no hooks object for them to consult. Core exposes a module-level
+     * policy instead (setPrefErrorPolicy), which is the same shape as its sound
+     * and rune registries.
+     *
+     * INSTALLED FROM hooks() rather than register(), because hooks() is the
+     * earliest moment a mod runs - the host composes every enabled mod's hooks
+     * before startGame - and the graphics pack is read during boot. register()
+     * would be too late for it. Load order does the rest: the host calls hooks()
+     * in load order, so the LAST mod to set a policy is the one that stands,
+     * which is what the mod manager's row already promises the player.
+     *
+     * TURNING THIS OFF STILL TAKES IT AWAY. A module-level value in core would
+     * outlive a mod being switched off inside one process - but switching a mod
+     * off does not take effect inside one process. The manager prompts to save
+     * and RELOADS, and after the reload this function is never called, so
+     * nothing installs a policy and core is back on 4.2.6's.
+     */
+    if (flags["qol.forgivingPrefFiles"] === true) {
+      const setPolicy = core.setPrefErrorPolicy;
+      if (typeof setPolicy !== "function") {
+        /* DELIBERATE, not a should-never-happen. `engine` stays ">=0.18.0"
+         * because the other three toggles work perfectly on 0.18.0, and
+         * raising the range to gate this one would refuse the whole mod and
+         * cost a player auto-dig and remembered settings to buy a pref-file
+         * convenience. So this pairing is allowed and this toggle degrades.
+         *
+         * It SAYS SO rather than going quietly inert, which is the failure
+         * this project keeps finding: a switch that is on in the manager and
+         * does nothing in the game is worse than one that refuses. */
+        ctx.log?.("this game is too old to keep reading a pref file past a mistake");
+      } else {
+        setPolicy({
+          continueAfterError: true,
+          reportLimit: PREF_ERROR_REPORT_LIMIT,
+        });
+      }
     }
 
     /*
