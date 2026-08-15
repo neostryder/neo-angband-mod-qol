@@ -2,6 +2,7 @@
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
 // plugin.ts
+var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
   if (opts.isBirth(name)) return false;
   if (opts.isCheat(name) || opts.isScore(name)) return cheats;
@@ -18,6 +19,17 @@ var plugin_default = {
         core.tunnelAux(state, grid, deps);
         return state.z.moveEnergy;
       };
+    }
+    if (flags["qol.forgivingPrefFiles"] === true) {
+      const setPolicy = core.setPrefErrorPolicy;
+      if (typeof setPolicy !== "function") {
+        ctx.log?.("this game is too old to keep reading a pref file past a mistake");
+      } else {
+        setPolicy({
+          continueAfterError: true,
+          reportLimit: PREF_ERROR_REPORT_LIMIT
+        });
+      }
     }
     if (flags["qol.rememberSettings"] === true) {
       const prefs = ctx.prefs;

@@ -1,7 +1,7 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "shape": "content",
   "facets": [
     "content",
@@ -26,6 +26,12 @@
       "flag": "qol.rememberSettings",
       "title": "Remember my settings",
       "description": "Changes you make in the '=' options menu are kept, and every new character starts with them. Angband normally forgets them the moment a character dies, so every new life begins by setting them all again. Your existing characters are never touched - a save keeps whatever it was saved with.",
+      "default": true
+    },
+    {
+      "flag": "qol.forgivingPrefFiles",
+      "title": "Keep reading a pref file past a mistake",
+      "description": "Angband stops reading a pref file the moment it hits a line it cannot understand, so one typo near the top silently throws away everything below it - a whole graphics pack, or the rest of your keymaps. With this on, the file is read to the end and the bad lines are simply skipped. You are told about the first 20 mistakes; any more are applied-around in silence rather than filling the message line.",
       "default": true
     },
     {

@@ -148,6 +148,84 @@ describe("the qol mod's entry point", () => {
   });
 });
 
+/**
+ * qol.forgivingPrefFiles, the half of #272 that came back as a mod.
+ *
+ * Core's own tests (packages/core/src/visuals/prefs.test.ts) pin what the SEAM
+ * does - that a policy of `{continueAfterError: true}` really does apply the
+ * lines after a bad one, and that core's default really does stop. This file
+ * pins what the MOD asks for, which is the half core cannot know about.
+ *
+ * The seam is RECORDED rather than driven, because it landed in the engine after
+ * the published one these tests import by default. A test that drove the real
+ * `setPrefErrorPolicy` would pass or fail depending on which engine happened to
+ * be installed, which is a test that measures the wrong thing.
+ */
+describe("qol.forgivingPrefFiles: reading a pref file past a mistake", () => {
+  type Policy = { continueAfterError: boolean; reportLimit: number } | null;
+
+  /** The engine, with the #272 seam replaced by a recorder. */
+  function coreWithSeam(): { core: typeof neoCore; asked: Policy[] } {
+    const asked: Policy[] = [];
+    const core = {
+      ...neoCore,
+      setPrefErrorPolicy: (p: Policy): void => {
+        asked.push(p);
+      },
+    };
+    return { core: core as typeof neoCore, asked };
+  }
+
+  /** An engine from before the seam existed. */
+  function coreWithoutSeam(): typeof neoCore {
+    const core: Record<string, unknown> = { ...neoCore };
+    delete core["setPrefErrorPolicy"];
+    return core as unknown as typeof neoCore;
+  }
+
+  it("asks core to keep reading, and to report the first 20 mistakes", () => {
+    const { core, asked } = coreWithSeam();
+    plugin.hooks({ flags: { "qol.forgivingPrefFiles": true }, core });
+    /* 20 is the number core itself used to carry as PARSE_ERROR_LIMIT. The
+     * difference from that cap is `continueAfterError`: the old one stopped
+     * applying the file as well as stopping the report. */
+    expect(asked).toEqual([{ continueAfterError: true, reportLimit: 20 }]);
+  });
+
+  it("asks for nothing at all when the toggle is off", () => {
+    /* "A disabled mod's patches DO NOT EXIST". Off must not install a policy
+     * that says "behave like core would have anyway" - it must not call. */
+    const off = coreWithSeam();
+    plugin.hooks({ flags: { "qol.forgivingPrefFiles": false }, core: off.core });
+    expect(off.asked).toEqual([]);
+
+    const absent = coreWithSeam();
+    plugin.hooks({ flags: {}, core: absent.core });
+    expect(absent.asked).toEqual([]);
+  });
+
+  it("adds no ModHooks member, because this is not a hook", () => {
+    const { core } = coreWithSeam();
+    expect(plugin.hooks({ flags: { "qol.forgivingPrefFiles": true }, core })).toEqual({});
+  });
+
+  it("is inert, and says so, on an engine without the seam", () => {
+    /* manifest.json's engine range should have refused this pairing. If it
+     * somehow does not, the mod must not throw at boot - and must not be
+     * silently inert either, which is the failure this project keeps finding. */
+    const said: string[] = [];
+    expect(() =>
+      plugin.hooks({
+        flags: { "qol.forgivingPrefFiles": true },
+        core: coreWithoutSeam(),
+        log: (m) => said.push(m),
+      }),
+    ).not.toThrow();
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/too old/);
+  });
+});
+
 describe("qol.autoDig: walking into diggable terrain", () => {
   it("digs once, spends a move, and does not step onto the grid", () => {
     const { state, dir, grid } = dugGame();
