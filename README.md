@@ -1,4 +1,4 @@
-# qol — Quality of Life
+# qol: Quality of Life
 
 Conveniences for [Neo Angband](https://github.com/neostryder/neo-angband) that are
 **not** part of faithful Angband, as a mod.
@@ -10,7 +10,7 @@ Angband 4.2.6 plays it.
 ## What it is not
 
 It does not touch Angband's own options. Those ship in the game with their upstream
-defaults, and this mod has no opinion about them — if you want `auto_more` or
+defaults, and this mod has no opinion about them: if you want `auto_more` or
 `show_damage`, they are in the game's Options screen and always were. What is here is
 behaviour Angband does not have.
 
@@ -25,7 +25,7 @@ behaviour Angband does not have.
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
-should be the same shape — installed by the same code, gated by the same checks.
+should be the same shape, installed by the same code, gated by the same checks.
 
 **From 0.13.0 this mod needs engine 0.18.0 or later** (`"engine": ">=0.18.0"`), and
 the game refuses to load it on anything older rather than showing you two toggles it
@@ -34,7 +34,7 @@ cannot honour. 0.12.0 remains the version for a 0.17.0 game.
 ### Why remembering settings is a mod and not a fix
 
 Angband keeps a character's options inside that character's save and nowhere else, so
-they die with the character — every new life starts by setting them all again.
+they die with the character, and every new life starts by setting them all again.
 Upstream's answer is the pref file (`s` / `r` in the options menu), a file you have to
 know exists and remember to write. That is not a bug either, so core keeps it, and the
 convenience lives here.
@@ -42,12 +42,12 @@ convenience lives here.
 It needs three things from the engine, and all three are general seams rather than
 anything named after this mod: `ModHooks.optionsChanged` (the game says when you have
 finished changing settings), `ctx.prefs` (somewhere to keep data that outlives a
-character — the mod's save bag is *inside* the save and dies with it), and
+character; the mod's save bag is *inside* the save and dies with it), and
 `ctx.newCharacter` (whether this character was just created, which a mod cannot work
 out for itself because the game autosaves the moment one is born).
 
 Three deliberate exclusions. **Birth options** are frozen at creation and the engine
-refuses to change them afterwards — they already carry forward by the game's own route,
+refuses to change them afterwards, and they already carry forward by the game's own route,
 because the birth options editor is seeded from your last character. **Cheat and score
 options** are excluded unless you turn the second toggle on: switching a cheat option
 on forces its `score_` twin, which permanently bars that character from the high score
@@ -64,7 +64,7 @@ Angband 4.2.6 stops dead at the first line of a pref file it cannot parse:
 costs you the whole rest of the pack, silently. That is a wart, not a bug, so
 core keeps it.
 
-The engine used to be forgiving instead — it carried a twenty-error cap of its
+The engine used to be forgiving instead: it carried a twenty-error cap of its
 own, with an environment variable to change it. A citation sweep found no such
 thing anywhere in Angband 4.2.6, which made it an improvement the port had added
 rather than a behaviour it had reproduced, and the port adds nothing. So it was
@@ -74,8 +74,8 @@ file and only limits what you are **told**.
 
 It needs one general seam, named after nothing in this mod:
 `setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks`
-member because the three readers it governs — the `=` menu's "Load a user pref
-file", a mod's own `prefs` resource and the graphics pack loader — have no game
+member because the three readers it governs (the `=` menu's "Load a user pref
+file", a mod's own `prefs` resource and the graphics pack loader) have no game
 state to hang a hook on, and two of them run before there is a game at all.
 
 ### Why auto-dig is a mod and not a fix
@@ -83,7 +83,7 @@ state to hang a hook on, and two of them run before there is a game at all.
 Faithful 4.2.6 spends no energy when you walk into diggable terrain: you bump it and
 nothing happens. That is not a bug, it is what the C does
 (`move_player`, `cmd-cave.c`), and Neo Angband's rule is that core keeps the warts. So
-the behaviour lives here, and it lives here *completely* — there is no `qol.autoDig`
+the behaviour lives here, and it lives here *completely*: there is no `qol.autoDig`
 string and no dig-on-walk branch anywhere in the engine. Delete this mod and the code
 is gone, not merely switched off.
 
@@ -91,22 +91,22 @@ It reaches two of the engine's own public functions rather than reimplementing t
 (`movementTunnelTest` for the decision, `tunnelAux` for the attempt), because a
 reimplemented dig roll would drift from the tunnel command's. The decision half draws
 no randomness, so a walk this mod declines to handle leaves the RNG stream exactly
-where faithful core would — which is what makes it safe to enable partway through a
+where faithful core would, which is what makes it safe to enable partway through a
 character.
 
 ## Installing
 
 Two files: `manifest.json` and `plugin.js`. Any of:
 
-- **In the game** — Mods → **Install a mod...**, which fetches this repository at a
+- **In the game** - Mods → **Install a mod...**, which fetches this repository at a
   release tag and checks every file against a SHA-256 that ships inside the game. A
   replaced tag or an intercepted download fails rather than runs. This is the path that
   works in every browser, including the ones with no directory picker.
-- **A folder** — clone this repository into your mods directory, or point the browser
+- **A folder** - clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
 `plugin.js` is generated from `plugin.ts` in this repository. It is committed because
-that is what an install fetches. Edit the source, not this file — and if you are
+that is what an install fetches. Edit the source, not this file, and if you are
 reading it to decide whether to trust it, that is exactly why it ships unminified.
 
 ## Working on it
@@ -124,7 +124,7 @@ npm run verify
 ```
 
 That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source — the last one matters more than it looks. The catalogue's SHA-256
+build of the source, and the last one matters more than it looks. The catalogue's SHA-256
 is taken **from** `plugin.js`, so a stale artefact verifies perfectly and is the file
 players actually run.
 
@@ -178,7 +178,7 @@ in the main repository is the complete answer.
 
 ## Licence
 
-Same dual licence as Neo Angband and Angband — GPL v2 or the Angband licence. See
+Same dual licence as Neo Angband and Angband: GPL v2 or the Angband licence. See
 [LICENSE.md](LICENSE.md).
 
 ## Credits
