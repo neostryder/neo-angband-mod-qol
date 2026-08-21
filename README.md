@@ -99,9 +99,12 @@ character.
 Two files: `manifest.json` and `plugin.js`. Any of:
 
 - **In the game** - Mods → **Install a mod...**, which fetches this repository at a
-  release tag and checks every file against a SHA-256 that ships inside the game. A
-  replaced tag or an intercepted download fails rather than runs. This is the path that
-  works in every browser, including the ones with no directory picker.
+  release tag, never a branch, so what arrives cannot change under you afterwards. The
+  install records a SHA-256 of every byte that arrived, which is what lets the manager
+  answer later whether the copy on your machine has changed. It cannot tell you whether
+  what arrived is what was published here, there being nothing to compare a first
+  download against. This is the path that works in every browser, including the ones
+  with no directory picker.
 - **A folder** - clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
