@@ -4,8 +4,7 @@
  * Nothing in this file is compiled into core. Delete this folder and the game
  * loses auto-dig entirely - there is no `qol.autoDig` string, and no dig-on-walk
  * branch, anywhere in packages/core. That is the whole point of the mod being a
- * mod (neostryder, 2026-07-29: "the whole point of making them mods was to exclude
- * them from the core game").
+ * mod: making something a mod means excluding it from the core game (2026-07-29).
  *
  * ------------------------------------------------------------------
  * ENTRY POINT CONTRACT - one shape, for every mod and every front end
@@ -239,9 +238,9 @@ export default {
      * because core reproduces 4.2.6.
      *
      * Until #272 the port did not: it carried a 20-error cap of its own, with an
-     * environment override, which is a convenience Angband never shipped. The
-     * owner's ruling was that a convenience belongs in a mod, so here it is -
-     * and it is BETTER than the thing it replaces, because the old cap still
+     * environment override, which is a convenience Angband never shipped. A
+     * convenience belongs in a mod, so here it is - and it is BETTER than the
+     * thing it replaces, because the old cap still
      * threw the rest of the file away once it was reached. This applies the
      * whole file and only limits what you are TOLD.
      *
