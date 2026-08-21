@@ -1,7 +1,7 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "shape": "content",
   "facets": [
     "content",
