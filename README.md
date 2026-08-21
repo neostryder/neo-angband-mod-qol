@@ -98,7 +98,7 @@ character.
 
 Two files: `manifest.json` and `plugin.js`. Any of:
 
-- **In the game** - Mods → **Install a mod...**, which fetches this repository at a
+- **In the game** - Mods -> **Install a mod...**, which fetches this repository at a
   release tag, never a branch, so what arrives cannot change under you afterwards. The
   install records a SHA-256 of every byte that arrived, which is what lets the manager
   answer later whether the copy on your machine has changed. It cannot tell you whether
@@ -127,16 +127,18 @@ npm run verify
 ```
 
 That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source, and the last one matters more than it looks. The catalogue's SHA-256
-is taken **from** `plugin.js`, so a stale artefact verifies perfectly and is the file
-players actually run.
+build of the source, and the last one matters more than it looks. An install fetches the
+committed `plugin.js` from a pinned tag and runs it as it is; nothing rebuilds it on the
+way in. So a stale artefact passes every other check and is the file players actually
+run, and `npm run check` is the only thing that looks.
 
-One external dependency, and it is a checkout rather than a package: the game's content
-pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin
-builder both live in the game's repository. Clone
-[neo-angband](https://github.com/neostryder/neo-angband) as a sibling of this
-directory, or set `NEO_ANGBAND_REPO` to where it already is. The engine itself comes
-from npm; only the pack and the build tool need the checkout.
+No checkout of the game is needed. The engine, the content pack (Angband 4.2.6
+gamedata, which the tests generate levels from) and the plugin builder are all
+published packages, so `npm ci` is the whole setup and the suite proves this mod
+against exactly what a third-party author would install. A sibling checkout of
+[neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO`
+pointing at one, is an override for developing against an engine change that has not
+reached the registry yet.
 
 ```bash
 npm run build     # rebuild plugin.js after editing plugin.ts
