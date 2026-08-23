@@ -8,6 +8,16 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+## 0.15.2
+
+### Fixed
+
+- The development lockfile resolved a `nanoid` version covered by an npm High
+  advisory (custom generators can loop indefinitely when size is zero) through
+  a transitive PostCSS dependency. `nanoid` is a development-only dependency
+  not reachable from any shipped code path in this mod; the lockfile now
+  resolves the fixed version.
+
 ## 0.15.1
 
 ### Fixed
