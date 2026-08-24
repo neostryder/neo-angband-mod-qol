@@ -1,6 +1,6 @@
 {
   "name": "neo-angband-mod-qol",
-  "version": "0.15.2",
+  "version": "0.15.3",
   "private": true,
   "description": "Quality-of-life conveniences for Neo Angband, as a mod",
   "license": "GPL-2.0-only",

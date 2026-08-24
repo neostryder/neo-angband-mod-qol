@@ -8,6 +8,11 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+## 0.15.3
+
+Added a Terms of Use and a shared Code of Conduct alongside the existing
+LICENSE policy, and a README screenshot of the mod's enable prompt.
+
 ## 0.15.2
 
 ### Fixed
