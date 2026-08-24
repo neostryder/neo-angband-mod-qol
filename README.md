@@ -7,6 +7,8 @@ Conveniences for [Neo Angband](https://github.com/neostryder/neo-angband) that a
 switch you can turn off on its own, and disabling the mod leaves the game exactly as
 Angband 4.2.6 plays it.
 
+![The mod manager's confirmation screen for turning Quality of Life on](docs/img/qol-enable.jpg)
+
 ## What it is not
 
 It does not touch Angband's own options. Those ship in the game with their upstream
