@@ -188,6 +188,11 @@ For anything that should not be public, including a security report:
 Asking about AI use in this project? [AI_USAGE_POLICY.md](AI_USAGE_POLICY.md) is
 the complete answer.
 
+[TERMS.md](TERMS.md) covers use of this mod. The core repository's
+[PRIVACY.md](https://github.com/neostryder/neo-angband/blob/master/PRIVACY.md)
+covers what is stored and what network requests the game makes. Project
+participation is subject to the shared [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 ## Licence
 
 Same dual licence as Neo Angband and Angband: GPL v2 or the Angband licence. See
