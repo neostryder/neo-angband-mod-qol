@@ -2,7 +2,7 @@
 
 Effective date: 2026-08-23.
 
-Quality of Life is an optional Neo Angband mod folder, not a separate hosted service. It provides convenience behavior that is not part of the faithful Angband 4.2.6 base game. Current options include auto-dig on movement, remembered settings, optional remembered cheat settings, and continued pref-file reading after an error. The mod is disabled until enabled, and its individual options can be changed in the mod controls.
+Quality of Life is an optional Neo Angband mod folder, not a separate hosted service. It provides convenience behavior that is not part of the faithful Angband 4.2.6 base game. Current options include auto-dig on movement, remembered settings, optional remembered cheat settings, continued pref-file reading after an error, and hover cards on the Map overview screen. The mod is disabled until enabled, and its individual options can be changed in the mod controls.
 
 When its remembered-settings option is enabled, the mod stores selected option values in the host's local mod-preference storage so that they can be applied to new characters. It does not create an account or send those preferences to a project-operated service. Remembering cheat options is off by default because those options can permanently exclude a character from the score list. A player remains responsible for selecting settings and keeping a desired export or backup of local game data.
 
