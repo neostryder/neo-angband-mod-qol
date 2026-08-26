@@ -1,4 +1,4 @@
-# qol: Quality of Life
+# Quality of Life
 
 Conveniences for [Neo Angband](https://github.com/neostryder/neo-angband) that are
 **not** part of faithful Angband, as a mod.
