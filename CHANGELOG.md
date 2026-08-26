@@ -8,6 +8,17 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+## Unreleased
+
+### Added
+
+- Hover cards on the Map overview (`qol.mapHoverCards`, off by default):
+  resting the mouse over an object or a creature on the `M` screen shows a
+  card describing what you currently know about it, gated by the same
+  identify/memory rules the main screen uses. Objects and creatures only,
+  not plain terrain. Desktop with a mouse; a touch-only device leaves this
+  off regardless of the toggle.
+
 ## 0.15.3
 
 Added a Terms of Use and a shared Code of Conduct alongside the existing

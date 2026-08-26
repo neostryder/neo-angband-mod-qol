@@ -29,7 +29,7 @@ import {
 } from "@rpgm-tools/neo-angband-core";
 import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import plugin from "./plugin";
+import plugin, { hoverCardText, hoverCaveGrid, hoverCellAt } from "./plugin";
 
 /**
  * The mod's behaviour, driven the way the HOST drives it.
@@ -499,5 +499,95 @@ describe("remember my settings", () => {
         newCharacter: true,
       }),
     ).not.toThrow();
+  });
+});
+
+/**
+ * qol.mapHoverCards: the pure geometry and the "objects and creatures only"
+ * gate, tested directly - the DOM wiring itself (installMapHoverCards) is not
+ * unit-tested, the same split this game's own mapview.ts draws between pure
+ * scan/scale arithmetic and the main.ts wiring around it.
+ */
+describe("qol.mapHoverCards: pixel/cell/cave geometry", () => {
+  it("maps a client point to a cell, centred in a box with room to spare", () => {
+    /* 800x480 box: scale = min(800/(16*80), 480/(24*24)) = min(0.625, 0.833) =
+     * 0.625 -> cellW = floor(16*0.625) = 10, cellH = floor(24*0.625) = 15.
+     * Grid is 80*10=800 wide (offsetX 0) and 24*15=360 tall (offsetY (480-360)/2=60). */
+    const rect = { left: 100, top: 200, width: 800, height: 480 };
+    expect(hoverCellAt(rect, 100, 260)).toEqual({ col: 0, row: 0 });
+    expect(hoverCellAt(rect, 105, 265)).toEqual({ col: 0, row: 0 });
+    expect(hoverCellAt(rect, 115, 275)).toEqual({ col: 1, row: 1 });
+  });
+
+  it("is null outside the box, including the letterboxed margin", () => {
+    const rect = { left: 100, top: 200, width: 800, height: 480 };
+    expect(hoverCellAt(rect, 100, 205)).toBeNull(); // inside the top margin
+    expect(hoverCellAt(rect, 50, 260)).toBeNull(); // left of the canvas rect
+    expect(hoverCellAt(rect, 100 + 800, 260)).toBeNull(); // past the last column
+  });
+
+  it("is null for a degenerate (zero-size) rect", () => {
+    expect(hoverCellAt({ left: 0, top: 0, width: 0, height: 100 }, 0, 0)).toBeNull();
+  });
+
+  it("inverts buildOverview's scaling for a level that fits the box", () => {
+    /* width=40,height=20 both fit under TERM_COLS-2=78 / TERM_ROWS-2=22, so the
+     * box IS the level 1:1 (mapW=40, mapH=20) - screen cell (c+1, r+1) is
+     * exactly cave (c, r). */
+    expect(hoverCaveGrid(1, 1, 40, 20)).toEqual({ x: 0, y: 0 });
+    expect(hoverCaveGrid(40, 20, 40, 20)).toEqual({ x: 39, y: 19 });
+  });
+
+  it("is null on the border or outside the box", () => {
+    expect(hoverCaveGrid(0, 1, 40, 20)).toBeNull(); // left border column
+    expect(hoverCaveGrid(1, 0, 40, 20)).toBeNull(); // top border row
+    expect(hoverCaveGrid(41, 1, 40, 20)).toBeNull(); // past the level's own width
+  });
+
+  it("is null off a zero-size level", () => {
+    expect(hoverCaveGrid(1, 1, 0, 20)).toBeNull();
+  });
+
+  it("picks a representative cave cell when several collapse onto one screen cell", () => {
+    /* width=200 > TERM_COLS-2=78, so mapW=78 and several cave columns share a
+     * screen column. Screen col 1 (bx=0) covers the bucket floor(x*78/200)=0,
+     * i.e. cave x in [0, 2]; this picks the bucket's centre. */
+    const grid = hoverCaveGrid(1, 1, 200, 20);
+    expect(grid).not.toBeNull();
+    expect(grid!.x).toBeGreaterThanOrEqual(0);
+    expect(grid!.x).toBeLessThan(3);
+  });
+});
+
+describe("qol.mapHoverCards: objects-and-creatures-only scope", () => {
+  const grid = { x: 5, y: 5 };
+
+  it("shows nothing for plain terrain - no monster, no known object", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "You see a granite wall.", mon: null }),
+      knownPile: () => [],
+    };
+    expect(hoverCardText(core, {} as GameState, grid)).toBeNull();
+  });
+
+  it("shows the card for an obvious monster", () => {
+    const core = {
+      describeLookGrid: () => ({
+        text: "You see a wounded jackal, 3 S, 1 W of you.",
+        mon: { name: "jackal" },
+      }),
+      knownPile: () => [],
+    };
+    expect(hoverCardText(core, {} as GameState, grid)).toBe(
+      "You see a wounded jackal, 3 S, 1 W of you.",
+    );
+  });
+
+  it("shows the card for a remembered floor object, even with no monster", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "You see a Dagger, 2 S of you.", mon: null }),
+      knownPile: () => [{ kind: "dagger" }],
+    };
+    expect(hoverCardText(core, {} as GameState, grid)).toBe("You see a Dagger, 2 S of you.");
   });
 });

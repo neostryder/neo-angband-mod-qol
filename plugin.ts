@@ -46,7 +46,7 @@
  * no private path and no test hook.
  */
 
-import type { CaveCmdDeps, ModHooks } from "@rpgm-tools/neo-angband-core";
+import type { CaveCmdDeps, GameState, ModHooks } from "@rpgm-tools/neo-angband-core";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -184,6 +184,266 @@ function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): bool
   if (opts.isBirth(name)) return false;
   if (opts.isCheat(name) || opts.isScore(name)) return cheats;
   return true;
+}
+
+/*
+ * "Hover cards on the Map overview" (qol.mapHoverCards): resting the mouse
+ * over the (M)ap overview shows what the player currently knows about the
+ * object or creature under the cursor.
+ *
+ * Scope decision: OBJECTS AND CREATURES ONLY, not every cell. The issue
+ * offered both; this mod already favours staying out of the way (every
+ * toggle here is something a player can switch off, and this one defaults
+ * off), and a card on every floor/wall/rubble cell would be exactly the kind
+ * of screen noise that convention avoids. Revisit if a player asks for the
+ * terrain-included version.
+ *
+ * WHY THIS IS RAW DOM RATHER THAN A `regions()` DECLARATION. A mod's own
+ * declared region only paints while the shell's main render loop runs, and
+ * the (M)ap overview holds the terminal without going through it - core
+ * draws the box once (paintLevelMapOnTerminal, overlay.ts) and does not
+ * repaint on mouse movement, so a region's `paint()` never fires while the
+ * overview is open. The overview's own dismiss handlers are raw
+ * `window`/`document` listeners for the same reason (any key, any pointer
+ * down) - this mirrors that, the way neo-angband-mod-forge's own overlay
+ * does for the same class of problem (its overlay.ts: "a mod creates its own
+ * elements from the ambient document ... and manages their own listeners").
+ * No manifest capability gates this: none exists for it, by that same
+ * mod's own reasoning ("a ui:dom.overlay capability would add a consent
+ * string and no containment").
+ *
+ * WHY "IS THE OVERVIEW OPEN" IS A GUESS. Nothing in the mod ABI publishes
+ * which screen is currently on top - only `frontend()` (a full renderer
+ * replacement, wildly disproportionate to a hover card) ever sees that. This
+ * arms on an 'M' keydown and disarms on the very next key or pointer press,
+ * mirroring the overview's own dismiss condition. A player who types a
+ * capital M elsewhere (naming a character) can arm this for one keystroke;
+ * the very next key or click disarms it again, and nothing is drawn unless
+ * the mouse is also over the game canvas AND a resolvable cell AND a real
+ * knowledge-gated object or creature, so the false-positive window is a
+ * single frame with nothing visible in practice.
+ *
+ * WHY THE PIXEL<->CELL MATH IS REPLICATED RATHER THAN IMPORTED. A mod
+ * cannot import packages/web (only packages/core, and only for types) - the
+ * game's own `GlyphTerm.cellAt` (term.ts) is unreachable. The formula below
+ * mirrors its FIXED-mode branch (term.ts `fitFixed`/`cellAt`): the terminal
+ * is TERM_COLS x TERM_ROWS (term.ts FIXED_COLS/FIXED_ROWS - the classic
+ * Angband 80x24, guarded by this project's own parity mandate, about as
+ * stable a constant as this codebase has) and the default bitmap glyph is
+ * GLYPH_W x GLYPH_H (font-16x24.ts FONT_16X24). A player on a custom bitmap
+ * font, a vector-font fallback, or the "reflow" responsive mode (an opt-in
+ * not offered to players today per term.ts's own comment) gets a card that
+ * may sit a little off the exact cell - a cosmetic rough edge, not a
+ * function break, and a smaller ask than a core ABI change for 1.0.
+ */
+
+/** term.ts FIXED_COLS/FIXED_ROWS - the game's terminal grid. */
+const TERM_COLS = 80;
+const TERM_ROWS = 24;
+/** font-16x24.ts FONT_16X24 - the default bitmap glyph's native pixel size. */
+const GLYPH_W = 16;
+const GLYPH_H = 24;
+
+/** A plain rectangle, the shape `Element.getBoundingClientRect()` answers -
+ * spelled out so this stays testable without a real DOM element. */
+interface ClientRectLike {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Client-space pixel -> character-grid cell, mirroring `GlyphTerm.cellAt`'s
+ * fixed-mode formula (term.ts): the largest uniformly-scaled glyph that fits
+ * the box, centred (letterboxed). Null outside the grid.
+ */
+export function hoverCellAt(
+  rect: ClientRectLike,
+  clientX: number,
+  clientY: number,
+): { readonly col: number; readonly row: number } | null {
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const scale = Math.min(rect.width / (GLYPH_W * TERM_COLS), rect.height / (GLYPH_H * TERM_ROWS));
+  const cellW = Math.max(4, Math.floor(GLYPH_W * scale));
+  const cellH = Math.max(6, Math.floor(GLYPH_H * scale));
+  const offsetX = Math.max(0, Math.floor((rect.width - cellW * TERM_COLS) / 2));
+  const offsetY = Math.max(0, Math.floor((rect.height - cellH * TERM_ROWS) / 2));
+  const col = Math.floor((clientX - rect.left - offsetX) / cellW);
+  const row = Math.floor((clientY - rect.top - offsetY) / cellH);
+  if (col < 0 || col >= TERM_COLS || row < 0 || row >= TERM_ROWS) return null;
+  return { col, row };
+}
+
+/**
+ * The (M)ap overview's own box: a 1-cell '+'-cornered border (window_make,
+ * ui-output.c) around min(TERM_COLS-2, width) x min(TERM_ROWS-2, height)
+ * content cells (see this game's overlay.ts paintLevelMapOnTerminal and
+ * mapview.ts buildOverview, whose scaling this inverts). Screen cell
+ * (col, row) -> the cave grid it stands for; null on the border, outside the
+ * box, or off a level too small to fill it.
+ */
+export function hoverCaveGrid(
+  col: number,
+  row: number,
+  width: number,
+  height: number,
+): { readonly x: number; readonly y: number } | null {
+  if (width < 1 || height < 1) return null;
+  const mapW = Math.min(TERM_COLS - 2, width);
+  const mapH = Math.min(TERM_ROWS - 2, height);
+  if (mapW < 1 || mapH < 1) return null;
+  const bx = col - 1;
+  const by = row - 1;
+  if (bx < 0 || bx >= mapW || by < 0 || by >= mapH) return null;
+  /* buildOverview scales cave (x,y) to floor(x*mapW/width), floor(y*mapH/height)
+   * - several cave cells can land on one screen cell. This inverts it by
+   * taking the CENTRE of the bucket that would have scaled here, which is
+   * exact when the level fits the box and a representative pick otherwise. */
+  const x = Math.min(width - 1, Math.floor(((bx + 0.5) * width) / mapW));
+  const y = Math.min(height - 1, Math.floor(((by + 0.5) * height) / mapH));
+  return { x, y };
+}
+
+/** The subset of ctx.core this feature calls, structurally - see this file's
+ * header on why a mod names what it touches rather than importing the whole
+ * shape for a cast. Both are public exports of the engine (game/target-loop.ts,
+ * game/known.ts). */
+interface LookApi {
+  describeLookGrid(
+    state: GameState,
+    grid: { x: number; y: number },
+    mode: number,
+  ): { text: string; mon: unknown };
+  knownPile(state: GameState, grid: { x: number; y: number }): readonly unknown[];
+}
+
+/**
+ * The card's text for one cave grid, or null when this grid is not worth a
+ * card under this feature's scope (objects and creatures only - see this
+ * section's header). `describeLookGrid` already applies the same knowledge
+ * gate the main screen's own 'l' look command does, so the text here is
+ * never more than the player already knows.
+ */
+export function hoverCardText(
+  core: LookApi,
+  state: GameState,
+  grid: { x: number; y: number },
+): string | null {
+  const result = core.describeLookGrid(state, grid, 0);
+  const hasObject = core.knownPile(state, grid).length > 0;
+  if (!result.mon && !hasObject) return null;
+  return result.text;
+}
+
+let hoverCardsWired = false;
+
+/** Style + position the card element, clamped to the viewport, near the
+ * cursor rather than exactly under it (so the cursor is not hidden by it). */
+function positionHoverCard(el: HTMLElement, clientX: number, clientY: number): void {
+  const GAP = 14;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  let left = clientX + GAP;
+  let top = clientY + GAP;
+  if (left + w > vw) left = clientX - GAP - w;
+  if (top + h > vh) top = clientY - GAP - h;
+  el.style.left = `${String(Math.max(0, left))}px`;
+  el.style.top = `${String(Math.max(0, top))}px`;
+}
+
+function buildHoverCardElement(): HTMLDivElement {
+  const el = document.createElement("div");
+  el.setAttribute("data-qol-map-hover-card", "");
+  Object.assign(el.style, {
+    position: "fixed",
+    zIndex: "2100",
+    pointerEvents: "none",
+    display: "none",
+    maxWidth: "320px",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    font: "13px monospace",
+    lineHeight: "1.3",
+    whiteSpace: "pre-wrap",
+    background: "rgba(12,12,16,0.92)",
+    color: "#e8e8e8",
+    border: "1px solid #666",
+  });
+  document.body.appendChild(el);
+  return el;
+}
+
+/**
+ * Wire the feature up, once, for the lifetime of this page - see this
+ * section's header for why register() (which sees ctx.state) rather than
+ * hooks() (which never does).
+ */
+function installMapHoverCards(ctx: HookCtx): void {
+  if (ctx.flags["qol.mapHoverCards"] !== true) return;
+  if (hoverCardsWired) return;
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  /* Touch-only surface: no hover exists to drive this, so it stays off
+   * regardless of the toggle - the manifest's own "desktop with a mouse
+   * only" line. Mirrors this game's own touch-action-bar gate (main.ts:
+   * `matchMedia("(pointer: coarse)")`), inverted. */
+  try {
+    if (window.matchMedia?.("(pointer: coarse)").matches) return;
+  } catch {
+    /* matchMedia missing or throwing (a harness, an old embedder): treat as
+     * "cannot tell", and proceed - the desktop case this feature is for. */
+  }
+  hoverCardsWired = true;
+
+  const core = ctx.core as unknown as LookApi;
+  const card = buildHoverCardElement();
+  let mapOpenGuess = false;
+
+  const hide = (): void => {
+    card.style.display = "none";
+  };
+
+  document.addEventListener("keydown", (ev) => {
+    mapOpenGuess = ev.key === "M";
+    if (!mapOpenGuess) hide();
+  });
+  window.addEventListener("pointerdown", () => {
+    mapOpenGuess = false;
+    hide();
+  });
+  document.addEventListener("pointermove", (ev) => {
+    if (!mapOpenGuess) return;
+    const canvas = document.getElementById("game");
+    if (!canvas) {
+      hide();
+      return;
+    }
+    const cell = hoverCellAt(canvas.getBoundingClientRect(), ev.clientX, ev.clientY);
+    if (!cell) {
+      hide();
+      return;
+    }
+    const state = ctx.state as unknown as GameState | undefined;
+    if (!state?.chunk) {
+      hide();
+      return;
+    }
+    const grid = hoverCaveGrid(cell.col, cell.row, state.chunk.width, state.chunk.height);
+    if (!grid) {
+      hide();
+      return;
+    }
+    const text = hoverCardText(core, state, grid);
+    if (!text) {
+      hide();
+      return;
+    }
+    card.textContent = text;
+    card.style.display = "block";
+    positionHoverCard(card, ev.clientX, ev.clientY);
+  });
 }
 
 export default {
@@ -363,8 +623,14 @@ export default {
    *
    * The registry host is untouched. This mod declares no capabilities, so every
    * facade on it would throw - and it needs none of them.
+   *
+   * ALSO WHERE qol.mapHoverCards WIRES ITSELF UP (installMapHoverCards, above) -
+   * same reason: it is the one seam that sees a live ctx.state, and unlike the
+   * remember-settings apply half it is not gated on ctx.newCharacter, so it
+   * runs first and unconditionally.
    */
   register(_host: unknown, ctx: HookCtx): void {
+    installMapHoverCards(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;
