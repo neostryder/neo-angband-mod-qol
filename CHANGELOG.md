@@ -10,6 +10,8 @@ are, however small.
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-26
+
 ### Added
 
 - Hover cards on the Map overview (`qol.mapHoverCards`, off by default):
