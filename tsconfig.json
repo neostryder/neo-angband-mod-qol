@@ -8,11 +8,15 @@
     "The repository root IS the mod folder - manifest.json and plugin.js sit beside the",
     "source they are built from, because that pair is what the game fetches and hashes.",
     "No composite/declaration: nothing consumes this as a library. plugin.js is the",
-    "artefact, and esbuild produces it - tsc is only ever the typechecker here."
+    "artefact, and esbuild produces it - tsc is only ever the typechecker here.",
+    "\"DOM\" is here for qol.mapHoverCards, which reaches the ambient document/window",
+    "directly (there is no host seam for a mod's own overlay - see plugin.ts). This is",
+    "TYPE-ONLY: esbuild erases it, and the running mod still touches no bundled DOM",
+    "library, only whatever global the page it loads into already provides."
   ],
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,

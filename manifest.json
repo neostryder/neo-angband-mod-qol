@@ -39,6 +39,12 @@
       "title": "Remember cheat options too",
       "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default because turning a cheat option on permanently bars that character from the high score list, and inheriting that without asking is not a surprise anyone wants. Needs \"Remember my settings\" to be on.",
       "default": false
+    },
+    {
+      "flag": "qol.mapHoverCards",
+      "title": "Hover cards on the Map overview",
+      "description": "On the (M)ap overview screen, resting the mouse over an object or a creature shows a card with whatever you currently know about it - the same knowledge gate identify and memory already apply on the main screen; nothing is revealed early. Plain terrain (floor, wall, rubble and the like) stays quiet, so the overview does not fill with cards on every cell. Desktop with a mouse only - a touch-only device (no hover) leaves this off regardless of the toggle.",
+      "default": false
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-qol"
