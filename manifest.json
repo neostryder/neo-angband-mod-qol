@@ -52,7 +52,7 @@
     {
       "flag": "qol.zoomPan",
       "title": "Zoom, pan, and responsive layout",
-      "description": "Use a real responsive grid whose visible rows and columns change with zoom. Ctrl-Plus and Ctrl-Minus zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. The sidebar stays at the top-left, scales separately, and scrolls on narrow screens. Display choices are shared by every character on this device.",
+      "description": "Use a real responsive grid whose visible rows and columns change with zoom. Ctrl-Plus and Ctrl-Minus zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. The sidebar stays at the top-left, scales separately, and uses fitted pages on narrow screens. Display choices are shared by every character on this device.",
       "default": true
     },
     {

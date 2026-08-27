@@ -25,7 +25,7 @@ behaviour Angband does not have.
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 | **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
 | **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
-| **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and moves to a scrollable top strip on narrow screens. |
+| **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and uses fitted pages on narrow screens. |
 | **Sharpen zoomed graphics** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced. Pixel-art edges become crisper; ASCII is unchanged. |
 
 The mod exists as its own repository because a mod that is going to grow should not
@@ -56,15 +56,28 @@ fractional cave offset.
   play or map view everywhere else.
 - A two-finger gesture is assigned by its starting midpoint. Pinch on the view
   zooms it and a two-finger swipe pans it; on the sidebar, pinch scales the text
-  and a two-finger swipe scrolls the sidebar in either direction.
+  and a two-finger swipe changes the fitted status page.
 
-The ordinary roomy layout keeps a scrolling sidebar at the top-left. Below 48
-terminal columns it becomes a horizontally scrolling strip under the message
-line, still anchored at the top-left, so the remaining phone viewport belongs
-to the map. Reflow normally honors the selected cell height, but can reduce it
-enough to preserve a minimum 20 by 12 terminal on a very small display. Map
+The ordinary roomy layout keeps all status lines at the top-left when they fit.
+If its height is short, or if the grid falls below 48 columns and changes to a
+top strip, the sidebar shows as many complete entries as fit plus a page button.
+The button and a two-finger swipe reach the remaining pages. It never uses a
+horizontal or vertical scrollbar. Reflow normally honors the selected cell
+height, but can reduce it enough to preserve at least a 20 by 12 terminal on a
+very small display. Phone layouts reserve at least 24 columns so short footer
+prompts remain complete.
+
+The responsive terminal is centered in both axes. Its outer margins absorb the
+few pixels left after fitting complete rows and columns, so an edge never shows
+part of a cell. Every resize or phone rotation refits the grid immediately. Map
 width, height, zoom windows, and pan origins finish on whole cells and are also
-rounded to even spans or offsets where the level bounds permit.
+rounded to even spans or offsets where the level bounds permit. The title stays
+in the engine's own centered 80 by 24 fit and ignores the saved gameplay zoom;
+gameplay reflow starts only when the character HUD appears. Footer prompts,
+character sheets, knowledge lists, and help remain terminal content. Those
+text-heavy screens temporarily use the centered fixed terminal fit so their
+80-column compositions stay complete, then restore gameplay reflow when the
+HUD returns. None of these layouts uses a browser scrollbar.
 
 The zoom level, interface scale, and map detail are one install-wide device
 preference in `ctx.prefs`, shared by every character and save. It lives beside
