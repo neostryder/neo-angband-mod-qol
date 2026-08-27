@@ -20,6 +20,6 @@ Original prompt: Build a real zoomable, pannable, responsive interface for the Q
 - Final core gate: pnpm build passed; packages/web/src passed 181 files and 3372 tests, with 1 file and 9 tests skipped.
 - Core working tree cleaned after deleting the generated visual-test profile and screenshots.
 
-## TODO
+## Completed
 
-- Commit the QoL work.
+- QoL feature committed as 138d617.
