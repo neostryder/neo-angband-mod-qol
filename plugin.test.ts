@@ -29,10 +29,12 @@ import {
 } from "@rpgm-tools/neo-angband-core";
 import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
+import { readRememberedSettings } from "./preferences";
 import plugin, {
   hoverCardContent,
   hoverCardText,
   hoverCaveGrid,
+  hoverCaveGridInView,
   hoverCellAt,
   HOVER_DWELL_MS,
   TOUCH_HOLD_MS,
@@ -414,7 +416,9 @@ describe("remember my settings", () => {
     first.set("use_sound", true);
     change(first, ON, prefs);
 
-    const stored = prefs.get() as { values: Record<string, boolean> };
+    const stored = readRememberedSettings(prefs.get());
+    expect(stored).not.toBeNull();
+    if (!stored) throw new Error("remembered settings missing");
     expect(stored.values).not.toHaveProperty("cheat_live");
     expect(stored.values).not.toHaveProperty("score_live");
     expect(stored.values["use_sound"]).toBe(true);
@@ -448,7 +452,7 @@ describe("remember my settings", () => {
     const first = new neoCore.OptionState();
     first.set("cheat_live", true);
     change(first, WITH_CHEATS, prefs);
-    expect((prefs.get() as { values: Record<string, boolean> }).values["cheat_live"]).toBe(true);
+    expect(readRememberedSettings(prefs.get())?.values["cheat_live"]).toBe(true);
 
     const next = new neoCore.OptionState();
     plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
@@ -463,7 +467,9 @@ describe("remember my settings", () => {
     const first = new neoCore.OptionState({ overrides: { birth_force_descend: true } });
     expect(first.get("birth_force_descend")).toBe(true);
     change(first, ON, prefs);
-    const stored = prefs.get() as { values: Record<string, boolean> };
+    const stored = readRememberedSettings(prefs.get());
+    expect(stored).not.toBeNull();
+    if (!stored) throw new Error("remembered settings missing");
     expect(stored.values).not.toHaveProperty("birth_force_descend");
   });
 
@@ -563,6 +569,18 @@ describe("qol.mapHoverCards: pixel/cell/cave geometry", () => {
     expect(grid).not.toBeNull();
     expect(grid!.x).toBeGreaterThanOrEqual(0);
     expect(grid!.x).toBeLessThan(3);
+  });
+
+  it("inverts buckets inside a zoomed and panned map window", () => {
+    expect(
+      hoverCaveGridInView(0, 0, 20, 10, { x: 40, y: 12 }, { width: 40, height: 20 }),
+    ).toEqual({ x: 41, y: 13 });
+    expect(
+      hoverCaveGridInView(19, 9, 20, 10, { x: 40, y: 12 }, { width: 40, height: 20 }),
+    ).toEqual({ x: 79, y: 31 });
+    expect(
+      hoverCaveGridInView(20, 9, 20, 10, { x: 40, y: 12 }, { width: 40, height: 20 }),
+    ).toBeNull();
   });
 });
 

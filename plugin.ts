@@ -47,6 +47,18 @@
  */
 
 import type { CaveCmdDeps, GameState, ModHooks } from "@rpgm-tools/neo-angband-core";
+import {
+  readRememberedSettings,
+  withRememberedSettings,
+  type RememberedSettings,
+} from "./preferences";
+import {
+  installZoomPan,
+  twoFingerGestureActive,
+  uninstallZoomPan,
+  zoomPanHud,
+  type ZoomPanContext,
+} from "./zoom-pan";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -102,11 +114,14 @@ interface HookCtx {
     get(): unknown;
     set(value: unknown): void;
   };
+  /** Live web display geometry, absent during content composition or on old hosts. */
+  readonly display?: ZoomPanContext["display"] | undefined;
   /** Whether this character was created this session rather than loaded. */
   readonly newCharacter?: boolean;
   /** The live game, when there is one. Absent during content composition. */
   readonly state?: {
     options?: OptionStateLike;
+    actor?: { readonly grid?: { readonly x: number; readonly y: number } };
   };
   /** Emit a diagnostic line; the host decides where it goes. */
   readonly log?: (msg: string) => void;
@@ -125,17 +140,6 @@ interface OptionStateLike {
   hitpointWarn: number;
   delayFactor: number;
   lazymoveDelay: number;
-}
-
-/** What this mod keeps in ctx.prefs. Versioned, so a later shape can migrate. */
-interface RememberedSettings {
-  /** The shape of this object, not the mod's version. */
-  readonly v: 1;
-  /** Option name -> value, for the options this mod is allowed to remember. */
-  readonly values: Record<string, boolean>;
-  readonly hitpointWarn: number;
-  readonly delayFactor: number;
-  readonly lazymoveDelay: number;
 }
 
 /**
@@ -252,6 +256,14 @@ interface ClientRectLike {
   readonly height: number;
 }
 
+function pointInRect(
+  rect: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  x: number,
+  y: number,
+): boolean {
+  return x >= rect.x && y >= rect.y && x < rect.x + rect.width && y < rect.y + rect.height;
+}
+
 /**
  * Client-space pixel -> character-grid cell, mirroring `GlyphTerm.cellAt`'s
  * fixed-mode formula (term.ts): the largest uniformly-scaled glyph that fits
@@ -299,9 +311,39 @@ export function hoverCaveGrid(
    * - several cave cells can land on one screen cell. This inverts it by
    * taking the CENTRE of the bucket that would have scaled here, which is
    * exact when the level fits the box and a representative pick otherwise. */
-  const x = Math.min(width - 1, Math.floor(((bx + 0.5) * width) / mapW));
-  const y = Math.min(height - 1, Math.floor(((by + 0.5) * height) / mapH));
-  return { x, y };
+  return hoverCaveGridInView(
+    bx,
+    by,
+    mapW,
+    mapH,
+    { x: 0, y: 0 },
+    { width, height },
+  );
+}
+
+/** Invert one visible map bucket into its current cave-space window. */
+export function hoverCaveGridInView(
+  bucketX: number,
+  bucketY: number,
+  mapCols: number,
+  mapRows: number,
+  origin: { readonly x: number; readonly y: number },
+  size: { readonly width: number; readonly height: number },
+): { readonly x: number; readonly y: number } | null {
+  if (
+    mapCols < 1 ||
+    mapRows < 1 ||
+    size.width < 1 ||
+    size.height < 1 ||
+    bucketX < 0 ||
+    bucketY < 0 ||
+    bucketX >= mapCols ||
+    bucketY >= mapRows
+  ) return null;
+  return {
+    x: origin.x + Math.min(size.width - 1, Math.floor(((bucketX + 0.5) * size.width) / mapCols)),
+    y: origin.y + Math.min(size.height - 1, Math.floor(((bucketY + 0.5) * size.height) / mapRows)),
+  };
 }
 
 /** What kind of content the card is describing. */
@@ -489,8 +531,12 @@ function buildHoverCardElement(): {
 function paintTilePreview(
   canvas: HTMLCanvasElement,
   grid: { x: number; y: number },
-  chunk: { width: number; height: number },
   termCell: { col: number; row: number } | null,
+  view: {
+    origin: { readonly x: number; readonly y: number };
+    size: { readonly width: number; readonly height: number };
+  },
+  termSize: { readonly cols: number; readonly rows: number },
 ): boolean {
   const ctx2d = canvas.getContext("2d");
   if (!ctx2d) return false;
@@ -503,15 +549,20 @@ function paintTilePreview(
   for (const src of overlays) {
     if (src === canvas || src.id === "game") continue;
     if (src.width < 1 || src.height < 1) continue;
-    if (chunk.width < 1 || chunk.height < 1) continue;
-    const cellW = src.width / chunk.width;
-    const cellH = src.height / chunk.height;
+    if (view.size.width < 1 || view.size.height < 1) continue;
+    const cellW = src.width / view.size.width;
+    const cellH = src.height / view.size.height;
     if (cellW < 1 || cellH < 1) continue;
+    const sourceX = grid.x - view.origin.x;
+    const sourceY = grid.y - view.origin.y;
+    if (sourceX < 0 || sourceY < 0 || sourceX >= view.size.width || sourceY >= view.size.height) {
+      continue;
+    }
     try {
       ctx2d.drawImage(
         src,
-        grid.x * cellW,
-        grid.y * cellH,
+        sourceX * cellW,
+        sourceY * cellH,
         cellW,
         cellH,
         0,
@@ -528,8 +579,8 @@ function paintTilePreview(
   const game = document.getElementById("game");
   if (!(game instanceof HTMLCanvasElement) || !termCell) return false;
   if (game.width < 1 || game.height < 1) return false;
-  const cellW = game.width / TERM_COLS;
-  const cellH = game.height / TERM_ROWS;
+  const cellW = game.width / termSize.cols;
+  const cellH = game.height / termSize.rows;
   if (cellW < 1 || cellH < 1) return false;
   try {
     ctx2d.drawImage(
@@ -598,18 +649,76 @@ function installMapHoverCards(ctx: HookCtx): void {
   ): {
     grid: { x: number; y: number };
     cell: { col: number; row: number };
-    chunk: { width: number; height: number };
+    view: {
+      origin: { x: number; y: number };
+      size: { width: number; height: number };
+    };
+    termSize: { cols: number; rows: number };
   } | null => {
     const game = document.getElementById("game");
     if (!game) return null;
-    const cell = hoverCellAt(game.getBoundingClientRect(), clientX, clientY);
-    if (!cell) return null;
     const state = ctx.state as unknown as (HoverState & GameState) | undefined;
     const chunk = state?.chunk;
     if (!chunk || chunk.width < 1 || chunk.height < 1) return null;
+    const snapshot = ctx.display?.snapshot();
+    if (snapshot?.mode === "map") {
+      const region = snapshot.regions.map;
+      const pixels = region?.pixels;
+      const cells = region?.cells;
+      if (!pixels || !cells) return null;
+
+      const view = {
+        origin: { x: snapshot.viewport.origin.x, y: snapshot.viewport.origin.y },
+        size: { width: snapshot.viewport.size.width, height: snapshot.viewport.size.height },
+      };
+      let projection = pixels;
+      let mapCols = cells.cols;
+      let mapRows = cells.rows;
+      const graphics = Array.from(
+        document.querySelectorAll<HTMLCanvasElement>('body > canvas[aria-hidden="true"]'),
+      ).filter((candidate) => candidate !== card.img && candidate.id !== "game");
+      if (graphics.length > 0) {
+        const rect = graphics[graphics.length - 1]!.getBoundingClientRect();
+        projection = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+        mapCols = view.size.width;
+        mapRows = view.size.height;
+      }
+      if (!pointInRect(projection, clientX, clientY) || projection.width <= 0 || projection.height <= 0) {
+        return null;
+      }
+      const bucketX = Math.floor(((clientX - projection.x) * mapCols) / projection.width);
+      const bucketY = Math.floor(((clientY - projection.y) * mapRows) / projection.height);
+      const grid = hoverCaveGridInView(
+        bucketX,
+        bucketY,
+        mapCols,
+        mapRows,
+        view.origin,
+        view.size,
+      );
+      if (!grid) return null;
+      const regionCol = Math.max(0, Math.min(cells.cols - 1,
+        Math.floor(((clientX - pixels.x) * cells.cols) / pixels.width)));
+      const regionRow = Math.max(0, Math.min(cells.rows - 1,
+        Math.floor(((clientY - pixels.y) * cells.rows) / pixels.height)));
+      return {
+        grid,
+        cell: { col: cells.col + regionCol, row: cells.row + regionRow },
+        view,
+        termSize: { cols: snapshot.grid.cols, rows: snapshot.grid.rows },
+      };
+    }
+
+    const cell = hoverCellAt(game.getBoundingClientRect(), clientX, clientY);
+    if (!cell) return null;
     const grid = hoverCaveGrid(cell.col, cell.row, chunk.width, chunk.height);
     if (!grid) return null;
-    return { grid, cell, chunk };
+    return {
+      grid,
+      cell,
+      view: { origin: { x: 0, y: 0 }, size: { width: chunk.width, height: chunk.height } },
+      termSize: { cols: TERM_COLS, rows: TERM_ROWS },
+    };
   };
 
   const showAt = (
@@ -618,7 +727,11 @@ function installMapHoverCards(ctx: HookCtx): void {
     resolved: {
       grid: { x: number; y: number };
       cell: { col: number; row: number };
-      chunk: { width: number; height: number };
+      view: {
+        origin: { x: number; y: number };
+        size: { width: number; height: number };
+      };
+      termSize: { cols: number; rows: number };
     },
   ): boolean => {
     const state = ctx.state as unknown as (HoverState & GameState) | undefined;
@@ -627,7 +740,13 @@ function installMapHoverCards(ctx: HookCtx): void {
     if (!content) return false;
     card.title.textContent = content.title;
     card.body.textContent = content.text;
-    const painted = paintTilePreview(card.img, resolved.grid, resolved.chunk, resolved.cell);
+    const painted = paintTilePreview(
+      card.img,
+      resolved.grid,
+      resolved.cell,
+      resolved.view,
+      resolved.termSize,
+    );
     card.img.style.display = painted ? "block" : "none";
     card.root.style.display = "block";
     positionHoverCard(card.root, clientX, clientY);
@@ -655,7 +774,7 @@ function installMapHoverCards(ctx: HookCtx): void {
   window.addEventListener(
     "pointerdown",
     (ev: PointerEvent) => {
-      if (!mapOpenGuess) return;
+      if (ctx.display?.snapshot().mode !== "map" && !mapOpenGuess) return;
       const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
 
       if (touchPinned) {
@@ -679,6 +798,7 @@ function installMapHoverCards(ctx: HookCtx): void {
           const atDown = resolved;
           holdTimer = setTimeout(() => {
             holdTimer = null;
+            if (twoFingerGestureActive()) return;
             if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
           }, TOUCH_HOLD_MS);
         }
@@ -703,6 +823,7 @@ function installMapHoverCards(ctx: HookCtx): void {
         const atDown = resolved;
         holdTimer = setTimeout(() => {
           holdTimer = null;
+          if (twoFingerGestureActive()) return;
           if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
         }, TOUCH_HOLD_MS);
       }
@@ -720,7 +841,7 @@ function installMapHoverCards(ctx: HookCtx): void {
   });
 
   document.addEventListener("pointermove", (ev: PointerEvent) => {
-    if (!mapOpenGuess) return;
+    if (ctx.display?.snapshot().mode !== "map" && !mapOpenGuess) return;
     lastClientX = ev.clientX;
     lastClientY = ev.clientY;
     if (ev.pointerType === "touch" || ev.pointerType === "pen") {
@@ -907,7 +1028,7 @@ export default {
             delayFactor: snapshot.delayFactor,
             lazymoveDelay: snapshot.lazymoveDelay,
           };
-          prefs.set(remembered);
+          prefs.set(withRememberedSettings(prefs.get(), remembered));
         };
       }
     }
@@ -931,8 +1052,9 @@ export default {
    * derived here: turn 0 is not it (the game autosaves immediately after birth),
    * and neither is an empty save bag (a mod enabled mid-game has one too).
    *
-   * The registry host is untouched. This mod declares no capabilities, so every
-   * facade on it would throw - and it needs none of them.
+   * The registry host is untouched. The sidebar capability is consumed by
+   * hud(), not by a registry facade, and this registration path needs none of
+   * the host's mutable registries.
    *
    * ALSO WHERE qol.mapHoverCards WIRES ITSELF UP (installMapHoverCards, above) -
    * same reason: it is the one seam that sees a live ctx.state, and unlike the
@@ -940,6 +1062,7 @@ export default {
    * runs first and unconditionally.
    */
   register(_host: unknown, ctx: HookCtx): void {
+    installZoomPan(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
@@ -947,12 +1070,13 @@ export default {
     const stored = ctx.prefs?.get();
     if (!opts || !stored || typeof stored !== "object") return;
 
-    const remembered = stored as Partial<RememberedSettings>;
+    const remembered = readRememberedSettings(stored);
     /* An unknown shape is IGNORED, not guessed at. This is the only version
      * there has ever been; the field exists so that the day there is a second
      * one, the first does not get read as if it were. */
-    if (remembered.v !== 1) {
-      ctx.log?.(`stored settings are version ${String(remembered.v)}; ignoring them`);
+    if (!remembered) {
+      const version = (stored as { v?: unknown }).v;
+      ctx.log?.(`stored settings are version ${String(version)}; ignoring them`);
       return;
     }
 
@@ -979,5 +1103,13 @@ export default {
       opts.lazymoveDelay = remembered.lazymoveDelay;
     }
     ctx.log?.(`restored ${String(applied)} remembered option(s) onto the new character`);
+  },
+
+  hud(ctx: HookCtx) {
+    return zoomPanHud(ctx);
+  },
+
+  uninstall(): void {
+    uninstallZoomPan();
   },
 };
