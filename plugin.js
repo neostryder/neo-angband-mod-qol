@@ -48,6 +48,24 @@ var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var runtime = null;
+function markGridState(value) {
+  if (typeof document !== "undefined" && document.body) {
+    document.body.setAttribute("data-qol-grid-state", value);
+  }
+}
+function initialBootPhase() {
+  if (typeof location === "undefined") return "title";
+  const params = new URL(location.href).searchParams;
+  if (params.has("agent")) return "game-pending";
+  try {
+    if (sessionStorage.getItem("neo-angband-birth-done") === "1") return "game-pending";
+    if (params.has("new")) return "birth";
+    if (sessionStorage.getItem("neo-angband-skip-title") === "1") return "game-pending";
+  } catch {
+    if (params.has("new")) return "birth";
+  }
+  return "title";
+}
 function stepIndex(index, direction, last) {
   return Math.max(0, Math.min(last, index + Math.sign(direction)));
 }
@@ -86,6 +104,28 @@ function pinchDirection(previous, next) {
   const change = Math.log2(next / previous);
   return change >= 0.18 ? 1 : change <= -0.18 ? -1 : 0;
 }
+function sidebarPagePlan(entryCount, layout, pixels, scale, requestedPage) {
+  const preferredFont = Math.max(11, Math.round(14 * scale));
+  let perPage = Math.max(1, entryCount);
+  if (layout === "top") {
+    const pagerWidth = 62;
+    const entryWidth = 82 * scale;
+    perPage = Math.max(1, Math.floor(Math.max(1, pixels.width - pagerWidth) / entryWidth));
+  } else if (layout === "left") {
+    const lineHeight = preferredFont * 1.25;
+    const visibleRows = Math.max(1, Math.floor((pixels.height - preferredFont * 0.8) / lineHeight));
+    perPage = entryCount > visibleRows ? Math.max(1, visibleRows - 1) : visibleRows;
+  }
+  const pages = Math.max(1, Math.ceil(entryCount / perPage));
+  const page = Math.max(0, Math.min(pages - 1, requestedPage));
+  return {
+    page,
+    pages,
+    start: page * perPage,
+    end: Math.min(entryCount, (page + 1) * perPage),
+    fontSize: preferredFont
+  };
+}
 function twoFingerGestureActive() {
   return (runtime?.touches.size ?? 0) >= 2;
 }
@@ -104,11 +144,15 @@ function writePreference(rt) {
   }
 }
 function applyGridAndSidebar(rt) {
-  const cellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
+  const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
+  const narrow = typeof window !== "undefined" && window.innerWidth < 480;
+  const cellHeight = narrow ? Math.min(21, requestedCellHeight) : requestedCellHeight;
   rt.display.setGrid({
     cellHeight,
-    minCols: 20,
+    /* The phone floor leaves room for complete short footer prompts and menu
+     * labels. Roomy views keep the larger-cell 20-column zoom ceiling. */
+    minCols: narrow ? 24 : 20,
     minRows: 12,
     snapViewportToEven: true
   });
@@ -116,6 +160,47 @@ function applyGridAndSidebar(rt) {
     columns: Math.round(13 * scale),
     topRows: Math.max(1, Math.ceil(scale))
   });
+  centerGrid(rt);
+}
+function shiftedPixels(rt, pixels) {
+  return pixels ? {
+    ...pixels,
+    x: pixels.x + rt.gridOffset.x,
+    y: pixels.y + rt.gridOffset.y
+  } : void 0;
+}
+function centerGrid(rt) {
+  if (!rt.gridActive || typeof document === "undefined" || typeof window === "undefined") return;
+  const snapshot = rt.display.snapshot();
+  const x = Math.max(0, Math.floor((window.innerWidth - snapshot.grid.cols * snapshot.grid.cellWidth) / 2));
+  const y = Math.max(0, Math.floor((window.innerHeight - snapshot.grid.rows * snapshot.grid.cellHeight) / 2));
+  rt.gridOffset = { x, y };
+  const canvas = rt.canvas ?? document.querySelector("#game");
+  if (!canvas) return;
+  if (!rt.canvasStyle) {
+    rt.canvasStyle = {
+      position: canvas.style.position,
+      left: canvas.style.left,
+      top: canvas.style.top
+    };
+  }
+  rt.canvas = canvas;
+  Object.assign(canvas.style, {
+    position: "fixed",
+    left: `${String(x)}px`,
+    top: `${String(y)}px`
+  });
+}
+function activateGameplayGrid(rt) {
+  if (rt.gridActive || rt.activationTimer !== null) return;
+  rt.activationTimer = setTimeout(() => {
+    rt.activationTimer = null;
+    if (runtime !== rt) return;
+    rt.gridActive = true;
+    markGridState("game");
+    applyGridAndSidebar(rt);
+    rt.display.repaint();
+  }, 0);
 }
 function applyMapPreference(rt) {
   const snapshot = rt.display.snapshot();
@@ -123,6 +208,7 @@ function applyMapPreference(rt) {
   rt.display.setMapView(mapViewFor(snapshot, rt.preference.mapDetail, playerCenter(rt, snapshot)));
 }
 function zoomView(rt, direction) {
+  if (!rt.gridActive) return;
   const snapshot = rt.display.snapshot();
   if (snapshot.mode === "map") {
     const next = stepIndex(rt.preference.mapDetail, direction, MAP_DETAIL_FACTORS.length - 1);
@@ -143,6 +229,7 @@ function zoomView(rt, direction) {
   writePreference(rt);
 }
 function zoomInterface(rt, direction) {
+  if (!rt.gridActive) return;
   const next = stepIndex(
     rt.preference.interfaceZoomIndex,
     direction,
@@ -154,6 +241,7 @@ function zoomInterface(rt, direction) {
   writePreference(rt);
 }
 function panView(rt, dx, dy) {
+  if (!rt.gridActive) return;
   let snapshot = rt.display.snapshot();
   if (snapshot.mode === "map" && rt.preference.mapDetail === 0) {
     rt.preference = { ...rt.preference, mapDetail: 1 };
@@ -185,6 +273,14 @@ function directionKey(event) {
 function installKeyboard(rt) {
   rt.cleanups.push(
     rt.display.onKey((event) => {
+      if (!rt.gridActive) {
+        rt.bootPhase = "game-pending";
+        markGridState("game-pending:display-key");
+        activateGameplayGrid(rt);
+        return;
+      }
+      const modalKey = !event.altKey && !event.metaKey && (!event.ctrlKey && ["?", "C", "i", "e", "~", "=", "Escape"].includes(event.key) || event.ctrlKey && event.key.toLowerCase() === "p");
+      if (modalKey && rt.display.snapshot().mode !== "map") scheduleScreenFit(rt);
       if (!event.ctrlKey || event.altKey || event.metaKey) {
         if (event.key === "M") {
           setTimeout(() => {
@@ -210,11 +306,50 @@ function installKeyboard(rt) {
     })
   );
 }
+function scheduleScreenFit(rt) {
+  if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
+  rt.screenFitTimer = setTimeout(() => {
+    rt.screenFitTimer = null;
+    if (runtime !== rt || !rt.gridActive) return;
+    rt.screenFitActive = true;
+    if (rt.sidebar) rt.sidebar.host.style.display = "none";
+    rt.gridOffset = { x: 0, y: 0 };
+    if (rt.canvas) {
+      rt.canvas.style.left = "0px";
+      rt.canvas.style.top = "0px";
+    }
+    rt.display.setGrid(null);
+  }, 0);
+}
+function installTitleBoundary(rt) {
+  const onKey = (event) => {
+    if (rt.gridActive || event.ctrlKey || event.altKey || event.metaKey) return;
+    const key = event.key.toLowerCase();
+    if (rt.bootPhase === "title") {
+      if (key === "n") rt.bootPhase = "birth";
+      else if (key === "l") rt.bootPhase = "game-pending";
+      markGridState(rt.bootPhase);
+      return;
+    }
+    if (rt.bootPhase === "birth") {
+      if (key === "c") rt.bootPhase = "name";
+      else if (key === "y") rt.bootPhase = "game-pending";
+      markGridState(rt.bootPhase);
+      return;
+    }
+    if (rt.bootPhase === "name" && (key === "enter" || key === "escape")) {
+      rt.bootPhase = "birth";
+      markGridState(rt.bootPhase);
+    }
+  };
+  window.addEventListener("keydown", onKey, true);
+  rt.cleanups.push(() => window.removeEventListener("keydown", onKey, true));
+}
 function installWheel(rt) {
   const onWheel = (event) => {
     if (!event.ctrlKey || event.deltaY === 0) return;
     const snapshot = rt.display.snapshot();
-    const sidebar = snapshot.regions.sidebar?.pixels;
+    const sidebar = shiftedPixels(rt, snapshot.regions.sidebar?.pixels);
     event.preventDefault();
     event.stopImmediatePropagation();
     const direction = event.deltaY < 0 ? 1 : -1;
@@ -242,7 +377,7 @@ function installTouch(rt) {
     const pair = touchPair(rt);
     if (!pair) return;
     const metrics = pairMetrics(pair);
-    const sidebar = rt.display.snapshot().regions.sidebar?.pixels;
+    const sidebar = shiftedPixels(rt, rt.display.snapshot().regions.sidebar?.pixels);
     rt.gesture = {
       context: pointInPixels(metrics.center.x, metrics.center.y, sidebar) ? "sidebar" : "view",
       ...metrics
@@ -268,9 +403,8 @@ function installTouch(rt) {
     const dx = next.center.x - gesture.center.x;
     const dy = next.center.y - gesture.center.y;
     if (gesture.context === "sidebar") {
-      if (rt.sidebar && (Math.abs(dx) >= 8 || Math.abs(dy) >= 8)) {
-        rt.sidebar.host.scrollLeft -= dx;
-        rt.sidebar.host.scrollTop -= dy;
+      if (rt.sidebar && (Math.abs(dx) >= 32 || Math.abs(dy) >= 32)) {
+        turnSidebarPage(rt, Math.abs(dx) >= Math.abs(dy) ? -Math.sign(dx) : -Math.sign(dy));
         gesture.center = next.center;
       }
       return;
@@ -305,13 +439,26 @@ function installResponsiveMap(rt) {
     timer = setTimeout(() => {
       timer = null;
       if (runtime !== rt) return;
+      if (!rt.gridActive) {
+        rt.display.setGrid(null);
+        return;
+      }
+      if (rt.screenFitActive) {
+        rt.display.setGrid(null);
+        return;
+      }
       const snapshot = rt.display.snapshot();
-      if (snapshot.mode !== "map") return;
-      const center = {
-        x: snapshot.viewport.origin.x + Math.floor(snapshot.viewport.size.width / 2),
-        y: snapshot.viewport.origin.y + Math.floor(snapshot.viewport.size.height / 2)
-      };
-      rt.display.setMapView(mapViewFor(snapshot, rt.preference.mapDetail, center));
+      if (snapshot.mode === "map") {
+        const center = {
+          x: snapshot.viewport.origin.x + Math.floor(snapshot.viewport.size.width / 2),
+          y: snapshot.viewport.origin.y + Math.floor(snapshot.viewport.size.height / 2)
+        };
+        rt.display.setMapView(mapViewFor(snapshot, rt.preference.mapDetail, center));
+      } else {
+        applyGridAndSidebar(rt);
+        rt.display.repaint();
+      }
+      centerGrid(rt);
     }, 0);
   };
   window.addEventListener("resize", onResize);
@@ -330,25 +477,63 @@ function createSidebar(rt) {
     position: "fixed",
     zIndex: "1",
     boxSizing: "border-box",
-    overflow: "auto",
+    overflow: "hidden",
     overscrollBehavior: "contain",
     pointerEvents: "auto",
     background: "rgba(0,0,0,0.96)",
     color: "#c8c8d4",
     fontFamily: "monospace",
-    scrollbarWidth: "thin"
+    scrollbarWidth: "none"
   });
   const body = document.createElement("div");
   host.appendChild(body);
   document.body.appendChild(host);
   rt.cleanups.push(() => host.remove());
-  return { host, body };
+  return {
+    host,
+    body,
+    page: 0,
+    layout: "none",
+    entryCount: 0,
+    section: null,
+    frame: null
+  };
 }
 function syncSidebarVisibility(rt) {
   if (!rt.sidebar) return;
   rt.sidebar.host.style.display = rt.display.snapshot().mode === "map" ? "none" : "block";
 }
+function turnSidebarPage(rt, direction) {
+  const sidebar = rt.sidebar;
+  if (!sidebar?.section || !sidebar.frame) return;
+  const pixels = sidebar.section.region?.pixels;
+  if (!pixels) return;
+  const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
+  const plan = sidebarPagePlan(sidebar.entryCount, sidebar.layout, pixels, scale, sidebar.page);
+  if (plan.pages <= 1) return;
+  sidebar.page = (plan.page + Math.sign(direction) + plan.pages) % plan.pages;
+  paintSidebar(rt, sidebar.section, sidebar.frame);
+}
+function fitSidebarText(sidebar, preferred) {
+  let fontSize = preferred;
+  sidebar.host.style.fontSize = `${String(fontSize)}px`;
+  while (fontSize > 9 && (sidebar.body.scrollWidth > sidebar.body.clientWidth || sidebar.body.scrollHeight > sidebar.body.clientHeight)) {
+    fontSize -= 1;
+    sidebar.host.style.fontSize = `${String(fontSize)}px`;
+  }
+}
 function paintSidebar(rt, section, frame) {
+  if (!rt.gridActive) {
+    if (rt.bootPhase === "game-pending") activateGameplayGrid(rt);
+    return;
+  }
+  if (rt.screenFitActive) {
+    rt.screenFitActive = false;
+    applyGridAndSidebar(rt);
+    rt.display.repaint();
+    return;
+  }
+  centerGrid(rt);
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
@@ -357,30 +542,49 @@ function paintSidebar(rt, section, frame) {
     return;
   }
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
+  if (sidebar.layout !== frame.layout || sidebar.entryCount !== section.entries.length) {
+    sidebar.page = 0;
+  }
+  sidebar.layout = frame.layout;
+  sidebar.entryCount = section.entries.length;
+  sidebar.section = section;
+  sidebar.frame = frame;
+  const plan = sidebarPagePlan(section.entries.length, frame.layout, pixels, scale, sidebar.page);
+  sidebar.page = plan.page;
   Object.assign(sidebar.host.style, {
     display: "block",
-    left: `${String(pixels.x)}px`,
-    top: `${String(pixels.y)}px`,
+    left: `${String(pixels.x + rt.gridOffset.x)}px`,
+    top: `${String(pixels.y + rt.gridOffset.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
-    fontSize: `${String(Math.max(11, Math.round(14 * scale)))}px`,
+    fontSize: `${String(plan.fontSize)}px`,
     lineHeight: "1.25"
   });
   Object.assign(sidebar.body.style, {
     display: frame.layout === "top" ? "flex" : "grid",
     gridTemplateColumns: "minmax(0, 1fr)",
     alignItems: "center",
-    gap: frame.layout === "top" ? "0 1.2em" : "0.2em",
+    justifyContent: frame.layout === "top" ? "space-between" : "normal",
+    gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
     padding: frame.layout === "top" ? "0.25em 0.5em" : "0.4em 0.55em",
-    whiteSpace: frame.layout === "top" ? "nowrap" : "normal",
-    minWidth: frame.layout === "top" ? "max-content" : "0",
+    whiteSpace: "nowrap",
+    width: "100%",
+    height: "100%",
+    minWidth: "0",
+    overflow: "hidden",
     boxSizing: "border-box"
   });
   sidebar.body.replaceChildren();
-  for (const entry of section.entries) {
+  for (const entry of section.entries.slice(plan.start, plan.end)) {
     const row = document.createElement("div");
     row.setAttribute("data-qol-vital", entry.key);
     row.title = entry.key;
+    Object.assign(row.style, {
+      minWidth: "0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      flex: "0 1 auto"
+    });
     for (const run of entry.runs) {
       const span = document.createElement("span");
       span.textContent = run.text;
@@ -389,6 +593,28 @@ function paintSidebar(rt, section, frame) {
     }
     sidebar.body.appendChild(row);
   }
+  if (plan.pages > 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("data-qol-sidebar-page", "");
+    button.setAttribute("aria-label", `Show status page ${String((plan.page + 1) % plan.pages + 1)} of ${String(plan.pages)}`);
+    button.textContent = `${String(plan.page + 1)}/${String(plan.pages)} >`;
+    Object.assign(button.style, {
+      appearance: "none",
+      background: "transparent",
+      border: "1px solid #686878",
+      borderRadius: "2px",
+      color: "#d8d87c",
+      cursor: "pointer",
+      flex: "0 0 auto",
+      font: "inherit",
+      lineHeight: "inherit",
+      padding: "0 0.35em"
+    });
+    button.addEventListener("click", () => turnSidebarPage(rt, 1));
+    sidebar.body.appendChild(button);
+  }
+  fitSidebarText(sidebar, plan.fontSize);
 }
 function installZoomPan(ctx) {
   uninstallZoomPan();
@@ -408,12 +634,37 @@ function installZoomPan(ctx) {
     cleanups: [],
     touches: /* @__PURE__ */ new Map(),
     gesture: null,
-    sidebar: null
+    sidebar: null,
+    gridActive: false,
+    bootPhase: initialBootPhase(),
+    activationTimer: null,
+    gridOffset: { x: 0, y: 0 },
+    canvas: null,
+    canvasStyle: null,
+    screenFitActive: false,
+    screenFitTimer: null
   };
   runtime = rt;
-  applyGridAndSidebar(rt);
+  markGridState(rt.bootPhase);
+  if (typeof document !== "undefined" && document.body) {
+    const htmlOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    const htmlBackground = document.documentElement.style.backgroundColor;
+    const bodyBackground = document.body.style.backgroundColor;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.backgroundColor = "#000";
+    document.body.style.backgroundColor = "#000";
+    rt.cleanups.push(() => {
+      document.documentElement.style.overflow = htmlOverflow;
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.backgroundColor = htmlBackground;
+      document.body.style.backgroundColor = bodyBackground;
+    });
+  }
   installKeyboard(rt);
   if (typeof window !== "undefined") {
+    installTitleBoundary(rt);
     installWheel(rt);
     installTouch(rt);
     installResponsiveMap(rt);
@@ -430,7 +681,13 @@ function uninstallZoomPan() {
   const rt = runtime;
   runtime = null;
   if (!rt) return;
+  markGridState("off");
+  if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
+  if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
+  if (rt.canvas && rt.canvasStyle) {
+    Object.assign(rt.canvas.style, rt.canvasStyle);
+  }
   rt.display.setMapView(null);
   rt.display.setCamera(null);
   rt.display.setSidebarExtent(null);

@@ -12,9 +12,11 @@ import {
   mapViewFor,
   pannedOrigin,
   pinchDirection,
+  sidebarPagePlan,
   snapEven,
   stepIndex,
   uninstallZoomPan,
+  zoomPanHud,
   type DisplayLike,
   type DisplaySnapshotLike,
 } from "./zoom-pan";
@@ -96,7 +98,17 @@ function fakeDisplay(initial = snapshot()): {
   };
 }
 
-afterEach(() => uninstallZoomPan());
+afterEach(() => {
+  uninstallZoomPan();
+  vi.useRealTimers();
+});
+
+function activateHud(ctx: Parameters<typeof installZoomPan>[0]): void {
+  const section = { entries: [], region: { pixels: { x: 0, y: 0, width: 320, height: 480 } } };
+  const frame = { layout: "left" } as const;
+  zoomPanHud(ctx)?.sidebar?.present(section, frame);
+  vi.runAllTimers();
+}
 
 describe("one install-wide preference value", () => {
   const options: RememberedSettings = {
@@ -154,18 +166,51 @@ describe("whole-cell zoom and pan arithmetic", () => {
   });
 });
 
+describe("scroll-free sidebar fitting", () => {
+  it("pages a maximum-scale phone strip instead of overflowing it", () => {
+    expect(sidebarPagePlan(7, "top", { width: 340, height: 48 }, 1.5, 0)).toEqual({
+      page: 0,
+      pages: 4,
+      start: 0,
+      end: 2,
+      fontSize: 21,
+    });
+    expect(sidebarPagePlan(7, "top", { width: 340, height: 48 }, 1.5, 99)).toMatchObject({
+      page: 3,
+      start: 6,
+      end: 7,
+    });
+  });
+
+  it("keeps a roomy vertical sidebar on one page and pages a short one", () => {
+    expect(sidebarPagePlan(18, "left", { width: 240, height: 600 }, 1, 0).pages).toBe(1);
+    expect(sidebarPagePlan(18, "left", { width: 240, height: 120 }, 1, 0).pages).toBeGreaterThan(1);
+  });
+});
+
 describe("input integration", () => {
-  it("applies the persisted grid and handles Ctrl+plus as play zoom", () => {
+  it("leaves the title fitted, then applies the persisted grid at the first HUD", () => {
+    vi.useFakeTimers();
     const fake = fakeDisplay();
     let stored: unknown = {
       v: 2,
       display: { v: 1, zoomIndex: 3, interfaceZoomIndex: 1, mapDetail: 0 },
     };
-    installZoomPan({
+    const ctx = {
       flags: { "qol.zoomPan": true, "qol.sharpenZoomedTiles": false },
-      prefs: { get: () => stored, set: (value) => { stored = value; } },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
       display: fake.display,
-    });
+    };
+    installZoomPan(ctx);
+    expect(fake.setGrid).not.toHaveBeenCalled();
+    zoomPanHud(ctx)?.sidebar?.present(
+      { entries: [], region: { pixels: { x: 0, y: 0, width: 320, height: 480 } } },
+      { layout: "left" },
+    );
+    vi.runAllTimers();
+    expect(fake.setGrid).not.toHaveBeenCalled();
+    fake.key(fakeKey("5", { ctrlKey: false }));
+    activateHud(ctx);
     expect(fake.setGrid).toHaveBeenLastCalledWith({
       cellHeight: 28,
       minCols: 20,
@@ -179,17 +224,25 @@ describe("input integration", () => {
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
     expect(readDisplayPreference(stored).zoomIndex).toBe(4);
     expect(event.preventDefault).toHaveBeenCalledOnce();
+
+    fake.key(fakeKey("C", { ctrlKey: false }));
+    vi.runAllTimers();
+    expect(fake.setGrid).toHaveBeenLastCalledWith(null);
   });
 
   it("targets the sidebar with Shift and pans a map in two-cell steps", () => {
+    vi.useFakeTimers();
     const fake = fakeDisplay(snapshot({ mode: "map" }));
     let stored: unknown = null;
-    installZoomPan({
+    const ctx = {
       flags: { "qol.zoomPan": true },
-      prefs: { get: () => stored, set: (value) => { stored = value; } },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
       display: fake.display,
       state: { actor: { grid: { x: 60, y: 30 } } },
-    });
+    };
+    installZoomPan(ctx);
+    fake.key(fakeKey("5", { ctrlKey: false }));
+    activateHud(ctx);
 
     fake.key(fakeKey("+", { shiftKey: true }));
     expect(fake.setSidebarExtent).toHaveBeenLastCalledWith({ columns: 16, topRows: 2 });

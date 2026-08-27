@@ -17,13 +17,21 @@ are, however small.
   canvas. `Ctrl-Plus`/`Ctrl-Minus`, `Ctrl-Arrow`, pointer-targeted
   `Ctrl-Wheel`, and two-finger pinch/swipe cover keyboard, mouse, and touch.
   The sidebar scales independently, remains anchored top-left, and becomes a
-  horizontally scrollable top strip on phone-width grids. Zoom, interface
+  fitted paged top strip on phone-width grids. Zoom, interface
   scale, and map detail persist as one install-wide device preference.
 - **Sharpen zoomed graphics** is an optional, off-by-default nearest-neighbour
   sampler for crisper pixel-art edges when graphics tiles are reduced. ASCII
   rendering is unaffected.
 
 ### Fixed
+
+- **Zoomed responsive screens could produce scrollbars or clipped content.**
+  The title now keeps the engine's centered viewport fit instead of inheriting
+  gameplay zoom. The gameplay grid centers complete cells in both axes and
+  refits on every resize. Short and phone-width sidebars use reachable fitted
+  pages instead of horizontal or vertical scrolling. Phone footer prompts get
+  a wider grid floor, while text-heavy screens use the centered fixed fit and
+  no longer sit underneath the sidebar.
 
 - **Hover cards on the Map overview dismissed the map on any click.** The
   overview's own window-capture `pointerdown` handler closes the `M` screen
