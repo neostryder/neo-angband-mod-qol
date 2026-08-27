@@ -29,7 +29,14 @@ import {
 } from "@rpgm-tools/neo-angband-core";
 import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import plugin, { hoverCardText, hoverCaveGrid, hoverCellAt } from "./plugin";
+import plugin, {
+  hoverCardContent,
+  hoverCardText,
+  hoverCaveGrid,
+  hoverCellAt,
+  HOVER_DWELL_MS,
+  TOUCH_HOLD_MS,
+} from "./plugin";
 
 /**
  * The mod's behaviour, driven the way the HOST drives it.
@@ -503,10 +510,10 @@ describe("remember my settings", () => {
 });
 
 /**
- * qol.mapHoverCards: the pure geometry and the "objects and creatures only"
- * gate, tested directly - the DOM wiring itself (installMapHoverCards) is not
- * unit-tested, the same split this game's own mapview.ts draws between pure
- * scan/scale arithmetic and the main.ts wiring around it.
+ * qol.mapHoverCards: the pure geometry and content classifier, tested
+ * directly - the DOM wiring itself (installMapHoverCards) is not unit-tested,
+ * the same split this game's own mapview.ts draws between pure scan/scale
+ * arithmetic and the main.ts wiring around it.
  */
 describe("qol.mapHoverCards: pixel/cell/cave geometry", () => {
   it("maps a client point to a cell, centred in a box with room to spare", () => {
@@ -559,18 +566,28 @@ describe("qol.mapHoverCards: pixel/cell/cave geometry", () => {
   });
 });
 
-describe("qol.mapHoverCards: objects-and-creatures-only scope", () => {
+describe("qol.mapHoverCards: context-sensitive content", () => {
   const grid = { x: 5, y: 5 };
 
-  it("shows nothing for plain terrain - no monster, no known object", () => {
+  it("keeps the published dwell and hold timings", () => {
+    expect(HOVER_DWELL_MS).toBe(2000);
+    expect(TOUCH_HOLD_MS).toBe(1000);
+  });
+
+  it("shows terrain for plain ground", () => {
     const core = {
       describeLookGrid: () => ({ text: "You see a granite wall.", mon: null }),
       knownPile: () => [],
     };
-    expect(hoverCardText(core, {} as GameState, grid)).toBeNull();
+    expect(hoverCardContent(core, {} as GameState, grid)).toEqual({
+      kind: "terrain",
+      title: "Terrain",
+      text: "You see a granite wall.",
+    });
+    expect(hoverCardText(core, {} as GameState, grid)).toBe("You see a granite wall.");
   });
 
-  it("shows the card for an obvious monster", () => {
+  it("labels an obvious monster as a creature", () => {
     const core = {
       describeLookGrid: () => ({
         text: "You see a wounded jackal, 3 S, 1 W of you.",
@@ -578,16 +595,59 @@ describe("qol.mapHoverCards: objects-and-creatures-only scope", () => {
       }),
       knownPile: () => [],
     };
-    expect(hoverCardText(core, {} as GameState, grid)).toBe(
-      "You see a wounded jackal, 3 S, 1 W of you.",
-    );
+    expect(hoverCardContent(core, {} as GameState, grid)).toEqual({
+      kind: "creature",
+      title: "Creature",
+      text: "You see a wounded jackal, 3 S, 1 W of you.",
+    });
   });
 
-  it("shows the card for a remembered floor object, even with no monster", () => {
+  it("labels a remembered floor object as an item", () => {
     const core = {
       describeLookGrid: () => ({ text: "You see a Dagger, 2 S of you.", mon: null }),
       knownPile: () => [{ kind: "dagger" }],
     };
-    expect(hoverCardText(core, {} as GameState, grid)).toBe("You see a Dagger, 2 S of you.");
+    expect(hoverCardContent(core, {} as GameState, grid)).toEqual({
+      kind: "item",
+      title: "Item",
+      text: "You see a Dagger, 2 S of you.",
+    });
+  });
+
+  it("labels the player's own grid as character", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "You are on an open floor.", mon: null }),
+      knownPile: () => [],
+    };
+    const state = { actor: { grid: { x: 5, y: 5 } } } as unknown as GameState;
+    expect(hoverCardContent(core, state, grid)?.kind).toBe("character");
+  });
+
+  it("labels a shop entrance when the feature carries a shopnum", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "You see the General Store.", mon: null }),
+      knownPile: () => [],
+    };
+    const state = {
+      chunk: { width: 10, height: 10, feature: () => ({ shopnum: 1 }) },
+    } as unknown as GameState;
+    expect(hoverCardContent(core, state, grid)?.kind).toBe("shop");
+  });
+
+  it("labels a visible trap when the engine exposes the predicate", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "You see a pit trap.", mon: null }),
+      knownPile: () => [],
+      squareIsVisibleTrap: () => true,
+    };
+    expect(hoverCardContent(core, {} as GameState, grid)?.kind).toBe("trap");
+  });
+
+  it("returns null when the look API has nothing to say", () => {
+    const core = {
+      describeLookGrid: () => ({ text: "  ", mon: null }),
+      knownPile: () => [],
+    };
+    expect(hoverCardContent(core, {} as GameState, grid)).toBeNull();
   });
 });

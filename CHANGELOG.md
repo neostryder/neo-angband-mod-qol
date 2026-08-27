@@ -10,6 +10,24 @@ are, however small.
 
 ## Unreleased
 
+### Fixed
+
+- **Hover cards on the Map overview dismissed the map on any click.** The
+  overview's own window-capture `pointerdown` handler closes the `M` screen
+  on the first pointer down, and this mod used to disarm itself the same way,
+  so there was no usable way to keep the map open long enough for a card.
+  Clicks and holds over the map box now inspect instead of dismissing; any
+  key still closes the overview.
+
+### Changed
+
+- **Hover cards cover every resolvable cell, with dwell/hold timing and a
+  tile preview.** Mouse: 2-second dwell on one grid opens a card that closes
+  when the pointer leaves that grid. Touch/pen: 1-second hold opens a card
+  that stays until a tap elsewhere. The card shows a magnified tile snapshot
+  plus a kind label and knowledge-gated text for terrain, creature, item,
+  trap, shop, or the player's own character (via `describeLookGrid`).
+
 ## 1.0.0 - 2026-08-26
 
 ### Added

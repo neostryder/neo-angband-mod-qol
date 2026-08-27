@@ -12,6 +12,9 @@ var TERM_COLS = 80;
 var TERM_ROWS = 24;
 var GLYPH_W = 16;
 var GLYPH_H = 24;
+var HOVER_DWELL_MS = 2e3;
+var TOUCH_HOLD_MS = 1e3;
+var TILE_PREVIEW_PX = 64;
 function hoverCellAt(rect, clientX, clientY) {
   if (rect.width <= 0 || rect.height <= 0) return null;
   const scale = Math.min(rect.width / (GLYPH_W * TERM_COLS), rect.height / (GLYPH_H * TERM_ROWS));
@@ -36,11 +39,37 @@ function hoverCaveGrid(col, row, width, height) {
   const y = Math.min(height - 1, Math.floor((by + 0.5) * height / mapH));
   return { x, y };
 }
-function hoverCardText(core, state, grid) {
+var KIND_TITLE = {
+  character: "Character",
+  creature: "Creature",
+  item: "Item",
+  trap: "Trap",
+  shop: "Shop",
+  terrain: "Terrain"
+};
+function hoverCardContent(core, state, grid) {
   const result = core.describeLookGrid(state, grid, 0);
-  const hasObject = core.knownPile(state, grid).length > 0;
-  if (!result.mon && !hasObject) return null;
-  return result.text;
+  const text = result?.text?.trim() ?? "";
+  if (!text) return null;
+  const player = state.actor?.grid;
+  let kind;
+  if (player && player.x === grid.x && player.y === grid.y) {
+    kind = "character";
+  } else if (result.mon) {
+    kind = "creature";
+  } else if (core.knownPile(state, grid).length > 0) {
+    kind = "item";
+  } else if (core.squareIsVisibleTrap?.(state, grid)) {
+    kind = "trap";
+  } else if ((state.chunk?.feature?.(grid)?.shopnum ?? 0) > 0) {
+    kind = "shop";
+  } else {
+    kind = "terrain";
+  }
+  return { kind, text, title: KIND_TITLE[kind] };
+}
+function hoverCardText(core, state, grid) {
+  return hoverCardContent(core, state, grid)?.text ?? null;
 }
 var hoverCardsWired = false;
 function positionHoverCard(el, clientX, clientY) {
@@ -57,79 +86,275 @@ function positionHoverCard(el, clientX, clientY) {
   el.style.top = `${String(Math.max(0, top))}px`;
 }
 function buildHoverCardElement() {
-  const el = document.createElement("div");
-  el.setAttribute("data-qol-map-hover-card", "");
-  Object.assign(el.style, {
+  const root = document.createElement("div");
+  root.setAttribute("data-qol-map-hover-card", "");
+  Object.assign(root.style, {
     position: "fixed",
     zIndex: "2100",
     pointerEvents: "none",
     display: "none",
-    maxWidth: "320px",
-    padding: "4px 8px",
-    borderRadius: "4px",
+    maxWidth: "360px",
+    padding: "8px 10px",
+    borderRadius: "6px",
     font: "13px monospace",
-    lineHeight: "1.3",
-    whiteSpace: "pre-wrap",
-    background: "rgba(12,12,16,0.92)",
+    lineHeight: "1.35",
+    background: "rgba(12,12,16,0.94)",
     color: "#e8e8e8",
-    border: "1px solid #666"
+    border: "1px solid #777",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.45)"
   });
-  document.body.appendChild(el);
-  return el;
+  const title = document.createElement("div");
+  Object.assign(title.style, {
+    fontWeight: "700",
+    marginBottom: "6px",
+    color: "#f0d878",
+    letterSpacing: "0.02em"
+  });
+  const row = document.createElement("div");
+  Object.assign(row.style, {
+    display: "flex",
+    gap: "10px",
+    alignItems: "flex-start"
+  });
+  const img = document.createElement("canvas");
+  img.width = TILE_PREVIEW_PX;
+  img.height = TILE_PREVIEW_PX;
+  Object.assign(img.style, {
+    width: `${String(TILE_PREVIEW_PX)}px`,
+    height: `${String(TILE_PREVIEW_PX)}px`,
+    imageRendering: "pixelated",
+    flex: "0 0 auto",
+    background: "#000",
+    border: "1px solid #555"
+  });
+  const body = document.createElement("div");
+  Object.assign(body.style, {
+    whiteSpace: "pre-wrap",
+    flex: "1 1 auto",
+    minWidth: "0"
+  });
+  row.appendChild(img);
+  row.appendChild(body);
+  root.appendChild(title);
+  root.appendChild(row);
+  document.body.appendChild(root);
+  return { root, title, img, body };
+}
+function paintTilePreview(canvas, grid, chunk, termCell) {
+  const ctx2d = canvas.getContext("2d");
+  if (!ctx2d) return false;
+  ctx2d.imageSmoothingEnabled = false;
+  ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+  const overlays = Array.from(
+    document.querySelectorAll('body > canvas[aria-hidden="true"]')
+  );
+  for (const src of overlays) {
+    if (src === canvas || src.id === "game") continue;
+    if (src.width < 1 || src.height < 1) continue;
+    if (chunk.width < 1 || chunk.height < 1) continue;
+    const cellW2 = src.width / chunk.width;
+    const cellH2 = src.height / chunk.height;
+    if (cellW2 < 1 || cellH2 < 1) continue;
+    try {
+      ctx2d.drawImage(
+        src,
+        grid.x * cellW2,
+        grid.y * cellH2,
+        cellW2,
+        cellH2,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+      return true;
+    } catch {
+    }
+  }
+  const game = document.getElementById("game");
+  if (!(game instanceof HTMLCanvasElement) || !termCell) return false;
+  if (game.width < 1 || game.height < 1) return false;
+  const cellW = game.width / TERM_COLS;
+  const cellH = game.height / TERM_ROWS;
+  if (cellW < 1 || cellH < 1) return false;
+  try {
+    ctx2d.drawImage(
+      game,
+      termCell.col * cellW,
+      termCell.row * cellH,
+      cellW,
+      cellH,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 function installMapHoverCards(ctx) {
   if (ctx.flags["qol.mapHoverCards"] !== true) return;
   if (hoverCardsWired) return;
   if (typeof document === "undefined" || typeof window === "undefined") return;
-  try {
-    if (window.matchMedia?.("(pointer: coarse)").matches) return;
-  } catch {
-  }
   hoverCardsWired = true;
   const core = ctx.core;
   const card = buildHoverCardElement();
   let mapOpenGuess = false;
+  let touchPinned = false;
+  let dwellTimer = null;
+  let holdTimer = null;
+  let dwellGridKey = null;
+  let holdPointerId = null;
+  let shownGridKey = null;
+  let lastClientX = 0;
+  let lastClientY = 0;
+  const gridKey = (g) => `${String(g.x)},${String(g.y)}`;
+  const clearDwell = () => {
+    if (dwellTimer !== null) clearTimeout(dwellTimer);
+    dwellTimer = null;
+    dwellGridKey = null;
+  };
+  const clearHold = () => {
+    if (holdTimer !== null) clearTimeout(holdTimer);
+    holdTimer = null;
+    holdPointerId = null;
+  };
   const hide = () => {
-    card.style.display = "none";
+    card.root.style.display = "none";
+    shownGridKey = null;
+    touchPinned = false;
+  };
+  const resolveCaveGrid = (clientX, clientY) => {
+    const game = document.getElementById("game");
+    if (!game) return null;
+    const cell = hoverCellAt(game.getBoundingClientRect(), clientX, clientY);
+    if (!cell) return null;
+    const state = ctx.state;
+    const chunk = state?.chunk;
+    if (!chunk || chunk.width < 1 || chunk.height < 1) return null;
+    const grid = hoverCaveGrid(cell.col, cell.row, chunk.width, chunk.height);
+    if (!grid) return null;
+    return { grid, cell, chunk };
+  };
+  const showAt = (clientX, clientY, resolved) => {
+    const state = ctx.state;
+    if (!state) return false;
+    const content = hoverCardContent(core, state, resolved.grid);
+    if (!content) return false;
+    card.title.textContent = content.title;
+    card.body.textContent = content.text;
+    const painted = paintTilePreview(card.img, resolved.grid, resolved.chunk, resolved.cell);
+    card.img.style.display = painted ? "block" : "none";
+    card.root.style.display = "block";
+    positionHoverCard(card.root, clientX, clientY);
+    shownGridKey = gridKey(resolved.grid);
+    return true;
   };
   document.addEventListener("keydown", (ev) => {
-    mapOpenGuess = ev.key === "M";
-    if (!mapOpenGuess) hide();
-  });
-  window.addEventListener("pointerdown", () => {
+    if (ev.key === "M") {
+      mapOpenGuess = true;
+      return;
+    }
     mapOpenGuess = false;
+    clearDwell();
+    clearHold();
     hide();
+  });
+  window.addEventListener(
+    "pointerdown",
+    (ev) => {
+      if (!mapOpenGuess) return;
+      const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
+      if (touchPinned) {
+        const same = resolved !== null && shownGridKey !== null && gridKey(resolved.grid) === shownGridKey;
+        if (same) {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          return;
+        }
+        hide();
+        clearHold();
+        if (!resolved) {
+          mapOpenGuess = false;
+          return;
+        }
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+          holdPointerId = ev.pointerId;
+          const atDown = resolved;
+          holdTimer = setTimeout(() => {
+            holdTimer = null;
+            if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
+          }, TOUCH_HOLD_MS);
+        }
+        return;
+      }
+      if (!resolved) {
+        mapOpenGuess = false;
+        clearDwell();
+        clearHold();
+        hide();
+        return;
+      }
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      clearDwell();
+      if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+        clearHold();
+        holdPointerId = ev.pointerId;
+        const atDown = resolved;
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
+        }, TOUCH_HOLD_MS);
+      }
+    },
+    true
+  );
+  window.addEventListener("pointerup", (ev) => {
+    if (holdPointerId !== null && ev.pointerId === holdPointerId && holdTimer !== null) {
+      clearHold();
+    }
+  });
+  window.addEventListener("pointercancel", (ev) => {
+    if (holdPointerId !== null && ev.pointerId === holdPointerId) clearHold();
   });
   document.addEventListener("pointermove", (ev) => {
     if (!mapOpenGuess) return;
-    const canvas = document.getElementById("game");
-    if (!canvas) {
-      hide();
+    lastClientX = ev.clientX;
+    lastClientY = ev.clientY;
+    if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+      if (holdTimer !== null && holdPointerId === ev.pointerId) {
+        const resolved2 = resolveCaveGrid(ev.clientX, ev.clientY);
+        if (!resolved2) clearHold();
+      }
       return;
     }
-    const cell = hoverCellAt(canvas.getBoundingClientRect(), ev.clientX, ev.clientY);
-    if (!cell) {
-      hide();
+    if (touchPinned) return;
+    const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
+    if (!resolved) {
+      clearDwell();
+      if (shownGridKey !== null) hide();
       return;
     }
-    const state = ctx.state;
-    if (!state?.chunk) {
-      hide();
+    const key = gridKey(resolved.grid);
+    if (shownGridKey === key) {
+      positionHoverCard(card.root, ev.clientX, ev.clientY);
       return;
     }
-    const grid = hoverCaveGrid(cell.col, cell.row, state.chunk.width, state.chunk.height);
-    if (!grid) {
-      hide();
-      return;
-    }
-    const text = hoverCardText(core, state, grid);
-    if (!text) {
-      hide();
-      return;
-    }
-    card.textContent = text;
-    card.style.display = "block";
-    positionHoverCard(card, ev.clientX, ev.clientY);
+    if (shownGridKey !== null) hide();
+    if (dwellGridKey === key) return;
+    clearDwell();
+    dwellGridKey = key;
+    dwellTimer = setTimeout(() => {
+      dwellTimer = null;
+      const still = resolveCaveGrid(lastClientX, lastClientY);
+      if (!still || gridKey(still.grid) !== key) return;
+      showAt(lastClientX, lastClientY, still);
+    }, HOVER_DWELL_MS);
   });
 }
 var plugin_default = {
@@ -235,7 +460,10 @@ var plugin_default = {
   }
 };
 export {
+  HOVER_DWELL_MS,
+  TOUCH_HOLD_MS,
   plugin_default as default,
+  hoverCardContent,
   hoverCardText,
   hoverCaveGrid,
   hoverCellAt
