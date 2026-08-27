@@ -14,6 +14,9 @@ const screenshot = argument("--screenshot");
 const key = argument("--key");
 const code = argument("--code");
 const clickSelector = argument("--click");
+const wheelDelta = Number(argument("--wheel-delta") ?? "0");
+const clientX = Number(argument("--x") ?? "0");
+const clientY = Number(argument("--y") ?? "0");
 const ctrlKey = process.argv.includes("--ctrl");
 const shiftKey = process.argv.includes("--shift");
 const setupQol = process.argv.includes("--setup-qol");
@@ -98,7 +101,46 @@ if (width > 0 && height > 0) {
 }
 if (key) {
   await command("Runtime.evaluate", {
-    expression: `(() => { const game = document.querySelector("#game"); game?.focus(); game?.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code ?? "")}, ctrlKey: ${String(ctrlKey)}, shiftKey: ${String(shiftKey)}, bubbles: true })); })()`,
+    expression: `(() => {
+      const game = document.querySelector("#game");
+      game?.focus();
+      const event = new KeyboardEvent("keydown", {
+        key: ${JSON.stringify(key)}, code: ${JSON.stringify(code ?? "")},
+        ctrlKey: ${String(ctrlKey)}, shiftKey: ${String(shiftKey)},
+        bubbles: true, cancelable: true,
+      });
+      const delivered = game?.dispatchEvent(event) ?? false;
+      globalThis.__cdpLastInput = {
+        kind: "key", key: event.key, code: event.code,
+        ctrlKey: event.ctrlKey, shiftKey: event.shiftKey,
+        delivered, defaultPrevented: event.defaultPrevented,
+      };
+    })()`,
+    awaitPromise: true,
+  });
+  await new Promise((resolve) => setTimeout(resolve, keyWaitMs));
+}
+if (wheelDelta !== 0) {
+  await command("Runtime.evaluate", {
+    expression: `(() => {
+      const x = ${String(clientX)};
+      const y = ${String(clientY)};
+      const target = document.elementFromPoint(x, y) ?? document.querySelector("#game");
+      const sidebar = target?.closest?.("[data-qol-responsive-sidebar]");
+      const event = new WheelEvent("wheel", {
+        deltaY: ${String(wheelDelta)}, clientX: x, clientY: y,
+        ctrlKey: ${String(ctrlKey)}, shiftKey: ${String(shiftKey)},
+        bubbles: true, cancelable: true,
+      });
+      const delivered = target?.dispatchEvent(event) ?? false;
+      globalThis.__cdpLastInput = {
+        kind: "wheel", deltaY: event.deltaY,
+        clientX: event.clientX, clientY: event.clientY,
+        ctrlKey: event.ctrlKey, shiftKey: event.shiftKey,
+        target: target?.id || (sidebar ? "sidebar" : target?.tagName ?? null),
+        delivered, defaultPrevented: event.defaultPrevented,
+      };
+    })()`,
     awaitPromise: true,
   });
   await new Promise((resolve) => setTimeout(resolve, keyWaitMs));
@@ -135,6 +177,11 @@ const measured = await command("Runtime.evaluate", {
         bodyScrollHeight: document.body.scrollHeight,
       },
       canvas: rect(canvas),
+      canvasBacking: canvas ? { width: canvas.width, height: canvas.height } : null,
+      display: typeof globalThis.__qolProbe?.snapshot === "function"
+        ? globalThis.__qolProbe.snapshot()
+        : null,
+      lastInput: globalThis.__cdpLastInput ?? null,
       attributes: {
         html: Object.fromEntries([...document.documentElement.attributes].map((item) => [item.name, item.value])),
         body: Object.fromEntries([...document.body.attributes].map((item) => [item.name, item.value])),
