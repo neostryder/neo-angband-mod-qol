@@ -1,14 +1,14 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "shape": "content",
   "facets": [
     "content",
     "plugin"
   ],
   "modApi": 1,
-  "engine": ">=1.0.0",
+  "engine": ">=1.1.0",
   "dependencies": {
     "core": "*"
   },
