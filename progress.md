@@ -23,3 +23,16 @@ Original prompt: Build a real zoomable, pannable, responsive interface for the Q
 ## Completed
 
 - QoL feature committed as 138d617.
+
+## Refinement checkpoint
+
+- New prompt: remove all responsive-layout scrolling and chrome, fit the phone sidebar, keep every grid edge on whole cells, refit on resize, exempt or responsively fit the title, and audit the footer and text-heavy screens with real screenshots.
+- Confirmed the installed mod applies the saved interface zoom before the title menu. At 355x710, the title canvas measured 1186.99x740 and the document body measured 1187x740, so the title was clipped horizontally and vertically.
+- The core title, footer, and text-heavy screens all render inside the terminal canvas. The core terminal already uses whole-cell dimensions, and its fixed title mode aspect-fits and centers the full 80x24 composition when the mod does not enable gameplay reflow early.
+- Chosen title strategy: use core's continuation markers to defer the mod's gameplay grid until the live game boot, while ignoring the HUD frames core paints behind title and birth. This exempts those pre-game screens from saved play/interface zoom while retaining the core fitted composition.
+- Chosen sidebar strategy: replace overflow scrolling with fitted, explicitly paged status groups. A button and two-finger swipe will reach every page without a scrollbar.
+- Playwright is not present in this checkout and package installation is forbidden by the task. Continue the prior real-pixel verification path by driving the current built Electron desktop shell over CDP, with every test profile and screenshot kept under this working directory.
+- Final 355x710 play measurement at maximum saved zoom: a 350 px whole-cell grid centered at x=2 with an 8 px vertical margin; sidebar host, client, and scroll widths all 350 px, height values all 42 px, overflow hidden, and a reachable 1/4 page button. The document and body were exactly 355x710 with no scroll range.
+- A 390x845 resize re-snapped without input to a 378 px grid/sidebar centered at x=6 and y=2; document, body, client, and scroll dimensions all matched the viewport.
+- At 1280x720 the document and body stayed exactly 1280x720; the top HUD measured 1280x96 with matching client/scroll sizes and all seven compact entries visible. At roomy lower zoom the same planner leaves all 18 vertical entries on one page.
+- Title, play, map, sidebar page 2, character sheet, help, and desktop play were inspected from real Electron screenshots under .test-out/final5. The map and text-heavy screens were centered, complete, and scroll-free; the map footer showed the full "Hit any key to continue" prompt.
