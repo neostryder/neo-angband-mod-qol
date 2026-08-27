@@ -134,6 +134,7 @@ interface ZoomRuntime {
   gridActive: boolean;
   bootPhase: "title" | "birth" | "name" | "game-pending";
   activationTimer: ReturnType<typeof setTimeout> | null;
+  readonly activationActions: Array<() => void>;
   gridOffset: TouchPoint;
   canvas: HTMLElement | null;
   canvasStyle: CanvasStyle | null;
@@ -331,8 +332,13 @@ function centerGrid(rt: ZoomRuntime): void {
   });
 }
 
-function activateGameplayGrid(rt: ZoomRuntime): void {
-  if (rt.gridActive || rt.activationTimer !== null) return;
+function activateGameplayGrid(rt: ZoomRuntime, action?: () => void): void {
+  if (action) rt.activationActions.push(action);
+  if (rt.gridActive) {
+    for (const pending of rt.activationActions.splice(0)) pending();
+    return;
+  }
+  if (rt.activationTimer !== null) return;
   rt.activationTimer = setTimeout(() => {
     rt.activationTimer = null;
     if (runtime !== rt) return;
@@ -340,6 +346,7 @@ function activateGameplayGrid(rt: ZoomRuntime): void {
     markGridState("game");
     applyGridAndSidebar(rt);
     rt.display.repaint();
+    for (const pending of rt.activationActions.splice(0)) pending();
   }, 0);
 }
 
@@ -420,6 +427,32 @@ function directionKey(event: KeyboardEvent): { x: number; y: number } | null {
 function installKeyboard(rt: ZoomRuntime): void {
   rt.cleanups.push(
     rt.display.onKey((event) => {
+      const zoom = event.ctrlKey && !event.altKey && !event.metaKey
+        ? zoomKeyDirection(event)
+        : 0;
+      const direction = event.ctrlKey && !event.altKey && !event.metaKey
+        ? directionKey(event)
+        : null;
+      if (zoom !== 0 || direction !== null) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const action = (): void => {
+          if (zoom !== 0) {
+            if (event.shiftKey) zoomInterface(rt, zoom);
+            else zoomView(rt, zoom);
+          } else if (direction) {
+            panView(rt, direction.x, direction.y);
+          }
+        };
+        if (!rt.gridActive) {
+          rt.bootPhase = "game-pending";
+          markGridState("game-pending:display-shortcut");
+          activateGameplayGrid(rt, action);
+        } else {
+          action();
+        }
+        return;
+      }
       if (!rt.gridActive) {
         rt.bootPhase = "game-pending";
         markGridState("game-pending:display-key");
@@ -441,17 +474,6 @@ function installKeyboard(rt: ZoomRuntime): void {
           setTimeout(() => syncSidebarVisibility(rt), 0);
         }
         return;
-      }
-      const zoom = zoomKeyDirection(event);
-      const direction = directionKey(event);
-      if (zoom === 0 && direction === null) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (zoom !== 0) {
-        if (event.shiftKey) zoomInterface(rt, zoom);
-        else zoomView(rt, zoom);
-      } else if (direction) {
-        panView(rt, direction.x, direction.y);
       }
     }),
   );
@@ -506,8 +528,16 @@ function installWheel(rt: ZoomRuntime): void {
     event.preventDefault();
     event.stopImmediatePropagation();
     const direction = event.deltaY < 0 ? 1 : -1;
-    if (pointInPixels(event.clientX, event.clientY, sidebar)) zoomInterface(rt, direction);
-    else zoomView(rt, direction);
+    const action = pointInPixels(event.clientX, event.clientY, sidebar)
+      ? (): void => zoomInterface(rt, direction)
+      : (): void => zoomView(rt, direction);
+    if (!rt.gridActive) {
+      rt.bootPhase = "game-pending";
+      markGridState("game-pending:wheel");
+      activateGameplayGrid(rt, action);
+    } else {
+      action();
+    }
   };
   window.addEventListener("wheel", onWheel, { capture: true, passive: false });
   rt.cleanups.push(() => window.removeEventListener("wheel", onWheel, true));
@@ -813,6 +843,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     gridActive: false,
     bootPhase: initialBootPhase(),
     activationTimer: null,
+    activationActions: [],
     gridOffset: { x: 0, y: 0 },
     canvas: null,
     canvasStyle: null,

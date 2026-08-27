@@ -101,6 +101,7 @@ function fakeDisplay(initial = snapshot()): {
 afterEach(() => {
   uninstallZoomPan();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 function activateHud(ctx: Parameters<typeof installZoomPan>[0]): void {
@@ -189,6 +190,70 @@ describe("scroll-free sidebar fitting", () => {
 });
 
 describe("input integration", () => {
+  it("applies the first Ctrl-= and Ctrl-Arrow instead of spending them on activation", () => {
+    vi.useFakeTimers();
+    let stored: unknown = null;
+    const zoom = fakeDisplay();
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
+      display: zoom.display,
+    });
+
+    const zoomEvent = fakeKey("=");
+    zoom.key(zoomEvent);
+    expect(zoomEvent.preventDefault).toHaveBeenCalledOnce();
+    vi.runAllTimers();
+    expect(zoom.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
+    expect(readDisplayPreference(stored).zoomIndex).toBe(4);
+
+    uninstallZoomPan();
+    const pan = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: pan.display });
+    const panEvent = fakeKey("ArrowRight");
+    pan.key(panEvent);
+    expect(panEvent.preventDefault).toHaveBeenCalledOnce();
+    vi.runAllTimers();
+    expect(pan.setCamera).toHaveBeenLastCalledWith({ x: 22, y: 10 });
+  });
+
+  it("applies the first pointer-targeted Ctrl-Wheel after grid activation", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    const canvas = { style: {} };
+    const body = { style: {}, setAttribute: vi.fn() };
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      querySelector: () => canvas,
+    });
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+
+    let stored: unknown = null;
+    const fake = fakeDisplay();
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
+      display: fake.display,
+    });
+    const event = new Event("wheel", { cancelable: true });
+    Object.defineProperties(event, {
+      ctrlKey: { value: true },
+      deltaY: { value: 120 },
+      clientX: { value: 800 },
+      clientY: { value: 500 },
+    });
+    fakeWindow.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    vi.runAllTimers();
+
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
+    expect(readDisplayPreference(stored).zoomIndex).toBe(2);
+  });
+
   it("leaves the title fitted, then applies the persisted grid at the first HUD", () => {
     vi.useFakeTimers();
     const fake = fakeDisplay();

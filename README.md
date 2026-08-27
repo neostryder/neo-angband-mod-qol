@@ -32,10 +32,8 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
-The current mod needs engine 1.0.0 or later (`"engine": ">=1.0.0"`). The zoom
-toggle also checks for the newer display-geometry seam at runtime. An older 1.x
-host keeps the other conveniences and logs that zoom is unavailable instead of
-failing the whole mod.
+The current mod needs engine 1.1.0 or later (`"engine": ">=1.1.0"`). That is
+the first engine version with the display-geometry seam used by zoom and pan.
 
 ### How zoom, pan, and responsive layout work
 
@@ -45,15 +43,15 @@ The terminal, camera, full-level map, pointer conversion, and world frame all
 use the resulting whole-cell geometry. There is no CSS transform and no
 fractional cave offset.
 
-- `Ctrl-Plus` and `Ctrl-Minus` zoom the play grid. Zoom resets a manually
+- `Ctrl-=` and `Ctrl--` zoom the play grid. Zoom resets a manually
   panned play camera so the player returns to the natural view. On the `M` map,
   the same keys step from whole-level fit through three detail levels.
 - `Ctrl-Arrow` pans play or the `M` map by two cave cells. Panning a fitted map
   first enters its broadest detail level, because a full-level fit has no
   off-screen cave cells to reveal.
-- Hold `Shift` with either keyboard zoom shortcut to scale the interface
-  instead. `Ctrl-Wheel` targets the sidebar when the pointer is over it and the
-  play or map view everywhere else.
+- Hold `Shift` with either keyboard zoom key to scale the interface instead
+  (`Ctrl-Shift-=` produces `Ctrl-+`). `Ctrl-Wheel` targets the sidebar when the
+  pointer is over it and the play or map view everywhere else.
 - A two-finger gesture is assigned by its starting midpoint. Pinch on the view
   zooms it and a two-finger swipe pans it; on the sidebar, pinch scales the text
   and a two-finger swipe changes the fitted status page.

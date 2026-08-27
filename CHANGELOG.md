@@ -8,6 +8,18 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+## Unreleased
+
+### Fixed
+
+- The first `Ctrl-=`/`Ctrl--` or `Ctrl-Arrow` input during gameplay-grid
+  activation is now cancelled and applied after activation instead of leaking
+  to Electron or disappearing. The same activation gap swallowed the first
+  `Ctrl-Wheel` completely; it now applies the pointer-targeted zoom after the
+  grid becomes active.
+- The documented play-grid zoom keys are `Ctrl-=` and `Ctrl--`. Holding Shift
+  with either zoom key scales the independent HUD/sidebar instead.
+
 ## 1.1.0 - 2026-08-27
 
 ### Changed
@@ -22,7 +34,7 @@ are, however small.
 
 - **Real zoom, pan, and responsive layout.** The play grid and `M` map now
   reflow to show more or fewer whole cave cells instead of magnifying a fixed
-  canvas. `Ctrl-Plus`/`Ctrl-Minus`, `Ctrl-Arrow`, pointer-targeted
+  canvas. `Ctrl-=`/`Ctrl--`, `Ctrl-Arrow`, pointer-targeted
   `Ctrl-Wheel`, and two-finger pinch/swipe cover keyboard, mouse, and touch.
   The sidebar scales independently, remains anchored top-left, and becomes a
   fitted paged top strip on phone-width grids. Zoom, interface
