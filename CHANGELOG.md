@@ -8,7 +8,15 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
-## Unreleased
+## 1.1.0 - 2026-08-27
+
+### Changed
+
+- **This version requires Neo Angband 1.1.0 or newer.** `manifest.json`'s
+  engine range moves from `>=1.0.0` to `>=1.1.0`: real zoom and pan rides a
+  new core display-geometry seam (`ctx.display`, `GlyphTerm.setReflow` and
+  friends) that does not exist on an older engine. An out-of-range engine is
+  a hard refusal in the host, not a degraded load.
 
 ### Added
 
