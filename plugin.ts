@@ -187,16 +187,21 @@ function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): bool
 }
 
 /*
- * "Hover cards on the Map overview" (qol.mapHoverCards): resting the mouse
- * over the (M)ap overview shows what the player currently knows about the
- * object or creature under the cursor.
+ * "Hover cards on the Map overview" (qol.mapHoverCards): inspect one cell of
+ * the (M)ap overview without leaving it.
  *
- * Scope decision: OBJECTS AND CREATURES ONLY, not every cell. The issue
- * offered both; this mod already favours staying out of the way (every
- * toggle here is something a player can switch off, and this one defaults
- * off), and a card on every floor/wall/rubble cell would be exactly the kind
- * of screen noise that convention avoids. Revisit if a player asks for the
- * terrain-included version.
+ * WHAT IT SHOWS. Every resolvable cave cell: terrain, creature, item, trap,
+ * shop entrance, or the player's own grid. Text comes from describeLookGrid
+ * (the same knowledge gate as the main-screen look command). The card also
+ * tries to show a magnified tile snapshot cropped from the graphics overview
+ * overlay when one is mounted, otherwise a magnified sample of the terminal
+ * cell on #game.
+ *
+ * INPUT. Mouse: dwell on one grid for HOVER_DWELL_MS, then show; leaving that
+ * grid closes the card. Touch/pen: hold one grid for TOUCH_HOLD_MS, then show;
+ * the card stays until a tap elsewhere. Both paths stop the overview's own
+ * window-capture pointerdown dismiss while the pointer is over a map cell, so
+ * a click or hold inspects instead of closing the map (keys still dismiss).
  *
  * WHY THIS IS RAW DOM RATHER THAN A `regions()` DECLARATION. A mod's own
  * declared region only paints while the shell's main render loop runs, and
@@ -204,37 +209,25 @@ function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): bool
  * draws the box once (paintLevelMapOnTerminal, overlay.ts) and does not
  * repaint on mouse movement, so a region's `paint()` never fires while the
  * overview is open. The overview's own dismiss handlers are raw
- * `window`/`document` listeners for the same reason (any key, any pointer
- * down) - this mirrors that, the way neo-angband-mod-forge's own overlay
- * does for the same class of problem (its overlay.ts: "a mod creates its own
- * elements from the ambient document ... and manages their own listeners").
- * No manifest capability gates this: none exists for it, by that same
- * mod's own reasoning ("a ui:dom.overlay capability would add a consent
- * string and no containment").
+ * `window`/`document` listeners for the same reason - this mirrors that, the
+ * way neo-angband-mod-forge's own overlay does for the same class of problem.
+ * No manifest capability gates this: none exists for it, by that same mod's
+ * own reasoning ("a ui:dom.overlay capability would add a consent string and
+ * no containment").
  *
  * WHY "IS THE OVERVIEW OPEN" IS A GUESS. Nothing in the mod ABI publishes
  * which screen is currently on top - only `frontend()` (a full renderer
  * replacement, wildly disproportionate to a hover card) ever sees that. This
- * arms on an 'M' keydown and disarms on the very next key or pointer press,
- * mirroring the overview's own dismiss condition. A player who types a
- * capital M elsewhere (naming a character) can arm this for one keystroke;
- * the very next key or click disarms it again, and nothing is drawn unless
- * the mouse is also over the game canvas AND a resolvable cell AND a real
- * knowledge-gated object or creature, so the false-positive window is a
- * single frame with nothing visible in practice.
+ * arms on an 'M' keydown and disarms on any other key (the overview's key
+ * dismiss) or on a pointerdown outside the map box. A player who types a
+ * capital M elsewhere (naming a character) can arm this briefly; nothing is
+ * drawn unless the pointer also resolves to a cave grid.
  *
  * WHY THE PIXEL<->CELL MATH IS REPLICATED RATHER THAN IMPORTED. A mod
  * cannot import packages/web (only packages/core, and only for types) - the
  * game's own `GlyphTerm.cellAt` (term.ts) is unreachable. The formula below
  * mirrors its FIXED-mode branch (term.ts `fitFixed`/`cellAt`): the terminal
- * is TERM_COLS x TERM_ROWS (term.ts FIXED_COLS/FIXED_ROWS - the classic
- * Angband 80x24, guarded by this project's own parity mandate, about as
- * stable a constant as this codebase has) and the default bitmap glyph is
- * GLYPH_W x GLYPH_H (font-16x24.ts FONT_16X24). A player on a custom bitmap
- * font, a vector-font fallback, or the "reflow" responsive mode (an opt-in
- * not offered to players today per term.ts's own comment) gets a card that
- * may sit a little off the exact cell - a cosmetic rough edge, not a
- * function break, and a smaller ask than a core ABI change for 1.0.
+ * is TERM_COLS x TERM_ROWS and the default bitmap glyph is GLYPH_W x GLYPH_H.
  */
 
 /** term.ts FIXED_COLS/FIXED_ROWS - the game's terminal grid. */
@@ -243,6 +236,12 @@ const TERM_ROWS = 24;
 /** font-16x24.ts FONT_16X24 - the default bitmap glyph's native pixel size. */
 const GLYPH_W = 16;
 const GLYPH_H = 24;
+/** Mouse dwell before a card opens (ms). */
+export const HOVER_DWELL_MS = 2000;
+/** Touch/pen hold before a card opens (ms). */
+export const TOUCH_HOLD_MS = 1000;
+/** Magnified tile preview edge length inside the card (CSS px). */
+const TILE_PREVIEW_PX = 64;
 
 /** A plain rectangle, the shape `Element.getBoundingClientRect()` answers -
  * spelled out so this stays testable without a real DOM element. */
@@ -305,10 +304,26 @@ export function hoverCaveGrid(
   return { x, y };
 }
 
+/** What kind of content the card is describing. */
+export type HoverCardKind =
+  | "character"
+  | "creature"
+  | "item"
+  | "trap"
+  | "shop"
+  | "terrain";
+
+export interface HoverCardContent {
+  readonly kind: HoverCardKind;
+  readonly text: string;
+  readonly title: string;
+}
+
 /** The subset of ctx.core this feature calls, structurally - see this file's
  * header on why a mod names what it touches rather than importing the whole
- * shape for a cast. Both are public exports of the engine (game/target-loop.ts,
- * game/known.ts). */
+ * shape for a cast. Public exports of the engine (game/target-loop.ts,
+ * game/known.ts); trap/feature helpers are optional so an older engine still
+ * gets text, just with coarser kind labels. */
 interface LookApi {
   describeLookGrid(
     state: GameState,
@@ -316,24 +331,70 @@ interface LookApi {
     mode: number,
   ): { text: string; mon: unknown };
   knownPile(state: GameState, grid: { x: number; y: number }): readonly unknown[];
+  squareIsVisibleTrap?(state: GameState, grid: { x: number; y: number }): boolean;
+}
+
+/** Live state fields the card classifier reads beyond describeLookGrid. */
+interface HoverState {
+  readonly actor?: { readonly grid?: { readonly x: number; readonly y: number } };
+  readonly chunk?: {
+    readonly width: number;
+    readonly height: number;
+    feature?(grid: { x: number; y: number }): { shopnum?: number };
+  };
+}
+
+const KIND_TITLE: Readonly<Record<HoverCardKind, string>> = {
+  character: "Character",
+  creature: "Creature",
+  item: "Item",
+  trap: "Trap",
+  shop: "Shop",
+  terrain: "Terrain",
+};
+
+/**
+ * Context-sensitive card content for one cave grid. Always knowledge-gated
+ * through describeLookGrid. Returns null only when the look API answers with
+ * an empty string (nothing known / nothing to say).
+ */
+export function hoverCardContent(
+  core: LookApi,
+  state: HoverState & GameState,
+  grid: { x: number; y: number },
+): HoverCardContent | null {
+  const result = core.describeLookGrid(state, grid, 0);
+  const text = result?.text?.trim() ?? "";
+  if (!text) return null;
+
+  const player = state.actor?.grid;
+  let kind: HoverCardKind;
+  if (player && player.x === grid.x && player.y === grid.y) {
+    kind = "character";
+  } else if (result.mon) {
+    kind = "creature";
+  } else if (core.knownPile(state, grid).length > 0) {
+    kind = "item";
+  } else if (core.squareIsVisibleTrap?.(state, grid)) {
+    kind = "trap";
+  } else if ((state.chunk?.feature?.(grid)?.shopnum ?? 0) > 0) {
+    kind = "shop";
+  } else {
+    kind = "terrain";
+  }
+  return { kind, text, title: KIND_TITLE[kind] };
 }
 
 /**
- * The card's text for one cave grid, or null when this grid is not worth a
- * card under this feature's scope (objects and creatures only - see this
- * section's header). `describeLookGrid` already applies the same knowledge
- * gate the main screen's own 'l' look command does, so the text here is
- * never more than the player already knows.
+ * Back-compat text helper: the card body string, or null when there is none.
+ * Prefer hoverCardContent when the kind label matters.
  */
 export function hoverCardText(
   core: LookApi,
   state: GameState,
   grid: { x: number; y: number },
 ): string | null {
-  const result = core.describeLookGrid(state, grid, 0);
-  const hasObject = core.knownPile(state, grid).length > 0;
-  if (!result.mon && !hasObject) return null;
-  return result.text;
+  return hoverCardContent(core, state, grid)?.text ?? null;
 }
 
 let hoverCardsWired = false;
@@ -354,26 +415,138 @@ function positionHoverCard(el: HTMLElement, clientX: number, clientY: number): v
   el.style.top = `${String(Math.max(0, top))}px`;
 }
 
-function buildHoverCardElement(): HTMLDivElement {
-  const el = document.createElement("div");
-  el.setAttribute("data-qol-map-hover-card", "");
-  Object.assign(el.style, {
+function buildHoverCardElement(): {
+  root: HTMLDivElement;
+  title: HTMLDivElement;
+  img: HTMLCanvasElement;
+  body: HTMLDivElement;
+} {
+  const root = document.createElement("div");
+  root.setAttribute("data-qol-map-hover-card", "");
+  Object.assign(root.style, {
     position: "fixed",
     zIndex: "2100",
     pointerEvents: "none",
     display: "none",
-    maxWidth: "320px",
-    padding: "4px 8px",
-    borderRadius: "4px",
+    maxWidth: "360px",
+    padding: "8px 10px",
+    borderRadius: "6px",
     font: "13px monospace",
-    lineHeight: "1.3",
-    whiteSpace: "pre-wrap",
-    background: "rgba(12,12,16,0.92)",
+    lineHeight: "1.35",
+    background: "rgba(12,12,16,0.94)",
     color: "#e8e8e8",
-    border: "1px solid #666",
+    border: "1px solid #777",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
   });
-  document.body.appendChild(el);
-  return el;
+
+  const title = document.createElement("div");
+  Object.assign(title.style, {
+    fontWeight: "700",
+    marginBottom: "6px",
+    color: "#f0d878",
+    letterSpacing: "0.02em",
+  });
+
+  const row = document.createElement("div");
+  Object.assign(row.style, {
+    display: "flex",
+    gap: "10px",
+    alignItems: "flex-start",
+  });
+
+  const img = document.createElement("canvas");
+  img.width = TILE_PREVIEW_PX;
+  img.height = TILE_PREVIEW_PX;
+  Object.assign(img.style, {
+    width: `${String(TILE_PREVIEW_PX)}px`,
+    height: `${String(TILE_PREVIEW_PX)}px`,
+    imageRendering: "pixelated",
+    flex: "0 0 auto",
+    background: "#000",
+    border: "1px solid #555",
+  });
+
+  const body = document.createElement("div");
+  Object.assign(body.style, {
+    whiteSpace: "pre-wrap",
+    flex: "1 1 auto",
+    minWidth: "0",
+  });
+
+  row.appendChild(img);
+  row.appendChild(body);
+  root.appendChild(title);
+  root.appendChild(row);
+  document.body.appendChild(root);
+  return { root, title, img, body };
+}
+
+/**
+ * Crop one cave cell from the graphics overview overlay (overlay.ts
+ * mountGraphicsOverview) when present; otherwise sample the matching
+ * terminal cell from #game. Returns false when neither source has pixels.
+ */
+function paintTilePreview(
+  canvas: HTMLCanvasElement,
+  grid: { x: number; y: number },
+  chunk: { width: number; height: number },
+  termCell: { col: number; row: number } | null,
+): boolean {
+  const ctx2d = canvas.getContext("2d");
+  if (!ctx2d) return false;
+  ctx2d.imageSmoothingEnabled = false;
+  ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+
+  const overlays = Array.from(
+    document.querySelectorAll<HTMLCanvasElement>('body > canvas[aria-hidden="true"]'),
+  );
+  for (const src of overlays) {
+    if (src === canvas || src.id === "game") continue;
+    if (src.width < 1 || src.height < 1) continue;
+    if (chunk.width < 1 || chunk.height < 1) continue;
+    const cellW = src.width / chunk.width;
+    const cellH = src.height / chunk.height;
+    if (cellW < 1 || cellH < 1) continue;
+    try {
+      ctx2d.drawImage(
+        src,
+        grid.x * cellW,
+        grid.y * cellH,
+        cellW,
+        cellH,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
+      return true;
+    } catch {
+      /* Cross-origin or zero-size draw - try the next source. */
+    }
+  }
+
+  const game = document.getElementById("game");
+  if (!(game instanceof HTMLCanvasElement) || !termCell) return false;
+  if (game.width < 1 || game.height < 1) return false;
+  const cellW = game.width / TERM_COLS;
+  const cellH = game.height / TERM_ROWS;
+  if (cellW < 1 || cellH < 1) return false;
+  try {
+    ctx2d.drawImage(
+      game,
+      termCell.col * cellW,
+      termCell.row * cellH,
+      cellW,
+      cellH,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -385,64 +558,201 @@ function installMapHoverCards(ctx: HookCtx): void {
   if (ctx.flags["qol.mapHoverCards"] !== true) return;
   if (hoverCardsWired) return;
   if (typeof document === "undefined" || typeof window === "undefined") return;
-  /* Touch-only surface: no hover exists to drive this, so it stays off
-   * regardless of the toggle - the manifest's own "desktop with a mouse
-   * only" line. Mirrors this game's own touch-action-bar gate (main.ts:
-   * `matchMedia("(pointer: coarse)")`), inverted. */
-  try {
-    if (window.matchMedia?.("(pointer: coarse)").matches) return;
-  } catch {
-    /* matchMedia missing or throwing (a harness, an old embedder): treat as
-     * "cannot tell", and proceed - the desktop case this feature is for. */
-  }
   hoverCardsWired = true;
 
   const core = ctx.core as unknown as LookApi;
   const card = buildHoverCardElement();
   let mapOpenGuess = false;
+  let touchPinned = false;
+  let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
+  let dwellGridKey: string | null = null;
+  let holdPointerId: number | null = null;
+  let shownGridKey: string | null = null;
+  let lastClientX = 0;
+  let lastClientY = 0;
+
+  const gridKey = (g: { x: number; y: number }): string => `${String(g.x)},${String(g.y)}`;
+
+  const clearDwell = (): void => {
+    if (dwellTimer !== null) clearTimeout(dwellTimer);
+    dwellTimer = null;
+    dwellGridKey = null;
+  };
+
+  const clearHold = (): void => {
+    if (holdTimer !== null) clearTimeout(holdTimer);
+    holdTimer = null;
+    holdPointerId = null;
+  };
 
   const hide = (): void => {
-    card.style.display = "none";
+    card.root.style.display = "none";
+    shownGridKey = null;
+    touchPinned = false;
+  };
+
+  const resolveCaveGrid = (
+    clientX: number,
+    clientY: number,
+  ): {
+    grid: { x: number; y: number };
+    cell: { col: number; row: number };
+    chunk: { width: number; height: number };
+  } | null => {
+    const game = document.getElementById("game");
+    if (!game) return null;
+    const cell = hoverCellAt(game.getBoundingClientRect(), clientX, clientY);
+    if (!cell) return null;
+    const state = ctx.state as unknown as (HoverState & GameState) | undefined;
+    const chunk = state?.chunk;
+    if (!chunk || chunk.width < 1 || chunk.height < 1) return null;
+    const grid = hoverCaveGrid(cell.col, cell.row, chunk.width, chunk.height);
+    if (!grid) return null;
+    return { grid, cell, chunk };
+  };
+
+  const showAt = (
+    clientX: number,
+    clientY: number,
+    resolved: {
+      grid: { x: number; y: number };
+      cell: { col: number; row: number };
+      chunk: { width: number; height: number };
+    },
+  ): boolean => {
+    const state = ctx.state as unknown as (HoverState & GameState) | undefined;
+    if (!state) return false;
+    const content = hoverCardContent(core, state, resolved.grid);
+    if (!content) return false;
+    card.title.textContent = content.title;
+    card.body.textContent = content.text;
+    const painted = paintTilePreview(card.img, resolved.grid, resolved.chunk, resolved.cell);
+    card.img.style.display = painted ? "block" : "none";
+    card.root.style.display = "block";
+    positionHoverCard(card.root, clientX, clientY);
+    shownGridKey = gridKey(resolved.grid);
+    return true;
   };
 
   document.addEventListener("keydown", (ev) => {
-    mapOpenGuess = ev.key === "M";
-    if (!mapOpenGuess) hide();
-  });
-  window.addEventListener("pointerdown", () => {
+    if (ev.key === "M") {
+      mapOpenGuess = true;
+      return;
+    }
     mapOpenGuess = false;
+    clearDwell();
+    clearHold();
     hide();
   });
-  document.addEventListener("pointermove", (ev) => {
+
+  /*
+   * Capture-phase, registered at boot: runs BEFORE the overview's own
+   * window-capture pointerdown dismiss (which is added when M opens). Stopping
+   * that dismiss while the pointer is over a map cell is what makes hover/hold
+   * usable; a tap outside the box still closes the map.
+   */
+  window.addEventListener(
+    "pointerdown",
+    (ev: PointerEvent) => {
+      if (!mapOpenGuess) return;
+      const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
+
+      if (touchPinned) {
+        const same =
+          resolved !== null && shownGridKey !== null && gridKey(resolved.grid) === shownGridKey;
+        if (same) {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          return;
+        }
+        hide();
+        clearHold();
+        if (!resolved) {
+          mapOpenGuess = false;
+          return;
+        }
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+          holdPointerId = ev.pointerId;
+          const atDown = resolved;
+          holdTimer = setTimeout(() => {
+            holdTimer = null;
+            if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
+          }, TOUCH_HOLD_MS);
+        }
+        return;
+      }
+
+      if (!resolved) {
+        mapOpenGuess = false;
+        clearDwell();
+        clearHold();
+        hide();
+        return;
+      }
+
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      clearDwell();
+
+      if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+        clearHold();
+        holdPointerId = ev.pointerId;
+        const atDown = resolved;
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (showAt(ev.clientX, ev.clientY, atDown)) touchPinned = true;
+        }, TOUCH_HOLD_MS);
+      }
+    },
+    true,
+  );
+
+  window.addEventListener("pointerup", (ev: PointerEvent) => {
+    if (holdPointerId !== null && ev.pointerId === holdPointerId && holdTimer !== null) {
+      clearHold();
+    }
+  });
+  window.addEventListener("pointercancel", (ev: PointerEvent) => {
+    if (holdPointerId !== null && ev.pointerId === holdPointerId) clearHold();
+  });
+
+  document.addEventListener("pointermove", (ev: PointerEvent) => {
     if (!mapOpenGuess) return;
-    const canvas = document.getElementById("game");
-    if (!canvas) {
-      hide();
+    lastClientX = ev.clientX;
+    lastClientY = ev.clientY;
+    if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+      if (holdTimer !== null && holdPointerId === ev.pointerId) {
+        const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
+        if (!resolved) clearHold();
+      }
       return;
     }
-    const cell = hoverCellAt(canvas.getBoundingClientRect(), ev.clientX, ev.clientY);
-    if (!cell) {
-      hide();
+    if (touchPinned) return;
+
+    const resolved = resolveCaveGrid(ev.clientX, ev.clientY);
+    if (!resolved) {
+      clearDwell();
+      if (shownGridKey !== null) hide();
       return;
     }
-    const state = ctx.state as unknown as GameState | undefined;
-    if (!state?.chunk) {
-      hide();
+    const key = gridKey(resolved.grid);
+    if (shownGridKey === key) {
+      positionHoverCard(card.root, ev.clientX, ev.clientY);
       return;
     }
-    const grid = hoverCaveGrid(cell.col, cell.row, state.chunk.width, state.chunk.height);
-    if (!grid) {
-      hide();
-      return;
-    }
-    const text = hoverCardText(core, state, grid);
-    if (!text) {
-      hide();
-      return;
-    }
-    card.textContent = text;
-    card.style.display = "block";
-    positionHoverCard(card, ev.clientX, ev.clientY);
+    if (shownGridKey !== null) hide();
+    if (dwellGridKey === key) return;
+    clearDwell();
+    dwellGridKey = key;
+    dwellTimer = setTimeout(() => {
+      dwellTimer = null;
+      const still = resolveCaveGrid(lastClientX, lastClientY);
+      if (!still || gridKey(still.grid) !== key) return;
+      showAt(lastClientX, lastClientY, still);
+    }, HOVER_DWELL_MS);
   });
 }
 

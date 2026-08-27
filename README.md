@@ -24,7 +24,7 @@ behaviour Angband does not have.
 | **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 | **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
-| **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse over an object or a creature shows a card with what you currently know about it - the same knowledge gate identify and memory already apply on the main screen. Plain terrain stays quiet. Desktop with a mouse only; a touch-only device leaves this off regardless of the toggle. |
+| **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
@@ -97,27 +97,28 @@ no randomness, so a walk this mod declines to handle leaves the RNG stream exact
 where faithful core would, which is what makes it safe to enable partway through a
 character.
 
-### Why the Map overview's hover cards are a mod, and why they cover objects and creatures only
+### Why the Map overview's hover cards are a mod
 
 The `M` command already draws the whole level in miniature, scaled down, with
 the same knowledge gate the main screen uses - remembered terrain, remembered
 or sensed objects, visible or detected monsters. What it has never had is a
 way to inspect one cell of that miniature once it is small enough to need one.
 
-This toggle adds exactly that inspection, and nothing the main screen would
-not already show: the card's text comes from the same look-command machinery
-that answers "what do I know about this grid" everywhere else in the game, so
-a card never reveals anything identify or memory has not already earned.
+This toggle adds that inspection, and nothing the main screen would not
+already show: the card's text comes from the same look-command machinery that
+answers "what do I know about this grid" everywhere else in the game, so a
+card never reveals anything identify or memory has not already earned. The
+kind label (terrain, creature, item, trap, shop, character) is derived from
+that same look result plus the live feature/player grid, and the magnified
+tile is cropped from the graphics overview overlay when one is mounted,
+otherwise from the matching terminal cell on the game canvas.
 
-It shows a card for an object or a creature, not for every cell. A card on
-plain terrain - floor, wall, rubble and the rest - would turn the overview
-into a wall of boxes rather than the quick glance it is meant to stay, and
-this mod's own toggles already favour staying out of the way over covering
-every possible case. Off by default, like any toggle here.
-
-It is desktop with a mouse, by nature - there is no touch or keyboard
-equivalent to hover with - so a touch-only device (no `hover` capability) is
-left alone regardless of the toggle.
+Mouse and touch both work. A two-second mouse dwell opens a card that closes
+when the pointer leaves that grid; a one-second touch hold opens a card that
+stays until a tap elsewhere. While the pointer is over the map box, this mod
+stops the overview's ordinary click-to-dismiss so inspection is possible; any
+key still closes the map, matching the footer's "Hit any key to continue".
+Off by default, like any toggle here.
 
 ## Installing
 

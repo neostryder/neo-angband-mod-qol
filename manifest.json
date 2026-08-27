@@ -43,7 +43,7 @@
     {
       "flag": "qol.mapHoverCards",
       "title": "Hover cards on the Map overview",
-      "description": "On the (M)ap overview screen, resting the mouse over an object or a creature shows a card with whatever you currently know about it - the same knowledge gate identify and memory already apply on the main screen; nothing is revealed early. Plain terrain (floor, wall, rubble and the like) stays quiet, so the overview does not fill with cards on every cell. Desktop with a mouse only - a touch-only device (no hover) leaves this off regardless of the toggle.",
+      "description": "On the (M)ap overview screen, resting the mouse on a cell for two seconds (or holding for one second on touch) shows a card with a magnified tile and whatever you currently know about that cell - terrain, creature, item, trap, shop, or your own character. The same knowledge gate identify and memory already apply on the main screen; nothing is revealed early. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview (any key still closes it).",
       "default": false
     }
   ],
