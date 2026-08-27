@@ -12,6 +12,9 @@
   "dependencies": {
     "core": "*"
   },
+  "capabilities": [
+    "ui:sidebar.replace"
+  ],
   "author": "neostryder",
   "license": "GPL-2.0-only",
   "description": "Conveniences that faithful Angband does not have. Angband's own options are core and are not touched here.\n\nEnable it and you get the whole set; each tweak is a named toggle you can switch off on its own. Fully removable - turn it off and the base game is exactly as it was.",
@@ -44,6 +47,18 @@
       "flag": "qol.mapHoverCards",
       "title": "Hover cards on the Map overview",
       "description": "On the (M)ap overview screen, resting the mouse on a cell for two seconds (or holding for one second on touch) shows a card with a magnified tile and whatever you currently know about that cell - terrain, creature, item, trap, shop, or your own character. The same knowledge gate identify and memory already apply on the main screen; nothing is revealed early. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview (any key still closes it).",
+      "default": false
+    },
+    {
+      "flag": "qol.zoomPan",
+      "title": "Zoom, pan, and responsive layout",
+      "description": "Use a real responsive grid whose visible rows and columns change with zoom. Ctrl-Plus and Ctrl-Minus zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. The sidebar stays at the top-left, scales separately, and scrolls on narrow screens. Display choices are shared by every character on this device.",
+      "default": true
+    },
+    {
+      "flag": "qol.sharpenZoomedTiles",
+      "title": "Sharpen zoomed graphics",
+      "description": "Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. This can make pixel-art edges clearer at zoom levels where the default high-quality downscale looks soft. It has no effect in ASCII mode.",
       "default": false
     }
   ],

@@ -25,14 +25,58 @@ behaviour Angband does not have.
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 | **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
 | **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
+| **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and moves to a scrollable top strip on narrow screens. |
+| **Sharpen zoomed graphics** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced. Pixel-art edges become crisper; ASCII is unchanged. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
-**From 0.13.0 this mod needs engine 0.18.0 or later** (`"engine": ">=0.18.0"`), and
-the game refuses to load it on anything older rather than showing you two toggles it
-cannot honour. 0.12.0 remains the version for a 0.17.0 game.
+The current mod needs engine 1.0.0 or later (`"engine": ">=1.0.0"`). The zoom
+toggle also checks for the newer display-geometry seam at runtime. An older 1.x
+host keeps the other conveniences and logs that zoom is unavailable instead of
+failing the whole mod.
+
+### How zoom, pan, and responsive layout work
+
+This is real grid reflow. A larger zoom step makes every glyph or tile larger
+and therefore shows fewer cave cells; a smaller step exposes more cave cells.
+The terminal, camera, full-level map, pointer conversion, and world frame all
+use the resulting whole-cell geometry. There is no CSS transform and no
+fractional cave offset.
+
+- `Ctrl-Plus` and `Ctrl-Minus` zoom the play grid. Zoom resets a manually
+  panned play camera so the player returns to the natural view. On the `M` map,
+  the same keys step from whole-level fit through three detail levels.
+- `Ctrl-Arrow` pans play or the `M` map by two cave cells. Panning a fitted map
+  first enters its broadest detail level, because a full-level fit has no
+  off-screen cave cells to reveal.
+- Hold `Shift` with either keyboard zoom shortcut to scale the interface
+  instead. `Ctrl-Wheel` targets the sidebar when the pointer is over it and the
+  play or map view everywhere else.
+- A two-finger gesture is assigned by its starting midpoint. Pinch on the view
+  zooms it and a two-finger swipe pans it; on the sidebar, pinch scales the text
+  and a two-finger swipe scrolls the sidebar in either direction.
+
+The ordinary roomy layout keeps a scrolling sidebar at the top-left. Below 48
+terminal columns it becomes a horizontally scrolling strip under the message
+line, still anchored at the top-left, so the remaining phone viewport belongs
+to the map. Reflow normally honors the selected cell height, but can reduce it
+enough to preserve a minimum 20 by 12 terminal on a very small display. Map
+width, height, zoom windows, and pan origins finish on whole cells and are also
+rounded to even spans or offsets where the level bounds permit.
+
+The zoom level, interface scale, and map detail are one install-wide device
+preference in `ctx.prefs`, shared by every character and save. It lives beside
+the remembered-options data in the same versioned value, so upgrading from the
+old direct options shape retains those options rather than replacing them.
+Neither zoom nor sidebar rendering adds a transition or animation, so reduced
+motion preferences need no exception path.
+
+Graphics downscaling normally keeps the engine's high-quality interpolation.
+The separate sharpening toggle changes that sampler to nearest-neighbour. It is
+off by default because which version reads better depends on the tileset and
+zoom level, while the automatic mode is the less surprising general default.
 
 ### Why remembering settings is a mod and not a fix
 

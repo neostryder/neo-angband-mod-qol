@@ -10,6 +10,19 @@ are, however small.
 
 ## Unreleased
 
+### Added
+
+- **Real zoom, pan, and responsive layout.** The play grid and `M` map now
+  reflow to show more or fewer whole cave cells instead of magnifying a fixed
+  canvas. `Ctrl-Plus`/`Ctrl-Minus`, `Ctrl-Arrow`, pointer-targeted
+  `Ctrl-Wheel`, and two-finger pinch/swipe cover keyboard, mouse, and touch.
+  The sidebar scales independently, remains anchored top-left, and becomes a
+  horizontally scrollable top strip on phone-width grids. Zoom, interface
+  scale, and map detail persist as one install-wide device preference.
+- **Sharpen zoomed graphics** is an optional, off-by-default nearest-neighbour
+  sampler for crisper pixel-art edges when graphics tiles are reduced. ASCII
+  rendering is unaffected.
+
 ### Fixed
 
 - **Hover cards on the Map overview dismissed the map on any click.** The
@@ -27,6 +40,9 @@ are, however small.
   that stays until a tap elsewhere. The card shows a magnified tile snapshot
   plus a kind label and knowledge-gated text for terrain, creature, item,
   trap, shop, or the player's own character (via `describeLookGrid`).
+- **Map hover geometry follows a zoomed or panned map window.** Cards and their
+  tile previews now resolve through the live map rectangle and cave-space
+  origin instead of assuming a fixed 80 by 24, whole-level overview.
 
 ## 1.0.0 - 2026-08-26
 
