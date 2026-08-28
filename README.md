@@ -200,29 +200,29 @@ published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
 convenience proven against a hand-built cave is a convenience proven against a fixture.
 
 ```bash
-npm install
+pnpm install --frozen-lockfile
 ```
 
 ```bash
-npm run verify
+pnpm verify
 ```
 
 That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
 build of the source, and the last one matters more than it looks. An install fetches the
 committed `plugin.js` from a pinned tag and runs it as it is; nothing rebuilds it on the
 way in. So a stale artefact passes every other check and is the file players actually
-run, and `npm run check` is the only thing that looks.
+run, and `pnpm check` is the only thing that looks.
 
 No checkout of the game is needed. The engine, the content pack (Angband 4.2.6
 gamedata, which the tests generate levels from) and the plugin builder are all
-published packages, so `npm ci` is the whole setup and the suite proves this mod
+published packages, so `pnpm install --frozen-lockfile` is the whole setup and the suite proves this mod
 against exactly what a third-party author would install. A sibling checkout of
 [neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO`
 pointing at one, is an override for developing against an engine change that has not
 reached the registry yet.
 
 ```bash
-npm run build     # rebuild plugin.js after editing plugin.ts
+pnpm build     # rebuild plugin.js after editing plugin.ts
 ```
 
 ### Testing against an unreleased engine
@@ -233,7 +233,7 @@ is pinned rather than linked. When you need to run against an engine change that
 has not shipped yet:
 
 ```bash
-NEO_ANGBAND_LOCAL_CORE=1 npm test
+NEO_ANGBAND_LOCAL_CORE=1 pnpm test
 ```
 
 That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling
