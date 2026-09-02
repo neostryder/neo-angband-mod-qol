@@ -9,14 +9,14 @@ Angband 4.2.6 plays it.
 
 ![The mod manager's confirmation screen for turning Quality of Life on](docs/img/qol-enable.jpg)
 
-## What it is not
+## Options this mod leaves alone
 
 It does not touch Angband's own options. Those ship in the game with their upstream
 defaults, and this mod has no opinion about them: if you want `auto_more` or
 `show_damage`, they are in the game's Options screen and always were. What is here is
 behaviour Angband does not have.
 
-## What it adds
+## Available toggles
 
 | Toggle | Default | What it does |
 |---|---|---|
@@ -35,7 +35,7 @@ should be the same shape, installed by the same code, gated by the same checks.
 The current mod needs engine 1.1.0 or later (`"engine": ">=1.1.0"`). That is
 the first engine version with the display-geometry seam used by zoom and pan.
 
-### How zoom, pan, and responsive layout work
+### Zoom, pan, and responsive layout
 
 This is real grid reflow. A larger zoom step makes every glyph or tile larger
 and therefore shows fewer cave cells; a smaller step exposes more cave cells.
@@ -89,7 +89,7 @@ The separate sharpening toggle changes that sampler to nearest-neighbour. It is
 off by default because which version reads better depends on the tileset and
 zoom level, while the automatic mode is the less surprising general default.
 
-### Why remembering settings is a mod and not a fix
+### Why remembering settings belongs in a mod
 
 Angband keeps a character's options inside that character's save and nowhere else, so
 they die with the character, and every new life starts by setting them all again.
@@ -114,7 +114,7 @@ setting does real damage. The filter applies when settings are read back as well
 when they are stored, so turning the toggle off takes effect against what is already
 saved.
 
-### Why reading past a mistake is a mod, and why it used to be in the game
+### Why pref-file error handling belongs in a mod
 
 Angband 4.2.6 stops dead at the first line of a pref file it cannot parse:
 `process_pref_file_named` prints one error and breaks out of the read loop
@@ -136,7 +136,7 @@ member because the three readers it governs (the `=` menu's "Load a user pref
 file", a mod's own `prefs` resource and the graphics pack loader) have no game
 state to hang a hook on, and two of them run before there is a game at all.
 
-### Why auto-dig is a mod and not a fix
+### Why auto-dig belongs in a mod
 
 Faithful 4.2.6 spends no energy when you walk into diggable terrain: you bump it and
 nothing happens. That is not a bug, it is what the C does
@@ -152,7 +152,7 @@ no randomness, so a walk this mod declines to handle leaves the RNG stream exact
 where faithful core would, which is what makes it safe to enable partway through a
 character.
 
-### Why the Map overview's hover cards are a mod
+### Why Map overview hover cards belong in a mod
 
 The `M` command already draws the whole level in miniature, scaled down, with
 the same knowledge gate the main screen uses - remembered terrain, remembered
@@ -193,7 +193,7 @@ Two files: `manifest.json` and `plugin.js`. Any of:
 that is what an install fetches. Edit the source, not this file, and if you are
 reading it to decide whether to trust it, that is exactly why it ships unminified.
 
-## Working on it
+## Building and testing the mod
 
 The source lives here now, and so do the tests. They boot a **real game** against the
 published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
@@ -208,15 +208,15 @@ pnpm verify
 ```
 
 That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source, and the last one matters more than it looks. An install fetches the
-committed `plugin.js` from a pinned tag and runs it as it is; nothing rebuilds it on the
-way in. So a stale artefact passes every other check and is the file players actually
-run, and `pnpm check` is the only thing that looks.
+build of the source. An install fetches the committed `plugin.js` from a pinned tag
+and runs it as it is; nothing rebuilds it on the way in. A stale artefact can pass the
+other checks and still be the file players run, so `pnpm check` is the only check that
+examines it.
 
 No checkout of the game is needed. The engine, the content pack (Angband 4.2.6
 gamedata, which the tests generate levels from) and the plugin builder are all
-published packages, so `pnpm install --frozen-lockfile` is the whole setup and the suite proves this mod
-against exactly what a third-party author would install. A sibling checkout of
+published packages, so `pnpm install --frozen-lockfile` is the whole setup. The suite
+proves this mod against exactly what a third-party author would install. A sibling checkout of
 [neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO`
 pointing at one, is an override for developing against an engine change that has not
 reached the registry yet.
@@ -250,7 +250,7 @@ minor or major bump posts an announcement to the RPGM Tools Discord's Neo
 Angband announcements forum automatically, built from the matching
 [CHANGELOG.md](CHANGELOG.md) heading. A patch-only bump stays quiet by design.
 
-## Questions, or something wrong
+## Support and bug reports
 
 [**The RPGM Tools Discord**](https://discord.gg/YegtwbHTBQ) is the fastest way
 to ask anything - whether a behaviour is intended, how to get this installed,
