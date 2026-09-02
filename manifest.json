@@ -1,7 +1,7 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "shape": "content",
   "facets": [
     "content",
@@ -59,6 +59,24 @@
       "flag": "qol.sharpenZoomedTiles",
       "title": "Sharpen zoomed graphics",
       "description": "Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. This can make pixel-art edges clearer at zoom levels where the default high-quality downscale looks soft. It has no effect in ASCII mode.",
+      "default": false
+    },
+    {
+      "flag": "qol.accessibilityZoom",
+      "title": "Accessibility: enlarged display",
+      "description": "Reserve the enlarged-display accommodation independently of other accessibility choices. It is off until you choose it; a later Quality of Life update supplies its visual behaviour.",
+      "default": false
+    },
+    {
+      "flag": "qol.accessibilityHighContrast",
+      "title": "Accessibility: high-contrast display",
+      "description": "Reserve the high-contrast rendering accommodation independently of other accessibility choices. It is off until you choose it; a later Quality of Life update supplies its visual behaviour.",
+      "default": false
+    },
+    {
+      "flag": "qol.accessibilityMacroWizard",
+      "title": "Accessibility: activation shortcut helper",
+      "description": "Reserve the activation-shortcut accommodation independently of other accessibility choices. It is off until you choose it; a later Quality of Life update supplies its helper.",
       "default": false
     }
   ],

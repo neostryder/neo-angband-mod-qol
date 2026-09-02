@@ -13,6 +13,7 @@
  * what the MOD does with that promise.
  */
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   loadPackFile as loadJson,
@@ -137,6 +138,33 @@ function dugGame(feat: number = FEAT.RUBBLE, digging = 200): {
 }
 
 describe("the qol mod's entry point", () => {
+  it("declares separate, opt-in accessibility accommodations", () => {
+    const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")) as {
+      rules: { flag: string; title: string; default: boolean }[];
+    };
+    const accommodations = manifest.rules
+      .filter((rule) => rule.flag.startsWith("qol.accessibility"))
+      .map(({ flag, title, default: isDefault }) => ({ flag, title, default: isDefault }));
+
+    expect(accommodations).toEqual([
+      {
+        flag: "qol.accessibilityZoom",
+        title: "Accessibility: enlarged display",
+        default: false,
+      },
+      {
+        flag: "qol.accessibilityHighContrast",
+        title: "Accessibility: high-contrast display",
+        default: false,
+      },
+      {
+        flag: "qol.accessibilityMacroWizard",
+        title: "Accessibility: activation shortcut helper",
+        default: false,
+      },
+    ]);
+  });
+
   it("contributes nothing when the mod is enabled but every patch is off", () => {
     /* The host still calls an enabled mod, so "{}" is the honest answer, and
      * composeModHooks turns a set of empty contributions back into `undefined` -

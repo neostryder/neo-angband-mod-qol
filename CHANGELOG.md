@@ -8,6 +8,15 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+## 1.2.0 - 2026-09-01
+
+### Added
+
+- Three independent, opt-in accessibility accommodation choices: enlarged
+  display, high-contrast display, and the activation-shortcut helper. They are
+  configured on the Quality of Life mod's own options page before a new run,
+  rather than being a single blanket accessibility switch.
+
 ## 1.1.1 - 2026-08-29
 
 ### Fixed
