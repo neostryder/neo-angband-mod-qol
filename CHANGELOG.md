@@ -8,6 +8,16 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small.
 
+Starting with this entry, an entry opens with one or more bracketed tags.
+`[Visible]` marks a change a player would notice in the game or mod itself;
+`[Internal]` marks one that touches only code, tooling, or a maintainer's own
+workflow, with nothing for a player to see. A further tag (`[Security]`,
+`[Balance]`, `[UI]`, `[Modding-API]`, `[Localization]`, `[Save-Compat]`,
+`[Docs]`, `[Content]`, `[Compatibility]`, and others as they come up) names
+what kind of change it is. Lists appear in this order and each is omitted
+when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
+were not retagged.
+
 ## 1.2.0 - 2026-09-01
 
 ### Added
