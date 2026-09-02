@@ -27,6 +27,9 @@ behaviour Angband does not have.
 | **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
 | **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and uses fitted pages on narrow screens. |
 | **Sharpen zoomed graphics** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced. Pixel-art edges become crisper; ASCII is unchanged. |
+| **Accessibility: enlarged display** (`qol.accessibilityZoom`) | off | Opt in to the enlarged-display accommodation independently. The visual behaviour arrives with the associated accommodation update. |
+| **Accessibility: high-contrast display** (`qol.accessibilityHighContrast`) | off | Opt in to high-contrast rendering independently. The visual behaviour arrives with the associated accommodation update. |
+| **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | Opt in to the activation-shortcut helper independently. The helper arrives with the associated accommodation update. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
@@ -34,6 +37,16 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 The current mod needs engine 1.1.0 or later (`"engine": ">=1.1.0"`). That is
 the first engine version with the display-geometry seam used by zoom and pan.
+
+### Accessibility accommodations
+
+Accessibility accommodations are separate opt-in mod rules, so enabling one does
+not turn on the others. Choose them in **Mods -> Quality of Life** before
+starting a character, then apply the changes and reload. The mod API's `rules`
+surface is the player-configurable option mechanism available to mods; it does
+not add arbitrary entries to the core `=` birth-options editor. The three
+choices above establish the stable independent flags used by the enlarged-display,
+high-contrast, and activation-shortcut accommodations.
 
 ### Zoom, pan, and responsive layout
 
