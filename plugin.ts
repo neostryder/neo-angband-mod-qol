@@ -60,6 +60,7 @@ import {
   type ZoomPanContext,
 } from "./zoom-pan";
 import { installAccessibilityAccommodations } from "./accessibility";
+import { installMacroWizard, offerAbilityMacro, type AbilityGainedLike } from "./macro-wizard";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -126,6 +127,17 @@ interface HookCtx {
   };
   /** Emit a diagnostic line; the host decides where it goes. */
   readonly log?: (msg: string) => void;
+  readonly keymaps?: {
+    isBindableTriggerKey(trigger: string): boolean;
+    bind(trigger: string, action: string): boolean;
+  };
+  readonly ui?: {
+    openPanel(spec: { id: string; modal: boolean; label: string }): {
+      readonly root: ShadowRoot;
+      readonly closed: Promise<void>;
+      close(): void;
+    };
+  };
 }
 
 /**
@@ -978,6 +990,11 @@ export default {
       }
     }
 
+    if (flags["qol.accessibilityMacroWizard"] === true) {
+      (hooks as ModHooks & { abilityGained?: (ability: AbilityGainedLike) => void }).abilityGained =
+        offerAbilityMacro;
+    }
+
     /*
      * "Remember my settings" (qol.rememberSettings), the CAPTURE half.
      *
@@ -1066,6 +1083,7 @@ export default {
     installZoomPan(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
+    if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;

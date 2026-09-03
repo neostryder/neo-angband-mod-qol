@@ -195,7 +195,7 @@ function centerGrid(rt) {
 function activateGameplayGrid(rt, action) {
   if (action) rt.activationActions.push(action);
   if (rt.gridActive) {
-    for (const pending of rt.activationActions.splice(0)) pending();
+    for (const pending2 of rt.activationActions.splice(0)) pending2();
     return;
   }
   if (rt.activationTimer !== null) return;
@@ -206,7 +206,7 @@ function activateGameplayGrid(rt, action) {
     markGridState("game");
     applyGridAndSidebar(rt);
     rt.display.repaint();
-    for (const pending of rt.activationActions.splice(0)) pending();
+    for (const pending2 of rt.activationActions.splice(0)) pending2();
   }, 0);
 }
 function applyMapPreference(rt) {
@@ -780,6 +780,119 @@ function installAccessibilityAccommodations(ctx) {
   setSidebarVisualFilter(filter);
 }
 
+// macro-wizard.ts
+var SUGGESTED_TRIGGERS = [
+  "F1",
+  "F2",
+  "F3",
+  "F4",
+  "F5",
+  "F6",
+  "F7",
+  "F8",
+  "F9",
+  "F10",
+  "F11",
+  "F12"
+];
+function suggestedMacroTrigger(keymaps) {
+  return SUGGESTED_TRIGGERS.find((trigger) => keymaps.isBindableTriggerKey(trigger)) ?? null;
+}
+function macroActionFor(ability) {
+  return ability.command === "activate" ? "A" : "m";
+}
+function bindAbilityMacro(keymaps, ability, trigger) {
+  if (!keymaps.isBindableTriggerKey(trigger)) return false;
+  return keymaps.bind(trigger, macroActionFor(ability));
+}
+var runtime2 = null;
+var active = false;
+var pending = [];
+function installMacroWizard(ctx) {
+  runtime2 = ctx.ui && ctx.keymaps ? ctx : null;
+  if (!runtime2) ctx.log?.("this game is too old for the activation shortcut helper");
+}
+function offerAbilityMacro(ability) {
+  if (!runtime2) return;
+  pending.push(ability);
+  showNext();
+}
+function showNext() {
+  if (active || !runtime2) return;
+  const ability = pending.shift();
+  if (!ability) return;
+  const suggested = suggestedMacroTrigger(runtime2.keymaps);
+  if (!suggested) {
+    runtime2.log?.(`no unused keymap trigger is available for ${ability.name}`);
+    showNext();
+    return;
+  }
+  active = true;
+  let panel;
+  try {
+    panel = runtime2.ui.openPanel({
+      id: "activation-shortcut",
+      modal: true,
+      label: "Activation shortcut helper"
+    });
+  } catch (error) {
+    runtime2.log?.(`could not open activation shortcut helper: ${String(error)}`);
+    active = false;
+    showNext();
+    return;
+  }
+  drawPrompt(panel, ability, suggested, () => {
+    active = false;
+    showNext();
+  });
+}
+function drawPrompt(panel, ability, suggested, done) {
+  const root = panel.root;
+  const style = document.createElement("style");
+  style.textContent = ":host { font: 16px sans-serif; } main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 34rem; margin: 12vh auto; padding: 1.25rem; } input { width: 5rem; } button { margin: .5rem .5rem 0 0; }";
+  const main = document.createElement("main");
+  const title = document.createElement("h2");
+  title.textContent = `Shortcut for ${ability.name}`;
+  const words = document.createElement("p");
+  words.textContent = `Bind ${suggested} to open the ${ability.command === "activate" ? "activation" : "casting"} command?`;
+  const label = document.createElement("label");
+  label.textContent = "Key: ";
+  const input = document.createElement("input");
+  input.value = suggested;
+  input.maxLength = 5;
+  input.setAttribute("aria-label", "Shortcut key");
+  label.appendChild(input);
+  const accept = document.createElement("button");
+  accept.textContent = "Bind shortcut";
+  const decline = document.createElement("button");
+  decline.textContent = "No thanks";
+  const result = document.createElement("p");
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    panel.close();
+    done();
+  };
+  void panel.closed.then(() => {
+    if (!finished) {
+      finished = true;
+      done();
+    }
+  });
+  accept.addEventListener("click", () => {
+    const trigger = input.value.trim();
+    if (runtime2?.keymaps && bindAbilityMacro(runtime2.keymaps, ability, trigger)) {
+      finish();
+      return;
+    }
+    result.textContent = "That key is unavailable. Choose an unused printable key, Enter, or F1 through F12.";
+  });
+  decline.addEventListener("click", finish);
+  root.append(style, main);
+  main.append(title, words, label, document.createElement("br"), accept, decline, result);
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
@@ -1243,6 +1356,9 @@ var plugin_default = {
         });
       }
     }
+    if (flags["qol.accessibilityMacroWizard"] === true) {
+      hooks.abilityGained = offerAbilityMacro;
+    }
     if (flags["qol.rememberSettings"] === true) {
       const prefs = ctx.prefs;
       if (!prefs) {
@@ -1297,6 +1413,7 @@ var plugin_default = {
     installZoomPan(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
+    if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;
