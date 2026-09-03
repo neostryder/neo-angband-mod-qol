@@ -18,6 +18,16 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## 1.4.0 - 2026-09-02
+
+### Added
+
+- [Visible] [Accessibility] **The activation shortcut helper now offers an unused keymap whenever you learn a spell or gain a known activatable item.** Accept the suggested function key, choose another free trigger, or decline the individual offer. The helper uses a host-owned modal that closes with Escape and never overwrites an existing shortcut (#167).
+
+### Changed
+
+- [Visible] [Compatibility] **This version requires Neo Angband 1.6.0 or newer.** The helper uses the new ability-gained notification and consented keymap facade, neither of which exists on an older engine.
+
 ## 1.3.0 - 2026-09-02
 
 ### Added

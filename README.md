@@ -29,15 +29,16 @@ behaviour Angband does not have.
 | **Sharpen zoomed graphics** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced. Pixel-art edges become crisper; ASCII is unchanged. |
 | **Accessibility: enlarged display** (`qol.accessibilityZoom`) | off | Opt in to the enlarged-display accommodation independently. The visual behaviour arrives with the associated accommodation update. |
 | **Accessibility: high-contrast display** (`qol.accessibilityHighContrast`) | off | Opt in to high-contrast rendering independently. The visual behaviour arrives with the associated accommodation update. |
-| **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | Opt in to the activation-shortcut helper independently. The helper arrives with the associated accommodation update. |
+| **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | When you gain a spell or known activation, offers an unused shortcut key for the casting or activation command. You may accept, choose another key, or decline. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
-The current mod needs engine 1.4.0 or later (`"engine": ">=1.4.0"`). That is
-the first engine version with both the display-geometry seam used by zoom and pan
-and the visual-filter seam used by the rendering accommodations.
+The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is
+the first engine version with the ability-gained notification and consented keymap
+facade used by the activation shortcut helper, as well as the display and filter
+seams used by the visual accommodations.
 
 ### Accessibility accommodations
 
@@ -53,8 +54,12 @@ and saturation boost to the rendered terminal frame. Colourblind correction appl
 a red-green daltonization colour matrix to that frame. Both filters work in ASCII
 and graphics modes, across dungeon play, the `M` map, menus, and other terminal-grid
 screens; the Quality of Life status sidebar and Map hover cards receive the same
-filter because they are separate DOM layers. The activation-shortcut helper remains
-reserved for its own future update.
+filter because they are separate DOM layers. The activation-shortcut helper opens a
+host-owned modal after you learn a spell or gain a known activatable item. It suggests
+an unused function key, lets you type another unused printable key, `Enter`, or an
+`F1` through `F12` key, and lets you decline. A bound shortcut opens the ordinary
+casting or activation command, so the game's normal item, spell, aiming, and safety
+choices still apply. Existing keymaps are never replaced.
 
 ### Zoom, pan, and responsive layout
 
