@@ -35,8 +35,9 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
-The current mod needs engine 1.1.0 or later (`"engine": ">=1.1.0"`). That is
-the first engine version with the display-geometry seam used by zoom and pan.
+The current mod needs engine 1.4.0 or later (`"engine": ">=1.4.0"`). That is
+the first engine version with both the display-geometry seam used by zoom and pan
+and the visual-filter seam used by the rendering accommodations.
 
 ### Accessibility accommodations
 
@@ -44,9 +45,16 @@ Accessibility accommodations are separate opt-in mod rules, so enabling one does
 not turn on the others. Choose them in **Mods -> Quality of Life** before
 starting a character, then apply the changes and reload. The mod API's `rules`
 surface is the player-configurable option mechanism available to mods; it does
-not add arbitrary entries to the core `=` birth-options editor. The three
-choices above establish the stable independent flags used by the enlarged-display,
-high-contrast, and activation-shortcut accommodations.
+not add arbitrary entries to the core `=` birth-options editor. The three visual
+choices establish stable independent flags. Enlarged display starts the responsive
+grid at a 36-pixel cell height even when the separate zoom-and-pan rule is off;
+your saved normal zoom preference is not changed. High contrast applies a contrast
+and saturation boost to the rendered terminal frame. Colourblind correction applies
+a red-green daltonization colour matrix to that frame. Both filters work in ASCII
+and graphics modes, across dungeon play, the `M` map, menus, and other terminal-grid
+screens; the Quality of Life status sidebar and Map hover cards receive the same
+filter because they are separate DOM layers. The activation-shortcut helper remains
+reserved for its own future update.
 
 ### Zoom, pan, and responsive layout
 

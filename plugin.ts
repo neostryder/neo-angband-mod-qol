@@ -59,6 +59,7 @@ import {
   zoomPanHud,
   type ZoomPanContext,
 } from "./zoom-pan";
+import { installAccessibilityAccommodations } from "./accessibility";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -1063,6 +1064,7 @@ export default {
    */
   register(_host: unknown, ctx: HookCtx): void {
     installZoomPan(ctx);
+    installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;

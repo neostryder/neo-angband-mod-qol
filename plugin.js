@@ -47,6 +47,7 @@ function withRememberedSettings(raw, options) {
 var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
+var ACCESSIBILITY_ZOOM_INDEX = 5;
 var runtime = null;
 function markGridState(value) {
   if (typeof document !== "undefined" && document.body) {
@@ -642,7 +643,7 @@ function paintSidebar(rt, section, frame) {
 function installZoomPan(ctx) {
   uninstallZoomPan();
   const display = ctx.display;
-  const enabled = ctx.flags["qol.zoomPan"] === true;
+  const enabled = ctx.flags["qol.zoomPan"] === true || ctx.flags["qol.accessibilityZoom"] === true;
   const crisp = ctx.flags["qol.sharpenZoomedTiles"] === true;
   if (!display) {
     if (enabled || crisp) ctx.log?.("this game is too old for zoom, pan, and responsive layout");
@@ -653,7 +654,10 @@ function installZoomPan(ctx) {
   const rt = {
     ctx,
     display,
-    preference: readDisplayPreference(ctx.prefs?.get()),
+    preference: {
+      ...readDisplayPreference(ctx.prefs?.get()),
+      ...ctx.flags["qol.accessibilityZoom"] === true ? { zoomIndex: Math.max(readDisplayPreference(ctx.prefs?.get()).zoomIndex, ACCESSIBILITY_ZOOM_INDEX) } : {}
+    },
     cleanups: [],
     touches: /* @__PURE__ */ new Map(),
     gesture: null,
@@ -695,7 +699,7 @@ function installZoomPan(ctx) {
   }
 }
 function zoomPanHud(ctx) {
-  if (ctx.flags["qol.zoomPan"] !== true || !runtime) {
+  if (ctx.flags["qol.zoomPan"] !== true && ctx.flags["qol.accessibilityZoom"] !== true || !runtime) {
     return void 0;
   }
   const rt = runtime;
@@ -717,6 +721,63 @@ function uninstallZoomPan() {
   rt.display.setSidebarExtent(null);
   rt.display.setGrid(null);
   rt.display.setTileScaling("auto");
+}
+
+// accessibility.ts
+var COLORBLIND_FILTER_ID = "qol-accessibility-colorblind";
+var HIGH_CONTRAST_FILTER = "contrast(1.55) saturate(1.2)";
+var COLORBLIND_MATRIX = "0.812 0.199 -0.011 0 0 0 1 0 0 0 -0.188 0.199 0.989 0 0 0 0 0 1 0";
+function accessibilityFilter(flags) {
+  const parts = [];
+  if (flags["qol.accessibilityColorblind"] === true) {
+    parts.push(`url("#${COLORBLIND_FILTER_ID}")`);
+  }
+  if (flags["qol.accessibilityHighContrast"] === true) parts.push(HIGH_CONTRAST_FILTER);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+function ensureColorblindFilter() {
+  if (typeof document === "undefined" || document.getElementById(COLORBLIND_FILTER_ID)) return;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("width", "0");
+  svg.setAttribute("height", "0");
+  svg.style.position = "absolute";
+  const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+  filter.setAttribute("id", COLORBLIND_FILTER_ID);
+  const matrix = document.createElementNS("http://www.w3.org/2000/svg", "feColorMatrix");
+  matrix.setAttribute("type", "matrix");
+  matrix.setAttribute("values", COLORBLIND_MATRIX);
+  filter.appendChild(matrix);
+  svg.appendChild(filter);
+  document.body?.appendChild(svg);
+}
+function setSidebarVisualFilter(filter) {
+  if (typeof document === "undefined") return;
+  const existing = document.getElementById("qol-accessibility-sidebar-filter");
+  if (!filter) {
+    existing?.remove();
+    return;
+  }
+  const style = existing ?? document.createElement("style");
+  style.id = "qol-accessibility-sidebar-filter";
+  style.textContent = `[data-qol-responsive-sidebar], [data-qol-map-hover-card] { filter: ${filter}; }`;
+  if (!existing) document.head?.appendChild(style);
+}
+function installAccessibilityAccommodations(ctx) {
+  const wantsFilter = ctx.flags["qol.accessibilityHighContrast"] === true || ctx.flags["qol.accessibilityColorblind"] === true;
+  if (!wantsFilter) {
+    ctx.display?.setVisualFilter(null);
+    setSidebarVisualFilter(null);
+    return;
+  }
+  if (!ctx.display) {
+    ctx.log?.("this game is too old for visual accessibility filters");
+    return;
+  }
+  if (ctx.flags["qol.accessibilityColorblind"] === true) ensureColorblindFilter();
+  const filter = accessibilityFilter(ctx.flags);
+  ctx.display.setVisualFilter(filter);
+  setSidebarVisualFilter(filter);
 }
 
 // plugin.ts
@@ -1234,6 +1295,7 @@ var plugin_default = {
    */
   register(_host, ctx) {
     installZoomPan(ctx);
+    installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
