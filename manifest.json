@@ -1,19 +1,20 @@
 {
   "id": "qol",
   "name": "Quality of Life",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "shape": "content",
   "facets": [
     "content",
     "plugin"
   ],
   "modApi": 1,
-  "engine": ">=1.1.0",
+  "engine": ">=1.4.0",
   "dependencies": {
     "core": "*"
   },
   "capabilities": [
-    "ui:sidebar.replace"
+    "ui:sidebar.replace",
+    "display:filter"
   ],
   "author": "neostryder",
   "license": "GPL-2.0-only",
@@ -64,13 +65,19 @@
     {
       "flag": "qol.accessibilityZoom",
       "title": "Accessibility: enlarged display",
-      "description": "Reserve the enlarged-display accommodation independently of other accessibility choices. It is off until you choose it; a later Quality of Life update supplies its visual behaviour.",
+      "description": "Use the responsive display at a larger, more readable default cell size. It works even if the separate Zoom, pan, and responsive layout rule is off, and does not change your saved normal zoom setting.",
       "default": false
     },
     {
       "flag": "qol.accessibilityHighContrast",
       "title": "Accessibility: high-contrast display",
-      "description": "Reserve the high-contrast rendering accommodation independently of other accessibility choices. It is off until you choose it; a later Quality of Life update supplies its visual behaviour.",
+      "description": "Boost contrast and colour separation after the game has rendered each frame. It affects ASCII and graphics alike, including dungeon play, maps, menus, the Quality of Life status sidebar, and Map hover cards.",
+      "default": false
+    },
+    {
+      "flag": "qol.accessibilityColorblind",
+      "title": "Accessibility: colourblind correction",
+      "description": "Apply a red-green daltonization correction after the game has rendered each frame. It affects ASCII and graphics alike, including dungeon play, maps, menus, the Quality of Life status sidebar, and Map hover cards.",
       "default": false
     },
     {

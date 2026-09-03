@@ -9,6 +9,8 @@ import {
 } from "./preferences";
 import {
   installZoomPan,
+  ACCESSIBILITY_ZOOM_INDEX,
+  PLAY_ZOOM_CELL_HEIGHTS,
   mapViewFor,
   pannedOrigin,
   pinchDirection,
@@ -58,6 +60,7 @@ function fakeDisplay(initial = snapshot()): {
   setMapView: ReturnType<typeof vi.fn>;
   setSidebarExtent: ReturnType<typeof vi.fn>;
   setTileScaling: ReturnType<typeof vi.fn>;
+  setVisualFilter: ReturnType<typeof vi.fn>;
 } {
   let current = initial;
   let listener: ((event: KeyboardEvent) => void) | null = null;
@@ -73,6 +76,7 @@ function fakeDisplay(initial = snapshot()): {
   });
   const setSidebarExtent = vi.fn();
   const setTileScaling = vi.fn();
+  const setVisualFilter = vi.fn();
   return {
     display: {
       snapshot: () => current,
@@ -87,6 +91,7 @@ function fakeDisplay(initial = snapshot()): {
       setMapView,
       setSidebarExtent,
       setTileScaling,
+      setVisualFilter,
       repaint: vi.fn(),
     },
     key: (event) => listener?.(event),
@@ -95,6 +100,7 @@ function fakeDisplay(initial = snapshot()): {
     setMapView,
     setSidebarExtent,
     setTileScaling,
+    setVisualFilter,
   };
 }
 
@@ -329,5 +335,20 @@ describe("input integration", () => {
     });
     expect(fake.setTileScaling).toHaveBeenCalledWith("crisp");
     expect(fake.setGrid).not.toHaveBeenCalled();
+  });
+
+  it("enlarges the responsive grid without requiring ordinary zoom and pan", () => {
+    vi.useFakeTimers();
+    const fake = fakeDisplay();
+    const ctx = {
+      flags: { "qol.zoomPan": false, "qol.accessibilityZoom": true },
+      display: fake.display,
+    };
+    installZoomPan(ctx);
+    fake.key(fakeKey("5", { ctrlKey: false }));
+    activateHud(ctx);
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({
+      cellHeight: PLAY_ZOOM_CELL_HEIGHTS[ACCESSIBILITY_ZOOM_INDEX],
+    }));
   });
 });

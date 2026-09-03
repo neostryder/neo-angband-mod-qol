@@ -158,6 +158,11 @@ describe("the qol mod's entry point", () => {
         default: false,
       },
       {
+        flag: "qol.accessibilityColorblind",
+        title: "Accessibility: colourblind correction",
+        default: false,
+      },
+      {
         flag: "qol.accessibilityMacroWizard",
         title: "Accessibility: activation shortcut helper",
         default: false,

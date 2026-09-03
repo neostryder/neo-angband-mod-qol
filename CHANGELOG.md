@@ -18,6 +18,12 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## 1.3.0 - 2026-09-02
+
+### Added
+
+- [Visible] [UI] **Enlarged display, high-contrast display, and colourblind correction are now real, independent visual accommodations.** Enlarged display uses the responsive grid at a larger default size even when ordinary zoom and pan are off. High contrast and a red-green daltonization correction filter the final ASCII or graphics frame, plus the Quality of Life status sidebar and Map hover cards (#166).
+
 ## 1.2.0 - 2026-09-01
 
 ### Added

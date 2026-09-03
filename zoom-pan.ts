@@ -8,6 +8,7 @@ import {
 export const PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48] as const;
 export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
+export const ACCESSIBILITY_ZOOM_INDEX = 5;
 
 export interface Pixels {
   readonly x: number;
@@ -59,6 +60,7 @@ export interface DisplayLike {
   } | null): void;
   setSidebarExtent(extent: { readonly columns: number; readonly topRows: number } | null): void;
   setTileScaling(mode: "auto" | "crisp"): void;
+  setVisualFilter(filter: string | null): void;
   repaint(): void;
 }
 
@@ -824,7 +826,7 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
 export function installZoomPan(ctx: ZoomPanContext): void {
   uninstallZoomPan();
   const display = ctx.display;
-  const enabled = ctx.flags["qol.zoomPan"] === true;
+  const enabled = ctx.flags["qol.zoomPan"] === true || ctx.flags["qol.accessibilityZoom"] === true;
   const crisp = ctx.flags["qol.sharpenZoomedTiles"] === true;
   if (!display) {
     if (enabled || crisp) ctx.log?.("this game is too old for zoom, pan, and responsive layout");
@@ -835,7 +837,12 @@ export function installZoomPan(ctx: ZoomPanContext): void {
   const rt: ZoomRuntime = {
     ctx,
     display,
-    preference: readDisplayPreference(ctx.prefs?.get()),
+    preference: {
+      ...readDisplayPreference(ctx.prefs?.get()),
+      ...(ctx.flags["qol.accessibilityZoom"] === true
+        ? { zoomIndex: Math.max(readDisplayPreference(ctx.prefs?.get()).zoomIndex, ACCESSIBILITY_ZOOM_INDEX) }
+        : {}),
+    },
     cleanups: [],
     touches: new Map(),
     gesture: null,
@@ -880,7 +887,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
 export function zoomPanHud(ctx: ZoomPanContext): {
   sidebar?: { present(section: HudSectionLike, frame: HudFrameLike): void };
 } | undefined {
-  if (ctx.flags["qol.zoomPan"] !== true || !runtime) {
+  if ((ctx.flags["qol.zoomPan"] !== true && ctx.flags["qol.accessibilityZoom"] !== true) || !runtime) {
     return undefined;
   }
   const rt = runtime;
