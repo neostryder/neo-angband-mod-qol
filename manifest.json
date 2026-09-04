@@ -8,7 +8,7 @@
     "plugin"
   ],
   "modApi": 1,
-  "engine": ">=1.6.0",
+  "engine": ">=1.8.0",
   "dependencies": {
     "core": "*"
   },

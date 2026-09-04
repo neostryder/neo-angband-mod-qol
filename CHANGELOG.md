@@ -26,7 +26,7 @@ were not retagged.
 
 ### Changed
 
-- [Visible] [Compatibility] **This version requires Neo Angband 1.6.0 or newer.** The helper uses the new ability-gained notification and consented keymap facade, neither of which exists on an older engine.
+- [Visible] [Compatibility] **This version requires Neo Angband 1.8.0 or newer.** The helper uses the new ability-gained notification and consented keymap facade, neither of which exists on an older engine.
 
 ## 1.3.0 - 2026-09-02
 
