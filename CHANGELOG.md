@@ -24,11 +24,11 @@ were not retagged.
 
 - [Visible] [UI] **You can now choose a cloud-backup folder from the Escape Game menu.** Successful saves update an importable backup in that folder when the host supports folder picking (#165).
 
+- [Visible] [Accessibility] **Repeated-action shortcuts can bind one unused key to conditional rest and cardinal runs.** The original keyset maps the offered runs to the game's existing run command, while the roguelike keyset keeps its already-single-key shifted directions. Existing shortcuts are never overwritten (#151). Reported by `misha_cilantro`.
+
 ## 1.4.0 - 2026-09-02
 
 ### Added
-
-- [Visible] [Accessibility] **Repeated-action shortcuts can bind one unused key to conditional rest and cardinal runs.** The original keyset maps the offered runs to the game's existing run command, while the roguelike keyset keeps its already-single-key shifted directions. Existing shortcuts are never overwritten. Reported by `misha_cilantro`.
 
 - [Visible] [Accessibility] **The activation shortcut helper now offers an unused keymap whenever you learn a spell or gain a known activatable item.** Accept the suggested function key, choose another free trigger, or decline the individual offer. The helper uses a host-owned modal that closes with Escape and never overwrites an existing shortcut (#167).
 
