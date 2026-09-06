@@ -32,10 +32,14 @@ export interface RepeatShortcutsContext {
  * Rest needs a command key and a choice in either keyset. Original-keyset runs
  * need a command key and a direction; roguelike already runs with one shifted
  * direction key, so offering duplicate run bindings there would save nothing.
+ *
+ * Rest carries a trailing Enter because `R` opens a prompt that has to be
+ * submitted, while a direction prompt resolves on the digit itself, so the run
+ * sequences end at their direction.
  */
 export function defaultRepeatShortcuts(roguelike: boolean): readonly RepeatShortcut[] {
   const shortcuts: RepeatShortcut[] = [
-    { trigger: "F1", label: "Rest as needed", action: "R&" },
+    { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" },
   ];
   if (!roguelike) {
     shortcuts.push(
