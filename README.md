@@ -25,6 +25,7 @@ behaviour Angband does not have.
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 | **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
 | **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
+| **First-encounter alerts** (`qol.firstEncounterAlerts`) | off | The first time this character meets a monster type, or picks up an artifact, a small card appears in the corner with its name and native depth. A monster's card also shows a threat badge - Unique, Deadly, Out of depth, or First sighting. The card takes no keypress and no click meant for the game, and clears itself after a few seconds or its own close button. Reported by `Wozar` on r/angband (#56). |
 | **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and uses fitted pages on narrow screens. |
 | **Sharpen zoomed graphics** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced. Pixel-art edges become crisper; ASCII is unchanged. |
 | **Accessibility: enlarged display** (`qol.accessibilityZoom`) | off | Opt in to the enlarged-display accommodation independently. The visual behaviour arrives with the associated accommodation update. |
@@ -215,6 +216,33 @@ stays until a tap elsewhere. While the pointer is over the map box, this mod
 stops the overview's ordinary click-to-dismiss so inspection is possible; any
 key still closes the map, matching the footer's "Hit any key to continue".
 Off by default, like any toggle here.
+
+### Why first-encounter alerts belong in a mod
+
+Angband already remembers every monster type you have ever met (the `r`ecall
+screen) and every artifact you have ever identified, but nothing puts either
+fact in front of you at the moment it happens. A mid-to-late-game run spends
+most of its time walking past monsters the player already knows, so the one
+that is genuinely new - an out-of-depth wanderer, or a unique - reads as just
+another glyph on the map unless something calls it out.
+
+This toggle calls it out. The first time this character's line of sight or
+telepathy includes a monster race, or the first time an artifact in their
+gear is assessed, a card appears with the monster or artifact's name and
+native depth. A monster's card also carries a threat badge: `Unique!` for any
+unique regardless of depth, `Deadly` for one five or more levels out of
+depth, `Out of depth` for one merely below the current depth, and
+`First sighting` for everything else, so the same glance that says "new"
+also says "should I be worried". The card is a non-modal panel: it takes no
+keypress, and only the card itself (not the transparent layer behind it)
+takes a pointer event, so it never costs a turn or blocks a click meant for
+the dungeon underneath. It clears itself after a few seconds, or immediately
+on its own close button.
+
+Tracked per character rather than per install: starting a new character sees
+every card again, because a fresh run is exactly when noticing an
+out-of-depth monster matters most. Reported by `Wozar` on r/angband, who also
+proposed extending the same notice to a first artifact find (#56).
 
 ## Installing
 
