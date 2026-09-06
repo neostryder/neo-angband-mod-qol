@@ -457,11 +457,11 @@ function installTouch(rt) {
   });
 }
 function installResponsiveMap(rt) {
-  let timer = null;
+  let timer2 = null;
   const onResize = () => {
-    if (timer !== null) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = null;
+    if (timer2 !== null) clearTimeout(timer2);
+    timer2 = setTimeout(() => {
+      timer2 = null;
       if (runtime !== rt) return;
       if (!rt.gridActive) {
         rt.display.setGrid(null);
@@ -488,7 +488,7 @@ function installResponsiveMap(rt) {
   window.addEventListener("resize", onResize);
   rt.cleanups.push(() => {
     window.removeEventListener("resize", onResize);
-    if (timer !== null) clearTimeout(timer);
+    if (timer2 !== null) clearTimeout(timer2);
   });
 }
 function createSidebar(rt) {
@@ -966,6 +966,242 @@ function drawPrompt2(panel, keymaps, shortcuts) {
   done.addEventListener("click", () => panel.close());
   main.append(done);
   root.append(style, main);
+}
+
+// first-encounter.ts
+var DEADLY_OUT_OF_DEPTH_LEVELS = 5;
+function classifyMonsterThreat(race, currentDepth) {
+  if (race.unique) return "unique";
+  const over = race.level - currentDepth;
+  if (over >= DEADLY_OUT_OF_DEPTH_LEVELS) return "deadly";
+  if (over >= 1) return "outOfDepth";
+  return "ordinary";
+}
+function characterKey(fingerprint) {
+  return [
+    fingerprint.fullName,
+    fingerprint.raceName,
+    fingerprint.clsName,
+    fingerprint.auBirth,
+    fingerprint.htBirth,
+    fingerprint.wtBirth
+  ].join("|");
+}
+function readFirstEncounterPrefs(raw, key) {
+  if (raw && typeof raw === "object") {
+    const stored = raw;
+    if (stored.v === 1 && stored.characterKey === key) {
+      return {
+        monsters: new Set(
+          Array.isArray(stored.monsters) ? stored.monsters.filter((n) => typeof n === "number") : []
+        ),
+        artifacts: new Set(
+          Array.isArray(stored.artifacts) ? stored.artifacts.filter((n) => typeof n === "number") : []
+        )
+      };
+    }
+  }
+  return { monsters: /* @__PURE__ */ new Set(), artifacts: /* @__PURE__ */ new Set() };
+}
+function toFirstEncounterPrefs(key, notebook) {
+  return {
+    v: 1,
+    characterKey: key,
+    monsters: [...notebook.monsters],
+    artifacts: [...notebook.artifacts]
+  };
+}
+function newMonsterSightings(visible, alreadySeen) {
+  const found = [];
+  const claimed = /* @__PURE__ */ new Set();
+  for (const race of visible) {
+    if (alreadySeen.has(race.ridx) || claimed.has(race.ridx)) continue;
+    claimed.add(race.ridx);
+    found.push(race);
+  }
+  return found;
+}
+function newArtifactFinds(carried, alreadySeen) {
+  const found = [];
+  const claimed = /* @__PURE__ */ new Set();
+  for (const artifact of carried) {
+    if (alreadySeen.has(artifact.aidx) || claimed.has(artifact.aidx)) continue;
+    claimed.add(artifact.aidx);
+    found.push(artifact);
+  }
+  return found;
+}
+function carriedKnownArtifacts(gear, liveObjectIsKnownArtifact) {
+  const found = [];
+  for (const obj of gear) {
+    if (obj.artifact && liveObjectIsKnownArtifact(obj)) found.push(obj.artifact);
+  }
+  return found;
+}
+var TIER_LABEL = {
+  unique: "Unique!",
+  deadly: "Deadly - well out of depth",
+  outOfDepth: "Out of depth",
+  ordinary: "First sighting"
+};
+var TIER_COLOR = {
+  unique: "#e8c34a",
+  deadly: "#e05a4e",
+  outOfDepth: "#e0954e",
+  ordinary: "#7fd88f"
+};
+function monsterCardContent(race, currentDepth, fmtDepth, colorToCss) {
+  const tier = classifyMonsterThreat(race, currentDepth);
+  return {
+    kind: "monster",
+    title: TIER_LABEL[tier],
+    name: race.name,
+    depthText: fmtDepth(race.level),
+    tier,
+    glyphChar: race.dChar,
+    glyphColor: colorToCss(race.dAttr)
+  };
+}
+function artifactCardContent(artifact, fmtDepth) {
+  return {
+    kind: "artifact",
+    title: "Artifact found!",
+    name: artifact.name,
+    depthText: fmtDepth(artifact.level)
+  };
+}
+var POLL_MS = 750;
+var AUTO_DISMISS_MS = 9e3;
+var timer = null;
+var queue = [];
+var activePanel = null;
+var activeTimeout = null;
+function showNext2(ui) {
+  if (activePanel) return;
+  const content = queue.shift();
+  if (!content) return;
+  let panel;
+  try {
+    panel = ui.openPanel({ id: "first-encounter", modal: false, label: content.title });
+  } catch {
+    return;
+  }
+  activePanel = panel;
+  drawCard(panel, content);
+  const advance = () => {
+    activePanel = null;
+    showNext2(ui);
+  };
+  void panel.closed.then(advance);
+  activeTimeout = setTimeout(() => {
+    activeTimeout = null;
+    panel.close();
+  }, AUTO_DISMISS_MS);
+}
+function drawCard(panel, content) {
+  const root = panel.root;
+  const style = document.createElement("style");
+  const accent = content.tier ? TIER_COLOR[content.tier] : TIER_COLOR.ordinary;
+  style.textContent = ":host { all: initial; }.wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; font: 14px/1.4 system-ui, sans-serif; }.card { position: relative; pointer-events: auto; width: 19rem; max-width: calc(100vw - 2rem); background: #17140f; color: #f2ead8; border-radius: 10px; padding: .8rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid " + accent + "; animation: qol-first-encounter-in .3s ease-out; }@keyframes qol-first-encounter-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }.head { display: flex; align-items: center; gap: .6rem; }.glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; font: 700 1.4rem/1 monospace; }.title { font-weight: 700; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: " + accent + "; }.name { font-size: 1.05rem; font-weight: 600; margin: .15rem 0 0; }.depth { opacity: .8; font-size: .82rem; margin-top: .15rem; }.close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; color: #f2ead8; font-size: 1rem; line-height: 1; cursor: pointer; opacity: .55; padding: .2rem; }.close:hover { opacity: 1; }";
+  const wrap = document.createElement("div");
+  wrap.className = "wrap";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.setAttribute("role", "status");
+  const close = document.createElement("button");
+  close.className = "close";
+  close.type = "button";
+  close.textContent = "X";
+  close.setAttribute("aria-label", "Dismiss");
+  close.addEventListener("click", () => panel.close());
+  const head = document.createElement("div");
+  head.className = "head";
+  if (content.glyphChar) {
+    const glyph = document.createElement("span");
+    glyph.className = "glyph";
+    glyph.style.color = content.glyphColor ?? "#f2ead8";
+    glyph.textContent = content.glyphChar;
+    head.append(glyph);
+  }
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "title";
+  title.textContent = content.title;
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = content.name;
+  titleBlock.append(title, name);
+  head.append(titleBlock);
+  const depth = document.createElement("div");
+  depth.className = "depth";
+  depth.textContent = `Native depth: ${content.depthText}`;
+  card.append(close, head, depth);
+  wrap.append(card);
+  root.append(style, wrap);
+}
+function characterKeyFor(player) {
+  return characterKey({
+    fullName: player.fullName,
+    raceName: player.race.name,
+    clsName: player.cls.name,
+    auBirth: player.auBirth,
+    htBirth: player.htBirth,
+    wtBirth: player.wtBirth
+  });
+}
+function installFirstEncounter(ctx) {
+  if (!ctx.ui || typeof ctx.core.monsterListCollect !== "function" || typeof ctx.core.liveObjectIsKnownArtifact !== "function" || typeof ctx.core.fmtDepth !== "function" || typeof ctx.core.colorToCss !== "function") {
+    ctx.log?.("this game is too old for first-encounter alerts");
+    return;
+  }
+  const ui = ctx.ui;
+  const core = ctx.core;
+  const key = characterKeyFor(ctx.state.player);
+  const notebook = readFirstEncounterPrefs(ctx.prefs?.get(), key);
+  const save = () => ctx.prefs?.set(toFirstEncounterPrefs(key, notebook));
+  timer = setInterval(() => {
+    let visible;
+    try {
+      visible = core.monsterListCollect(ctx.state).entries.map((entry) => entry.race);
+    } catch (error) {
+      ctx.log?.(`first-encounter alerts: could not read visible monsters: ${String(error)}`);
+      return;
+    }
+    const newMonsters = newMonsterSightings(visible, notebook.monsters);
+    let carried;
+    try {
+      carried = carriedKnownArtifacts(ctx.state.gear.store.values(), core.liveObjectIsKnownArtifact);
+    } catch (error) {
+      ctx.log?.(`first-encounter alerts: could not read carried gear: ${String(error)}`);
+      return;
+    }
+    const newArtifacts = newArtifactFinds(carried, notebook.artifacts);
+    if (newMonsters.length === 0 && newArtifacts.length === 0) return;
+    for (const race of newMonsters) notebook.monsters.add(race.ridx);
+    for (const artifact of newArtifacts) notebook.artifacts.add(artifact.aidx);
+    save();
+    const depth = ctx.state.chunk.depth;
+    for (const race of newMonsters) {
+      queue.push(monsterCardContent(race, depth, core.fmtDepth, core.colorToCss));
+    }
+    for (const artifact of newArtifacts) {
+      queue.push(artifactCardContent(artifact, core.fmtDepth));
+    }
+    showNext2(ui);
+  }, POLL_MS);
+}
+function uninstallFirstEncounter() {
+  if (timer !== null) {
+    clearInterval(timer);
+    timer = null;
+  }
+  if (activeTimeout !== null) {
+    clearTimeout(activeTimeout);
+    activeTimeout = null;
+  }
+  activePanel?.close();
+  activePanel = null;
+  queue = [];
 }
 
 // plugin.ts
@@ -1511,6 +1747,19 @@ var plugin_default = {
         ...ctx.log ? { log: ctx.log } : {}
       });
     }
+    if (ctx.flags["qol.firstEncounterAlerts"] === true) {
+      if (ctx.state) {
+        installFirstEncounter({
+          core: ctx.core,
+          state: ctx.state,
+          ...ctx.ui ? { ui: ctx.ui } : {},
+          ...ctx.prefs ? { prefs: ctx.prefs } : {},
+          ...ctx.log ? { log: ctx.log } : {}
+        });
+      } else {
+        ctx.log?.("first-encounter alerts: no live game at register time");
+      }
+    }
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;
@@ -1544,6 +1793,7 @@ var plugin_default = {
   },
   uninstall() {
     uninstallZoomPan();
+    uninstallFirstEncounter();
   }
 };
 export {
