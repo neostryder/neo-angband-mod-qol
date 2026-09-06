@@ -69,7 +69,7 @@ host-owned modal after you learn a spell or gain a known activatable item. It su
 an unused function key, lets you type another unused printable key, `Enter`, or an
 `F1` through `F12` key, and lets you decline. A bound shortcut opens the ordinary
 casting or activation command, so the game's normal item, spell, aiming, and safety
-choices still apply. The repeated-action helper offers `R&` for conditional rest,
+choices still apply. The repeated-action helper offers `R&[Enter]` for conditional rest,
 and in the original keyset `.8`, `.2`, `.4`, and `.6` for cardinal runs. These are
 the game's ordinary commands, so running keeps its existing stop checks and resting
 keeps its existing interruption checks. The roguelike keyset already starts a run

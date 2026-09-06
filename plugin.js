@@ -896,7 +896,7 @@ function drawPrompt(panel, ability, suggested, done) {
 // repeat-shortcuts.ts
 function defaultRepeatShortcuts(roguelike) {
   const shortcuts = [
-    { trigger: "F1", label: "Rest as needed", action: "R&" }
+    { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" }
   ];
   if (!roguelike) {
     shortcuts.push(
