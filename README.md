@@ -35,6 +35,15 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Cloud backups
+
+Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pick a
+folder that a cloud-sync service watches. After a folder is chosen, every successful
+save updates that character's importable backup there. Choosing a different folder
+replaces the previous choice. Cancelling the picker changes nothing. The row is hidden
+when the current browser or desktop host cannot offer a folder picker, so it never
+leaves an action that cannot work.
+
 The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is
 the first engine version with the ability-gained notification and consented keymap
 facade used by the activation shortcut helper, as well as the display and filter

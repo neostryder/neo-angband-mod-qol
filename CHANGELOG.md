@@ -18,6 +18,10 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+### Added
+
+- [Visible] [UI] **You can now choose a cloud-backup folder from the Escape Game menu.** Successful saves update an importable backup in that folder when the host supports folder picking (#165).
+
 ## 1.4.0 - 2026-09-02
 
 ### Added

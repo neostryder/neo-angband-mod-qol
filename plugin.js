@@ -1338,6 +1338,7 @@ var plugin_default = {
   hooks(ctx) {
     const { flags, core } = ctx;
     const hooks = {};
+    ctx.backupFolder?.onSave((file) => void ctx.backupFolder?.write(file.name, file.text));
     if (flags["qol.autoDig"] === true) {
       hooks.walkBlockedByDiggable = (state, grid, deps) => {
         if (!core.movementTunnelTest(state, grid)) return null;
@@ -1400,20 +1401,33 @@ var plugin_default = {
    * derived here: turn 0 is not it (the game autosaves immediately after birth),
    * and neither is an empty save bag (a mod enabled mid-game has one too).
    *
-   * The registry host is untouched. The sidebar capability is consumed by
-   * hud(), not by a registry facade, and this registration path needs none of
-   * the host's mutable registries.
+   * The sidebar capability is consumed by hud(), not by a registry facade.
+   * The one registry action below is a player-owned cloud-backup folder picker.
    *
    * ALSO WHERE qol.mapHoverCards WIRES ITSELF UP (installMapHoverCards, above) -
    * same reason: it is the one seam that sees a live ctx.state, and unlike the
    * remember-settings apply half it is not gated on ctx.newCharacter, so it
    * runs first and unconditionally.
    */
-  register(_host, ctx) {
+  register(host, ctx) {
     installZoomPan(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
+    const backupFolder = ctx.backupFolder;
+    if (backupFolder) {
+      host.menus.addAction(
+        "core:game-menu",
+        "choose-backup-folder",
+        "Choose cloud-backup folder...",
+        async () => {
+          try {
+            await backupFolder.choose();
+          } catch {
+          }
+        }
+      );
+    }
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;

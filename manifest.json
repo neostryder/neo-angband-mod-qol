@@ -13,10 +13,12 @@
     "core": "*"
   },
   "capabilities": [
+    "backup:folder",
     "ui:sidebar.replace",
     "display:filter",
     "ui:panel.mount",
-    "keymap:write"
+    "keymap:write",
+    "registry:menu"
   ],
   "author": "neostryder",
   "license": "GPL-2.0-only",
