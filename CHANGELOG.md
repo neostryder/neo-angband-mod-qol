@@ -26,6 +26,8 @@ were not retagged.
 
 - [Visible] [Accessibility] **Repeated-action shortcuts can bind one unused key to conditional rest and cardinal runs.** The original keyset maps the offered runs to the game's existing run command, while the roguelike keyset keeps its already-single-key shifted directions. Existing shortcuts are never overwritten (#151). Reported by `misha_cilantro`.
 
+- [Visible] [UI] **First-encounter alerts show a small card the first time this character meets a monster type or picks up an artifact.** The card names the monster or artifact and its native depth, and a monster's card adds a threat badge - Unique, Deadly, Out of depth, or First sighting - so an out-of-depth wanderer or a unique stands out instead of scrolling past unnoticed. The card is non-modal: it never takes a keypress or a click meant for the game, and it clears itself after a few seconds or its own close button. Tracked per character, so a new character sees every card again (#56). Reported by `Wozar` on r/angband.
+
 ## 1.4.0 - 2026-09-02
 
 ### Added

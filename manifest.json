@@ -55,6 +55,12 @@
       "default": false
     },
     {
+      "flag": "qol.firstEncounterAlerts",
+      "title": "First-encounter alerts",
+      "description": "The first time this character meets a monster type, or picks up an artifact, a small card appears in the corner of the screen with its name and native depth. A monster's card also carries a threat badge - Unique, Deadly (well out of depth), Out of depth, or First sighting - so a dangerous or unusual monster stands out instead of scrolling past unnoticed. The card never takes the keyboard or blocks a click on the game underneath, and clears itself after a few seconds or on a click of its own close button. Tracked per character: a new character sees every card again.",
+      "default": false
+    },
+    {
       "flag": "qol.zoomPan",
       "title": "Zoom, pan, and responsive layout",
       "description": "Use a real responsive grid whose visible rows and columns change with zoom. Ctrl-= and Ctrl-- zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. Hold Shift with a zoom key, or point at the sidebar while wheeling, to scale the sidebar separately. Only the game canvas pans. Display choices are shared by every character on this device.",

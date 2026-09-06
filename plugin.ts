@@ -62,6 +62,11 @@ import {
 import { installAccessibilityAccommodations } from "./accessibility";
 import { installMacroWizard, offerAbilityMacro, type AbilityGainedLike } from "./macro-wizard";
 import { installRepeatShortcuts } from "./repeat-shortcuts";
+import {
+  installFirstEncounter,
+  uninstallFirstEncounter,
+  type FirstEncounterContext,
+} from "./first-encounter";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -1138,6 +1143,30 @@ export default {
       });
     }
 
+    /*
+     * "First-encounter alerts" (qol.firstEncounterAlerts): see
+     * first-encounter.ts's header for why this polls rather than hooking an
+     * event, and why its notebook lives in ctx.prefs keyed per character
+     * rather than in a save bag. `ctx.state` and `ctx.core` are cast past
+     * this file's own narrow HookCtx declarations of them, the same way
+     * installMapHoverCards casts ctx.core to LookApi above: both are the
+     * live objects at register() time, just named here for less than this
+     * feature reads.
+     */
+    if (ctx.flags["qol.firstEncounterAlerts"] === true) {
+      if (ctx.state) {
+        installFirstEncounter({
+          core: ctx.core as unknown as FirstEncounterContext["core"],
+          state: ctx.state as unknown as FirstEncounterContext["state"],
+          ...(ctx.ui ? { ui: ctx.ui } : {}),
+          ...(ctx.prefs ? { prefs: ctx.prefs } : {}),
+          ...(ctx.log ? { log: ctx.log } : {}),
+        });
+      } else {
+        ctx.log?.("first-encounter alerts: no live game at register time");
+      }
+    }
+
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;
@@ -1185,5 +1214,6 @@ export default {
 
   uninstall(): void {
     uninstallZoomPan();
+    uninstallFirstEncounter();
   },
 };
