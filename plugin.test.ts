@@ -102,6 +102,29 @@ const pack: GamePack = {
  * "remember my settings" ones need a prefs store to install anything. */
 const DIG_ON = { "qol.autoDig": true };
 
+/** One menu action accepted by the real registry-host facade. */
+interface RegisteredMenuAction {
+  readonly id: "core:game-menu";
+  readonly action: string;
+  readonly label: string;
+  readonly handler: () => void | Promise<void>;
+}
+
+/**
+ * The front end owns the concrete menu registry, but a plugin receives this
+ * exact registry-host seam. Keep the recorder at that boundary while each
+ * test still boots a real game for the register() context.
+ */
+function menuHost(actions: RegisteredMenuAction[]): Parameters<typeof plugin.register>[0] {
+  return {
+    menus: {
+      addAction(id, action, label, handler): void {
+        actions.push({ id, action, label, handler });
+      },
+    },
+  };
+}
+
 /**
  * A real game with a diggable wall next to the player and a digger strong enough
  * that the roll always succeeds. Returns the direction to walk and the grid.
@@ -324,6 +347,76 @@ describe("qol.autoDig: walking into diggable terrain", () => {
 });
 
 /**
+ * Cloud backup is registered at the same live-game register() seam the host
+ * uses. The menu implementation belongs to the web front end, so this records
+ * the one public registry call rather than duplicating the front end's menu.
+ */
+describe("cloud backup folder", () => {
+  it("registers the Game-menu picker and writes the save files the host supplies", async () => {
+    const { state } = startGame(pack, { seed: 165, depth: 2 });
+    const actions: RegisteredMenuAction[] = [];
+    const writes: Array<{ name: string; text: string }> = [];
+    let onSave: ((file: { readonly name: string; readonly text: string }) => void) | undefined;
+    let chooses = 0;
+    const backupFolder = {
+      async choose(): Promise<string | null> {
+        chooses++;
+        return null; // cancellation is a normal no-op
+      },
+      async write(name: string, text: string): Promise<boolean> {
+        writes.push({ name, text });
+        return true;
+      },
+      onSave(fn: (file: { readonly name: string; readonly text: string }) => void): void {
+        onSave = fn;
+      },
+    };
+
+    /* The host composes hooks before it registers the live game. Keep that
+     * order here so this exercises both halves as they are actually wired. */
+    plugin.hooks({ flags: {}, core: neoCore, backupFolder });
+    plugin.register(menuHost(actions), { flags: {}, core: neoCore, state, backupFolder });
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({
+      id: "core:game-menu",
+      action: "choose-backup-folder",
+      label: "Choose cloud-backup folder...",
+    });
+    await expect(actions[0]!.handler()).resolves.toBeUndefined();
+    expect(chooses).toBe(1);
+
+    onSave?.({ name: "Bilbo-abcdef12.neochar", text: "save bytes" });
+    expect(writes).toEqual([{ name: "Bilbo-abcdef12.neochar", text: "save bytes" }]);
+  });
+
+  it("does not add a dead row when the host has no backup-folder capability", () => {
+    const { state } = startGame(pack, { seed: 166, depth: 2 });
+    const actions: RegisteredMenuAction[] = [];
+
+    expect(() => plugin.register(menuHost(actions), { flags: {}, core: neoCore, state })).not.toThrow();
+    expect(actions).toEqual([]);
+  });
+
+  it("contains a rejected picker so the Game menu can close normally", async () => {
+    const { state } = startGame(pack, { seed: 167, depth: 2 });
+    const actions: RegisteredMenuAction[] = [];
+    plugin.register(menuHost(actions), {
+      flags: {},
+      core: neoCore,
+      state,
+      backupFolder: {
+        choose: async () => Promise.reject(new Error("picker closed")),
+        write: async () => false,
+        onSave: () => undefined,
+      },
+    });
+
+    await expect(actions[0]!.handler()).resolves.toBeUndefined();
+  });
+});
+
+/**
  * "Remember my settings" (qol.rememberSettings / qol.rememberCheats).
  *
  * Driven exactly as the host drives it: `hooks()` returns the optionsChanged
@@ -406,7 +499,7 @@ describe("remember my settings", () => {
     /* A brand-new character: table defaults, nothing carried in memory. */
     const next = new neoCore.OptionState();
     expect(next.get("use_sound")).toBe(false);
-    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
     expect(next.get("use_sound")).toBe(true);
     expect(next.hitpointWarn).toBe(7);
     expect(next.delayFactor).toBe(12);
@@ -422,7 +515,7 @@ describe("remember my settings", () => {
     change(first, ON, prefs);
 
     const loaded = new neoCore.OptionState();
-    plugin.register(null, ctxFor(loaded, ON, { prefs, newCharacter: false }));
+    plugin.register(menuHost([]), ctxFor(loaded, ON, { prefs, newCharacter: false }));
     expect(loaded.get("use_sound")).toBe(false);
   });
 
@@ -433,7 +526,7 @@ describe("remember my settings", () => {
     change(first, ON, prefs);
 
     const next = new neoCore.OptionState();
-    plugin.register(null, ctxFor(next, ON, { prefs }));
+    plugin.register(menuHost([]), ctxFor(next, ON, { prefs }));
     expect(next.get("use_sound")).toBe(false);
   });
 
@@ -457,7 +550,7 @@ describe("remember my settings", () => {
     expect(stored.values["use_sound"]).toBe(true);
 
     const next = new neoCore.OptionState();
-    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
     expect(next.get("cheat_live")).toBe(false);
     expect(next.get("score_live")).toBe(false);
     expect(next.get("use_sound")).toBe(true);
@@ -470,7 +563,7 @@ describe("remember my settings", () => {
     change(first, WITH_CHEATS, prefs);
 
     const next = new neoCore.OptionState();
-    plugin.register(null, ctxFor(next, WITH_CHEATS, { prefs, newCharacter: true }));
+    plugin.register(menuHost([]), ctxFor(next, WITH_CHEATS, { prefs, newCharacter: true }));
     expect(next.get("cheat_live")).toBe(true);
     /* And the engine's coupling still applies on the way back in, so the score
      * twin is set by core rather than by anything this mod stored. */
@@ -488,7 +581,7 @@ describe("remember my settings", () => {
     expect(readRememberedSettings(prefs.get())?.values["cheat_live"]).toBe(true);
 
     const next = new neoCore.OptionState();
-    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
     expect(next.get("cheat_live")).toBe(false);
   });
 
@@ -510,7 +603,7 @@ describe("remember my settings", () => {
     const prefs = fakePrefs();
     prefs.set({ v: 99, values: { use_sound: true } });
     const next = new neoCore.OptionState();
-    plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true }));
+    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
     expect(next.get("use_sound")).toBe(false);
   });
 
@@ -527,7 +620,7 @@ describe("remember my settings", () => {
     });
     const next = new neoCore.OptionState();
     expect(() =>
-      plugin.register(null, ctxFor(next, ON, { prefs, newCharacter: true })),
+      plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true })),
     ).not.toThrow();
     expect(next.get("use_sound")).toBe(true);
   });
@@ -538,7 +631,7 @@ describe("remember my settings", () => {
     const opts = new neoCore.OptionState();
     expect(plugin.hooks({ flags: ON, core: neoCore }).optionsChanged).toBeUndefined();
     expect(() =>
-      plugin.register(null, {
+      plugin.register(menuHost([]), {
         flags: ON,
         core: neoCore,
         state: { options: opts },

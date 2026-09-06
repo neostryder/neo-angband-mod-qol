@@ -116,6 +116,15 @@ interface HookCtx {
     get(): unknown;
     set(value: unknown): void;
   };
+  /**
+   * A player-chosen folder for automatic save backups. It is absent when the
+   * host cannot offer a folder picker or the capability was not granted.
+   */
+  readonly backupFolder?: {
+    choose(): Promise<string | null>;
+    write(name: string, text: string): Promise<boolean>;
+    onSave(fn: (file: { readonly name: string; readonly text: string }) => void): void;
+  };
   /** Live web display geometry, absent during content composition or on old hosts. */
   readonly display?: ZoomPanContext["display"] | undefined;
   /** Whether this character was created this session rather than loaded. */
@@ -153,6 +162,18 @@ interface OptionStateLike {
   hitpointWarn: number;
   delayFactor: number;
   lazymoveDelay: number;
+}
+
+/** The registry-host subset this mod uses for its Game-menu action. */
+interface MenuHost {
+  readonly menus: {
+    addAction(
+      id: "core:game-menu",
+      action: string,
+      label: string,
+      handler: () => void | Promise<void>,
+    ): void;
+  };
 }
 
 /**
@@ -897,6 +918,8 @@ export default {
     const { flags, core } = ctx;
     const hooks: ModHooks = {};
 
+    ctx.backupFolder?.onSave((file) => void ctx.backupFolder?.write(file.name, file.text));
+
     /*
      * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork
      * (do_cmd_movement_tunnel_test / the move_player change): walking into known
@@ -1070,20 +1093,41 @@ export default {
    * derived here: turn 0 is not it (the game autosaves immediately after birth),
    * and neither is an empty save bag (a mod enabled mid-game has one too).
    *
-   * The registry host is untouched. The sidebar capability is consumed by
-   * hud(), not by a registry facade, and this registration path needs none of
-   * the host's mutable registries.
+   * The sidebar capability is consumed by hud(), not by a registry facade.
+   * The one registry action below is a player-owned cloud-backup folder picker.
    *
    * ALSO WHERE qol.mapHoverCards WIRES ITSELF UP (installMapHoverCards, above) -
    * same reason: it is the one seam that sees a live ctx.state, and unlike the
    * remember-settings apply half it is not gated on ctx.newCharacter, so it
    * runs first and unconditionally.
    */
-  register(_host: unknown, ctx: HookCtx): void {
+  register(host: MenuHost, ctx: HookCtx): void {
     installZoomPan(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
+
+    const backupFolder = ctx.backupFolder;
+    if (backupFolder) {
+      /* No unsupported-platform dead row: the host omits backupFolder when it
+       * cannot present a picker, so there is nothing useful for a player to
+       * select there. A cancelled pick resolves null; a rejected pick is
+       * contained by this menu action. */
+      host.menus.addAction(
+        "core:game-menu",
+        "choose-backup-folder",
+        "Choose cloud-backup folder...",
+        async () => {
+          try {
+            await backupFolder.choose();
+          } catch {
+            /* A rejected picker ends this one menu action cleanly, like a
+             * cancelled picker that resolves null. */
+          }
+        },
+      );
+    }
+
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
     const opts = ctx.state?.options;
