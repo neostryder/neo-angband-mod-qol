@@ -893,6 +893,81 @@ function drawPrompt(panel, ability, suggested, done) {
   main.append(title, words, label, document.createElement("br"), accept, decline, result);
 }
 
+// repeat-shortcuts.ts
+function defaultRepeatShortcuts(roguelike) {
+  const shortcuts = [
+    { trigger: "F1", label: "Rest as needed", action: "R&" }
+  ];
+  if (!roguelike) {
+    shortcuts.push(
+      { trigger: "F2", label: "Run north", action: ".8" },
+      { trigger: "F3", label: "Run south", action: ".2" },
+      { trigger: "F4", label: "Run west", action: ".4" },
+      { trigger: "F5", label: "Run east", action: ".6" }
+    );
+  }
+  return shortcuts;
+}
+function bindRepeatShortcut(keymaps, trigger, action) {
+  return keymaps.isBindableTriggerKey(trigger) && keymaps.bind(trigger, action);
+}
+function installRepeatShortcuts(ctx) {
+  if (!ctx.ui || !ctx.keymaps) {
+    ctx.log?.("this game is too old for repeated-action shortcuts");
+    return;
+  }
+  let panel;
+  try {
+    panel = ctx.ui.openPanel({
+      id: "repeated-action-shortcuts",
+      modal: true,
+      label: "Repeated-action shortcuts"
+    });
+  } catch (error) {
+    ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
+    return;
+  }
+  drawPrompt2(panel, ctx.keymaps, defaultRepeatShortcuts(ctx.roguelike));
+}
+function drawPrompt2(panel, keymaps, shortcuts) {
+  const root = panel.root;
+  const style = document.createElement("style");
+  style.textContent = ":host { font: 16px sans-serif; } main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 38rem; margin: 12vh auto; padding: 1.25rem; } label { display: block; margin-top: .7rem; } input { width: 5rem; } button { margin: .5rem .5rem 0 0; }";
+  const main = document.createElement("main");
+  const title = document.createElement("h2");
+  title.textContent = "Repeated-action shortcuts";
+  const words = document.createElement("p");
+  words.textContent = "Bind one key to a repeated non-combat command. Existing bindings are left unchanged.";
+  main.append(title, words);
+  for (const shortcut of shortcuts) {
+    const label = document.createElement("label");
+    label.textContent = `${shortcut.label}: `;
+    const input = document.createElement("input");
+    input.value = shortcut.trigger;
+    input.maxLength = 5;
+    input.setAttribute("aria-label", `${shortcut.label} shortcut key`);
+    const bind = document.createElement("button");
+    bind.textContent = "Bind";
+    const result = document.createElement("span");
+    bind.addEventListener("click", () => {
+      const trigger = input.value.trim();
+      if (bindRepeatShortcut(keymaps, trigger, shortcut.action)) {
+        result.textContent = " Bound.";
+        bind.disabled = true;
+        return;
+      }
+      result.textContent = " That key is unavailable.";
+    });
+    label.append(input, bind, result);
+    main.append(label);
+  }
+  const done = document.createElement("button");
+  done.textContent = "Done";
+  done.addEventListener("click", () => panel.close());
+  main.append(done);
+  root.append(style, main);
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
@@ -1427,6 +1502,14 @@ var plugin_default = {
           }
         }
       );
+    }
+    if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
+      installRepeatShortcuts({
+        roguelike: ctx.state?.options?.get("rogue_like_commands") ?? false,
+        ...ctx.ui ? { ui: ctx.ui } : {},
+        ...ctx.keymaps ? { keymaps: ctx.keymaps } : {},
+        ...ctx.log ? { log: ctx.log } : {}
+      });
     }
     if (ctx.flags["qol.rememberSettings"] !== true) return;
     if (ctx.newCharacter !== true) return;
