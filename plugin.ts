@@ -61,6 +61,7 @@ import {
 } from "./zoom-pan";
 import { installAccessibilityAccommodations } from "./accessibility";
 import { installMacroWizard, offerAbilityMacro, type AbilityGainedLike } from "./macro-wizard";
+import { installRepeatShortcuts } from "./repeat-shortcuts";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -1126,6 +1127,15 @@ export default {
           }
         },
       );
+    }
+
+    if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
+      installRepeatShortcuts({
+        roguelike: ctx.state?.options?.get("rogue_like_commands") ?? false,
+        ...(ctx.ui ? { ui: ctx.ui } : {}),
+        ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
+        ...(ctx.log ? { log: ctx.log } : {}),
+      });
     }
 
     if (ctx.flags["qol.rememberSettings"] !== true) return;

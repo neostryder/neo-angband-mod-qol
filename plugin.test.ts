@@ -31,6 +31,7 @@ import {
 import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import { readRememberedSettings } from "./preferences";
+import { defaultRepeatShortcuts } from "./repeat-shortcuts";
 import plugin, {
   hoverCardContent,
   hoverCardText,
@@ -136,10 +137,11 @@ function menuHost(actions: RegisteredMenuAction[]): Parameters<typeof plugin.reg
  */
 function dugGame(feat: number = FEAT.RUBBLE, digging = 200): {
   state: GameState;
+  registry: ReturnType<typeof startGame>["registry"];
   dir: number;
   grid: Loc;
 } {
-  const { state } = startGame(pack, { seed: 20260729, depth: 2 });
+  const { state, registry } = startGame(pack, { seed: 20260729, depth: 2 });
   let chosen: { dir: number; grid: Loc } | null = null;
   for (const dir of [6, 4, 2, 8]) {
     const d = DDGRID[dir] as Loc;
@@ -157,7 +159,7 @@ function dugGame(feat: number = FEAT.RUBBLE, digging = 200): {
    * wields the pack's best digger - so setting combat.skills directly would be
    * ignored, exactly as it is in the real game. */
   state.bestDiggerDigging = (): number => digging;
-  return { state, dir: chosen.dir, grid: chosen.grid };
+  return { state, registry, dir: chosen.dir, grid: chosen.grid };
 }
 
 describe("the qol mod's entry point", () => {
@@ -188,6 +190,11 @@ describe("the qol mod's entry point", () => {
       {
         flag: "qol.accessibilityMacroWizard",
         title: "Accessibility: activation shortcut helper",
+        default: false,
+      },
+      {
+        flag: "qol.accessibilityRepeatShortcuts",
+        title: "Accessibility: repeated-action shortcuts",
         default: false,
       },
     ]);
@@ -343,6 +350,21 @@ describe("qol.autoDig: walking into diggable terrain", () => {
     const spent = walkAction(state, { code: "walk", dir });
     expect(spent).toBe(state.z.moveEnergy);
     expect(state.chunk.feat(grid)).toBe(FEAT.GRANITE); // still there
+  });
+});
+
+describe("qol.accessibilityRepeatShortcuts: repeated non-combat commands", () => {
+  it("starts the core running state from the direction encoded in an offered macro", () => {
+    const { state, registry, dir } = dugGame(FEAT.FLOOR);
+    const shortcut = defaultRepeatShortcuts(false).find((entry) => entry.action === `.${String(dir)}`);
+    expect(shortcut).toBeDefined();
+
+    const before = loc(state.actor.grid.x, state.actor.grid.y);
+    const spent = registry.get("run")!(state, { code: "run", dir });
+
+    expect(spent).toBe(state.z.moveEnergy);
+    expect(state.actor.grid).not.toEqual(before);
+    expect(state.run?.running).toBeGreaterThan(0);
   });
 });
 

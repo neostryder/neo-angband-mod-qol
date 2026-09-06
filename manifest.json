@@ -89,6 +89,12 @@
       "title": "Accessibility: activation shortcut helper",
       "description": "When you learn a spell or gain a known activatable item, offer to bind the casting or activation command to an unused shortcut key. You can accept the suggested function key, choose a different key, or decline each offer.",
       "default": false
+    },
+    {
+      "flag": "qol.accessibilityRepeatShortcuts",
+      "title": "Accessibility: repeated-action shortcuts",
+      "description": "Offer unused one-key shortcuts for resting as needed and, in the original keyset, running in each cardinal direction. They start the game's ordinary rest or run command and never replace an existing shortcut.",
+      "default": false
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-qol"
