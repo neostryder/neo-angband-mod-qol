@@ -18,6 +18,8 @@ behaviour Angband does not have.
 
 ## Available toggles
 
+See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
+
 | Toggle | Default | What it does |
 |---|---|---|
 | **Auto-dig on walk** (`qol.autoDig`) | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move. |
