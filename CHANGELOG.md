@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.5.0 - 2026-09-06
+
 ### Added
 
 - [Visible] [UI] **You can now choose a cloud-backup folder from the Escape Game menu.** Successful saves update an importable backup in that folder when the host supports folder picking (#165).
