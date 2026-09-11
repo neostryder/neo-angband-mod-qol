@@ -339,7 +339,7 @@ function drawCard(panel: PanelLike, content: EncounterCardContent): void {
     accent +
     "; animation: qol-first-encounter-in .3s ease-out; }" +
     "@keyframes qol-first-encounter-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }" +
-    ".head { display: flex; align-items: center; gap: .6rem; }" +
+    ".head { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }" +
     ".glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; }" +
     ".depth { margin-top: .3rem; }" +
     ".close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; opacity: .55; padding: .2rem; }" +

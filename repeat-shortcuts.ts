@@ -112,13 +112,13 @@ function drawPrompt(
   style.textContent =
     ":host { all: initial; }" +
     ".wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }" +
-    ".card { position: relative; pointer-events: auto; width: 22rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; background: #151515; color: #f5f5f5; border-radius: 10px; padding: .9rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid #d4b05b; box-sizing: border-box; }" +
-    ".row { display: flex; align-items: center; gap: .4rem; margin-top: .7rem; }" +
+    ".card { position: relative; pointer-events: auto; width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-x: hidden; overflow-y: auto; background: #151515; color: #f5f5f5; border-radius: 10px; padding: .9rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid #d4b05b; box-sizing: border-box; }" +
+    ".row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }" +
     "input[type=text] { width: 4.5rem; font: 14px monospace; }" +
     "button { margin: .5rem .5rem 0 0; background: none; border: 1px solid #686878; border-radius: 4px; cursor: pointer; padding: .2rem .4rem; }" +
     ".close { position: absolute; top: .4rem; right: .5rem; border: none; opacity: .55; padding: .2rem; }" +
     ".close:hover { opacity: 1; }" +
-    ".forever { display: flex; align-items: center; gap: .4rem; margin-top: .7rem; }";
+    ".forever { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }";
 
   const wrap = document.createElement("div");
   wrap.className = "wrap";
@@ -126,16 +126,22 @@ function drawPrompt(
   card.className = "card";
   card.setAttribute("role", "group");
 
-  /* Rough estimate of the card's usable width in bitmap-font columns: 22rem
+  /* Rough estimate of the card's usable width in bitmap-font columns: 24rem
    * (16px root) less its own left/right padding, divided by one glyph cell.
    * Good enough for wrapping a settings card's own prose - it does not need
    * to survive a page zoom the way the responsive sidebar does. */
   const dpr = window.devicePixelRatio || 1;
   const cellHeight = 18;
   const cellWidth = cellHeight * (16 / 24);
-  const maxChars = Math.max(10, Math.floor((22 * 16 - 32) / cellWidth));
+  const maxChars = Math.max(10, Math.floor((24 * 16 - 32) / cellWidth));
   const titleCellHeight = 20;
   const titleCellWidth = titleCellHeight * (16 / 24);
+  /* The close button sits in the card's own top-right corner (#203); a title
+   * long enough to reach that far right would otherwise be drawn straight
+   * under it, since a bitmap-blitted line has no notion of flowing around a
+   * sibling the way ordinary inline text does. Reserving its own width plus
+   * a margin keeps the title's own text clear of it on every line. */
+  const titleMaxChars = Math.max(6, Math.floor((24 * 16 - 32 - 40) / titleCellWidth));
 
   const close = document.createElement("button");
   close.type = "button";
@@ -145,7 +151,9 @@ function drawPrompt(
   close.setAttribute("aria-label", "Dismiss");
 
   const title = bitmapTextBlock(
-    [[{ text: "Repeated-action shortcuts", css: "#f5f5f5" }]],
+    wrapBitmapText("Repeated-action shortcuts", titleMaxChars).map((line) => [
+      { text: line, css: "#f5f5f5" },
+    ]),
     titleCellWidth,
     titleCellHeight,
     dpr,
