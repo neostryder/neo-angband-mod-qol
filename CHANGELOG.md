@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [Accessibility] **The repeated-action shortcuts card now offers a "Don't show this again" checkbox.** Checking it before closing the card stops it from opening again on later characters; the trigger-key binding itself is left untouched either way (#198).
+
 ### Removed
 
 - [Visible] [Accessibility] **Repeated-action shortcuts no longer offers cardinal run bindings.** A run is already one key (`.` plus a direction in the original keyset, one shifted direction key in roguelike), so a bound shortcut saved nothing. Only the conditional-rest shortcut remains (#151).
@@ -30,7 +34,9 @@ were not retagged.
 
 - [Visible] [UI] **The status sidebar's vitals rows no longer stretch apart to fill the window height.** They now pack at the top, matching the original game's layout (#196).
 
-- [Visible] [UI] **The status sidebar now uses the game's own terminal font, right-aligns its numbers, and shows the original blank-line grouping between the vitals, stat and combat blocks.** It previously fell back to a generic monospace font and lost its number padding and blank separator rows to CSS whitespace collapsing (#197).
+- [Visible] [UI] **The status sidebar, and every other card this mod draws (first-encounter alerts, the activation-shortcut helper, the map hover card, and the repeated-action shortcuts card), now render their text with the exact same bitmap terminal glyphs the game's own display uses, right-align numbers, and show the original blank-line grouping between the sidebar's vitals, stat and combat blocks.** They previously fell back to a system font that only resembled the game's own and still read as visibly different from the surrounding display, and the sidebar lost its number padding and blank separator rows to CSS whitespace collapsing (#197).
+
+- [Visible] [UI] **A mod-drawn card's own text no longer clips its last character by a pixel on some display scales.** Each character's position is now rounded in the same whole-device-pixel space the game's own display uses, so adjacent glyphs always tile edge to edge regardless of the screen's pixel ratio (#199).
 
 ### Changed
 

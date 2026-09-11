@@ -20,6 +20,12 @@ export interface QolPreferences {
   readonly v: 2;
   readonly options?: RememberedSettings;
   readonly display?: DisplayPreference;
+  /** Set once the player asks never to see the repeated-action shortcuts
+   * card again (#198). Absent/false means still offered; there is no
+   * separate per-character reset, since this is a deliberate permanent
+   * opt-out rather than a one-time introduction like first-encounter's own
+   * notebook. */
+  readonly hideRepeatShortcuts?: boolean;
 }
 
 export const DEFAULT_DISPLAY_PREFERENCE: DisplayPreference = {
@@ -73,4 +79,18 @@ export function withDisplayPreference(raw: unknown, display: DisplayPreference):
 export function withRememberedSettings(raw: unknown, options: RememberedSettings): QolPreferences {
   const display = readDisplayPreference(raw);
   return { v: 2, options, display };
+}
+
+/** Whether the player has permanently dismissed the repeated-action
+ * shortcuts card. False for anything that is not a v2 envelope. */
+export function readHideRepeatShortcuts(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  const top = raw as Partial<QolPreferences>;
+  return top.v === 2 && top.hideRepeatShortcuts === true;
+}
+
+export function withHideRepeatShortcuts(raw: unknown, hidden: boolean): QolPreferences {
+  const options = readRememberedSettings(raw);
+  const display = readDisplayPreference(raw);
+  return { v: 2, ...(options ? { options } : {}), display, hideRepeatShortcuts: hidden };
 }
