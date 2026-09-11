@@ -30,6 +30,8 @@ were not retagged.
 
 - [Visible] [UI] **The status sidebar's vitals rows no longer stretch apart to fill the window height.** They now pack at the top, matching the original game's layout (#196).
 
+- [Visible] [UI] **The status sidebar now uses the game's own terminal font, right-aligns its numbers, and shows the original blank-line grouping between the vitals, stat and combat blocks.** It previously fell back to a generic monospace font and lost its number padding and blank separator rows to CSS whitespace collapsing (#197).
+
 ### Changed
 
 - [Internal] [Accessibility] The title/birth boot-phase tracker used to track gameplay zoom activation now listens through the game's own input door instead of a raw `window` keydown listener, so a keystroke owned by an open mod panel's own field can no longer be misread as a title-screen command (#151).

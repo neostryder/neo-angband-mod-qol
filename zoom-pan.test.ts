@@ -15,6 +15,7 @@ import {
   pannedOrigin,
   pinchDirection,
   sidebarPagePlan,
+  sidebarRowGap,
   snapEven,
   stepIndex,
   uninstallZoomPan,
@@ -199,6 +200,25 @@ describe("scroll-free sidebar fitting", () => {
   it("keeps a roomy vertical sidebar on one page and pages a short one", () => {
     expect(sidebarPagePlan(18, "left", { width: 240, height: 600 }, 1, 0).pages).toBe(1);
     expect(sidebarPagePlan(18, "left", { width: 240, height: 120 }, 1, 0).pages).toBeGreaterThan(1);
+  });
+});
+
+describe("sidebar row gaps", () => {
+  it("opens a blank line for each row core's side_handlers[] table skipped", () => {
+    /* AU at row 6, then a gap for the equippy/blank rows before STR at row 9
+     * (#196's own reference layout): two blank lines, not zero. */
+    expect(sidebarRowGap("left", 6, 9)).toBe(2);
+    /* Adjacent rows (STR at 9, INT at 10): no gap. */
+    expect(sidebarRowGap("left", 9, 10)).toBe(0);
+  });
+
+  it("never opens a gap for the first entry, or for the top strip", () => {
+    expect(sidebarRowGap("left", null, 6)).toBe(0);
+    expect(sidebarRowGap("top", 6, 9)).toBe(0);
+  });
+
+  it("treats a missing row as unknown rather than a negative gap", () => {
+    expect(sidebarRowGap("left", 6, undefined)).toBe(0);
   });
 });
 
