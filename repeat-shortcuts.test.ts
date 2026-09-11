@@ -2,17 +2,12 @@ import { describe, expect, it } from "vitest";
 import { defaultRepeatShortcuts } from "./repeat-shortcuts";
 
 describe("repeated-action shortcuts", () => {
-  it("uses one key to begin the run and conditional-rest command sequences", () => {
-    expect(defaultRepeatShortcuts(false)).toEqual([
-      { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" },
-      { trigger: "F2", label: "Run north", action: ".8" },
-      { trigger: "F3", label: "Run south", action: ".2" },
-      { trigger: "F4", label: "Run west", action: ".4" },
-      { trigger: "F5", label: "Run east", action: ".6" },
-    ]);
-    expect(defaultRepeatShortcuts(true)).toEqual([
+  it("offers one key for the conditional-rest command sequence only", () => {
+    /* No run shortcuts: `.` plus a direction (original keyset) or one shifted
+     * direction key (roguelike) are already as short as a bound key would
+     * make them, so a run binding here would save nothing (#151). */
+    expect(defaultRepeatShortcuts()).toEqual([
       { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" },
     ]);
   });
-
 });

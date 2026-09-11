@@ -16,4 +16,4 @@ Rules marked hooks side are rebuilt when changed. Rules marked register side nee
 | `qol.accessibilityHighContrast` | off | Applies a high contrast filter to rendered frames. | Yes, register side. |
 | `qol.accessibilityColorblind` | off | Applies red green colour correction to rendered frames. | Yes, register side. |
 | `qol.accessibilityMacroWizard` | off | Offers shortcuts for newly learned spells and activations. | Yes, register side setup. |
-| `qol.accessibilityRepeatShortcuts` | off | Offers shortcuts for resting and cardinal running. | Yes, register side. |
+| `qol.accessibilityRepeatShortcuts` | off | Offers a shortcut for resting as needed. | Yes, register side. |

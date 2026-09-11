@@ -586,6 +586,15 @@ function paintSidebar(rt, section, frame) {
   Object.assign(sidebar.body.style, {
     display: frame.layout === "top" ? "flex" : "grid",
     gridTemplateColumns: "minmax(0, 1fr)",
+    /* Rows are auto-sized (one line of vitals text each), and with no
+     * alignContent a CSS grid stretches those auto tracks to fill its own
+     * height:100% - which on a tall "left" sidebar spread thirteen one-line
+     * rows across the whole window height instead of packing them at the
+     * top the way the original terminal layout does. "start" packs each row
+     * at its own content height, matching vanilla Angband's tight vitals
+     * column; the "top" strip is unaffected, since flex containers were
+     * never subject to this in the first place. */
+    alignContent: frame.layout === "top" ? "normal" : "start",
     alignItems: "center",
     justifyContent: frame.layout === "top" ? "space-between" : "normal",
     gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
@@ -893,19 +902,8 @@ function drawPrompt(panel, ability, suggested, done) {
 }
 
 // repeat-shortcuts.ts
-function defaultRepeatShortcuts(roguelike) {
-  const shortcuts = [
-    { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" }
-  ];
-  if (!roguelike) {
-    shortcuts.push(
-      { trigger: "F2", label: "Run north", action: ".8" },
-      { trigger: "F3", label: "Run south", action: ".2" },
-      { trigger: "F4", label: "Run west", action: ".4" },
-      { trigger: "F5", label: "Run east", action: ".6" }
-    );
-  }
-  return shortcuts;
+function defaultRepeatShortcuts() {
+  return [{ trigger: "F1", label: "Rest as needed", action: "R&[Enter]" }];
 }
 function bindRepeatShortcut(keymaps, trigger, action) {
   return keymaps.isBindableTriggerKey(trigger) && keymaps.bind(trigger, action);
@@ -926,7 +924,7 @@ function installRepeatShortcuts(ctx) {
     ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
-  drawPrompt2(panel, ctx.keymaps, defaultRepeatShortcuts(ctx.roguelike));
+  drawPrompt2(panel, ctx.keymaps, defaultRepeatShortcuts());
 }
 function drawPrompt2(panel, keymaps, shortcuts) {
   const root = panel.root;
@@ -1753,7 +1751,6 @@ var plugin_default = {
     }
     if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
       installRepeatShortcuts({
-        roguelike: ctx.state?.options?.get("rogue_like_commands") ?? false,
         ...ctx.ui ? { ui: ctx.ui } : {},
         ...ctx.keymaps ? { keymaps: ctx.keymaps } : {},
         ...ctx.log ? { log: ctx.log } : {}

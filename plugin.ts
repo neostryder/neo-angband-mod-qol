@@ -1136,7 +1136,6 @@ export default {
 
     if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
       installRepeatShortcuts({
-        roguelike: ctx.state?.options?.get("rogue_like_commands") ?? false,
         ...(ctx.ui ? { ui: ctx.ui } : {}),
         ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
         ...(ctx.log ? { log: ctx.log } : {}),

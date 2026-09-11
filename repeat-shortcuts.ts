@@ -24,32 +24,23 @@ export interface RepeatShortcut {
 export interface RepeatShortcutsContext {
   readonly ui?: UiLike;
   readonly keymaps?: KeymapsLike;
-  readonly roguelike: boolean;
   readonly log?: (message: string) => void;
 }
 
 /**
- * Rest needs a command key and a choice in either keyset. Original-keyset runs
- * need a command key and a direction; roguelike already runs with one shifted
- * direction key, so offering duplicate run bindings there would save nothing.
+ * Rest is the one command here genuinely worth a bound key: `R` opens a
+ * prompt that still has to be answered and submitted, so it costs three
+ * keystrokes every single time it is used. A cardinal run is already just
+ * `.` plus a direction in the original keyset, and one shifted direction key
+ * in roguelike - both are already as short as a bound key would make them,
+ * so offering a run shortcut here saved nothing and was dropped (#151).
  *
- * Rest carries a trailing Enter because `R` opens a prompt that has to be
- * submitted, while a direction prompt resolves on the digit itself, so the run
- * sequences end at their direction.
+ * The trailing `[Enter]` is what submits the "rest until healed or
+ * disturbed" prompt; without it the sequence would leave the player sitting
+ * at an open prompt instead of resting.
  */
-export function defaultRepeatShortcuts(roguelike: boolean): readonly RepeatShortcut[] {
-  const shortcuts: RepeatShortcut[] = [
-    { trigger: "F1", label: "Rest as needed", action: "R&[Enter]" },
-  ];
-  if (!roguelike) {
-    shortcuts.push(
-      { trigger: "F2", label: "Run north", action: ".8" },
-      { trigger: "F3", label: "Run south", action: ".2" },
-      { trigger: "F4", label: "Run west", action: ".4" },
-      { trigger: "F5", label: "Run east", action: ".6" },
-    );
-  }
-  return shortcuts;
+export function defaultRepeatShortcuts(): readonly RepeatShortcut[] {
+  return [{ trigger: "F1", label: "Rest as needed", action: "R&[Enter]" }];
 }
 
 /** Bind one sequence only when the host says its trigger is currently free. */
@@ -83,7 +74,7 @@ export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
     ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
-  drawPrompt(panel, ctx.keymaps, defaultRepeatShortcuts(ctx.roguelike));
+  drawPrompt(panel, ctx.keymaps, defaultRepeatShortcuts());
 }
 
 function drawPrompt(

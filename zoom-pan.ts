@@ -782,6 +782,15 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   Object.assign(sidebar.body.style, {
     display: frame.layout === "top" ? "flex" : "grid",
     gridTemplateColumns: "minmax(0, 1fr)",
+    /* Rows are auto-sized (one line of vitals text each), and with no
+     * alignContent a CSS grid stretches those auto tracks to fill its own
+     * height:100% - which on a tall "left" sidebar spread thirteen one-line
+     * rows across the whole window height instead of packing them at the
+     * top the way the original terminal layout does. "start" packs each row
+     * at its own content height, matching vanilla Angband's tight vitals
+     * column; the "top" strip is unaffected, since flex containers were
+     * never subject to this in the first place. */
+    alignContent: frame.layout === "top" ? "normal" : "start",
     alignItems: "center",
     justifyContent: frame.layout === "top" ? "space-between" : "normal",
     gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
