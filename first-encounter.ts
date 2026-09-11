@@ -35,6 +35,8 @@
  * an accepted limit of having no real per-save bag to write into.
  */
 
+import { bitmapTextBlock, paintBitmapButtonLabel, wrapBitmapText } from "./bitmap-text";
+
 /** The shape of a monster race this feature needs, already resolved to plain data. */
 export interface MonsterRaceLike {
   readonly ridx: number;
@@ -327,21 +329,20 @@ function drawCard(panel: PanelLike, content: EncounterCardContent): void {
   const root = panel.root;
   const style = document.createElement("style");
   const accent = content.tier ? TIER_COLOR[content.tier] : TIER_COLOR.ordinary;
+  /* No `font`/`font-size` rules here any more: every piece of this card's own
+   * text is now a bitmap-blitted canvas (see bitmap-text.ts), matching the
+   * font the game itself draws with instead of a system one (#197, #199). */
   style.textContent =
     ":host { all: initial; }" +
-    ".wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; font: 14px/1.4 system-ui, sans-serif; }" +
+    ".wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }" +
     ".card { position: relative; pointer-events: auto; width: 19rem; max-width: calc(100vw - 2rem); background: #17140f; color: #f2ead8; border-radius: 10px; padding: .8rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid " +
     accent +
     "; animation: qol-first-encounter-in .3s ease-out; }" +
     "@keyframes qol-first-encounter-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }" +
     ".head { display: flex; align-items: center; gap: .6rem; }" +
-    ".glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; font: 700 1.4rem/1 monospace; }" +
-    ".title { font-weight: 700; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: " +
-    accent +
-    "; }" +
-    ".name { font-size: 1.05rem; font-weight: 600; margin: .15rem 0 0; }" +
-    ".depth { opacity: .8; font-size: .82rem; margin-top: .15rem; }" +
-    ".close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; color: #f2ead8; font-size: 1rem; line-height: 1; cursor: pointer; opacity: .55; padding: .2rem; }" +
+    ".glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; }" +
+    ".depth { margin-top: .3rem; }" +
+    ".close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; opacity: .55; padding: .2rem; }" +
     ".close:hover { opacity: 1; }";
 
   const wrap = document.createElement("div");
@@ -350,35 +351,67 @@ function drawCard(panel: PanelLike, content: EncounterCardContent): void {
   card.className = "card";
   card.setAttribute("role", "status");
 
+  const dpr = window.devicePixelRatio || 1;
+  const cellHeight = 16;
+  const cellWidth = cellHeight * (16 / 24);
+  const titleCellHeight = 12;
+  const titleCellWidth = titleCellHeight * (16 / 24);
+  const nameCellHeight = 20;
+  const nameCellWidth = nameCellHeight * (16 / 24);
+  /* Card width (19rem, 16px root) less its own left/right padding and the
+   * glyph badge's own column, divided by one glyph cell - a rough estimate
+   * good enough for wrapping this card's own short strings. */
+  const maxChars = Math.max(10, Math.floor((19 * 16 - 32 - 34) / nameCellWidth));
+
   const close = document.createElement("button");
   close.className = "close";
   close.type = "button";
-  close.textContent = "X";
-  close.setAttribute("aria-label", "Dismiss");
   close.addEventListener("click", () => panel.close());
+  paintBitmapButtonLabel(close, "X", "#f2ead8", cellWidth, cellHeight, dpr);
+  close.setAttribute("aria-label", "Dismiss");
 
   const head = document.createElement("div");
   head.className = "head";
   if (content.glyphChar) {
     const glyph = document.createElement("span");
     glyph.className = "glyph";
-    glyph.style.color = content.glyphColor ?? "#f2ead8";
-    glyph.textContent = content.glyphChar;
+    glyph.appendChild(
+      bitmapTextBlock(
+        [[{ text: content.glyphChar, css: content.glyphColor ?? "#f2ead8" }]],
+        24,
+        24,
+        dpr,
+      ),
+    );
     head.append(glyph);
   }
   const titleBlock = document.createElement("div");
-  const title = document.createElement("div");
-  title.className = "title";
-  title.textContent = content.title;
-  const name = document.createElement("div");
-  name.className = "name";
-  name.textContent = content.name;
+  const title = bitmapTextBlock(
+    [[{ text: content.title.toUpperCase(), css: accent }]],
+    titleCellWidth,
+    titleCellHeight,
+    dpr,
+  );
+  const name = bitmapTextBlock(
+    wrapBitmapText(content.name, maxChars).map((line) => [{ text: line, css: "#f2ead8" }]),
+    nameCellWidth,
+    nameCellHeight,
+    dpr,
+  );
+  name.style.marginTop = ".15rem";
   titleBlock.append(title, name);
   head.append(titleBlock);
 
   const depth = document.createElement("div");
   depth.className = "depth";
-  depth.textContent = `Native depth: ${content.depthText}`;
+  depth.appendChild(
+    bitmapTextBlock(
+      [[{ text: `Native depth: ${content.depthText}`, css: "#c8c0ac" }]],
+      cellWidth,
+      cellHeight,
+      dpr,
+    ),
+  );
 
   card.append(close, head, depth);
   wrap.append(card);

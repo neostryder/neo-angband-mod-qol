@@ -1,5 +1,7 @@
 /** The accessibility activation-shortcut helper, driven by core's ability event. */
 
+import { bitmapTextBlock, paintBitmapButtonLabel, wrapBitmapText } from "./bitmap-text";
+
 export interface AbilityGainedLike {
   readonly kind: "spell" | "activation";
   readonly name: string;
@@ -106,24 +108,60 @@ function drawPrompt(
 ): void {
   const root = panel.root;
   const style = document.createElement("style");
-  style.textContent = ":host { font: 16px sans-serif; } main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 34rem; margin: 12vh auto; padding: 1.25rem; } input { width: 5rem; } button { margin: .5rem .5rem 0 0; }";
+  /* No `font`/`font-size` rules here any more: every piece of this card's
+   * own text is now a bitmap-blitted canvas (see bitmap-text.ts), matching
+   * the font the game itself draws with instead of a system one (#197,
+   * #199). The trigger-key `<input>` is the one exception - a player has to
+   * be able to type into it, which a canvas cannot do - so it alone keeps a
+   * real CSS font, close in size to the surrounding bitmap text. */
+  style.textContent =
+    "main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 34rem; margin: 12vh auto; padding: 1.25rem; }" +
+    "input { width: 5rem; font: 16px monospace; }" +
+    "label { display: flex; align-items: center; gap: .4rem; }" +
+    "button { margin: .5rem .5rem 0 0; background: none; border: 1px solid #686878; border-radius: 4px; cursor: pointer; padding: .25rem .5rem; }";
   const main = document.createElement("main");
-  const title = document.createElement("h2");
-  title.textContent = `Shortcut for ${ability.name}`;
-  const words = document.createElement("p");
-  words.textContent = `Bind ${suggested} to open the ${ability.command === "activate" ? "activation" : "casting"} command?`;
+
+  const dpr = window.devicePixelRatio || 1;
+  const cellHeight = 16;
+  const cellWidth = cellHeight * (16 / 24);
+  const titleCellHeight = 20;
+  const titleCellWidth = titleCellHeight * (16 / 24);
+  /* 34rem (16px root) less main's own left/right padding, divided by one
+   * glyph cell - a rough estimate good enough for wrapping this dialog's
+   * own short sentences. */
+  const maxChars = Math.max(10, Math.floor((34 * 16 - 40) / cellWidth));
+
+  const title = bitmapTextBlock(
+    wrapBitmapText(`Shortcut for ${ability.name}`, maxChars).map((line) => [
+      { text: line, css: "#f5f5f5" },
+    ]),
+    titleCellWidth,
+    titleCellHeight,
+    dpr,
+  );
+  const words = bitmapTextBlock(
+    wrapBitmapText(
+      `Bind ${suggested} to open the ${ability.command === "activate" ? "activation" : "casting"} command?`,
+      maxChars,
+    ).map((line) => [{ text: line, css: "#f5f5f5" }]),
+    cellWidth,
+    cellHeight,
+    dpr,
+  );
+  words.style.marginTop = ".5rem";
   const label = document.createElement("label");
-  label.textContent = "Key: ";
+  label.style.marginTop = ".5rem";
+  label.appendChild(bitmapTextBlock([[{ text: "Key:", css: "#f5f5f5" }]], cellWidth, cellHeight, dpr));
   const input = document.createElement("input");
   input.value = suggested;
   input.maxLength = 5;
   input.setAttribute("aria-label", "Shortcut key");
   label.appendChild(input);
   const accept = document.createElement("button");
-  accept.textContent = "Bind shortcut";
+  paintBitmapButtonLabel(accept, "Bind shortcut", "#f5f5f5", cellWidth, cellHeight, dpr);
   const decline = document.createElement("button");
-  decline.textContent = "No thanks";
-  const result = document.createElement("p");
+  paintBitmapButtonLabel(decline, "No thanks", "#f5f5f5", cellWidth, cellHeight, dpr);
+  let result = bitmapTextBlock([[{ text: "", css: "#e07a6e" }]], cellWidth, cellHeight, dpr);
   let finished = false;
   const finish = (): void => {
     if (finished) return;
@@ -143,7 +181,17 @@ function drawPrompt(
       finish();
       return;
     }
-    result.textContent = "That key is unavailable. Choose an unused printable key, Enter, or F1 through F12.";
+    const next = bitmapTextBlock(
+      wrapBitmapText(
+        "That key is unavailable. Choose an unused printable key, Enter, or F1 through F12.",
+        maxChars,
+      ).map((line) => [{ text: line, css: "#e07a6e" }]),
+      cellWidth,
+      cellHeight,
+      dpr,
+    );
+    result.replaceWith(next);
+    result = next;
   });
   decline.addEventListener("click", finish);
   root.append(style, main);

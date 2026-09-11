@@ -60,6 +60,7 @@ import {
   type ZoomPanContext,
 } from "./zoom-pan";
 import { installAccessibilityAccommodations } from "./accessibility";
+import { bitmapTextBlock, wrapBitmapParagraphs, wrapBitmapText } from "./bitmap-text";
 import { installMacroWizard, offerAbilityMacro, type AbilityGainedLike } from "./macro-wizard";
 import { installRepeatShortcuts } from "./repeat-shortcuts";
 import {
@@ -497,6 +498,38 @@ function positionHoverCard(el: HTMLElement, clientX: number, clientY: number): v
   el.style.top = `${String(Math.max(0, top))}px`;
 }
 
+const HOVER_CARD_CELL_HEIGHT = 14;
+const HOVER_CARD_CELL_WIDTH = HOVER_CARD_CELL_HEIGHT * (16 / 24);
+/* The card's own maxWidth (360px) less its padding (2*10px), the tile
+ * preview column (TILE_PREVIEW_PX) and the row gap (10px) - a rough budget
+ * for wrapping the body text next to the preview image. The title runs the
+ * full card width instead, above that row. */
+const HOVER_CARD_BODY_MAX_CHARS = Math.max(
+  10,
+  Math.floor((360 - 20 - TILE_PREVIEW_PX - 10) / HOVER_CARD_CELL_WIDTH),
+);
+const HOVER_CARD_TITLE_MAX_CHARS = Math.max(10, Math.floor((360 - 20) / HOVER_CARD_CELL_WIDTH));
+
+/** Repaint one hover-card container (title or body) with bitmap-blitted
+ * text, replacing whatever it held from the last cell the player hovered. */
+function paintHoverCardText(
+  container: HTMLElement,
+  text: string,
+  css: string,
+  maxChars: number,
+  multiParagraph: boolean,
+): void {
+  const lines = multiParagraph ? wrapBitmapParagraphs(text, maxChars) : wrapBitmapText(text, maxChars);
+  container.replaceChildren(
+    bitmapTextBlock(
+      lines.map((line) => [{ text: line, css }]),
+      HOVER_CARD_CELL_WIDTH,
+      HOVER_CARD_CELL_HEIGHT,
+      window.devicePixelRatio || 1,
+    ),
+  );
+}
+
 function buildHoverCardElement(): {
   root: HTMLDivElement;
   title: HTMLDivElement;
@@ -513,21 +546,17 @@ function buildHoverCardElement(): {
     maxWidth: "360px",
     padding: "8px 10px",
     borderRadius: "6px",
-    font: "13px monospace",
-    lineHeight: "1.35",
     background: "rgba(12,12,16,0.94)",
-    color: "#e8e8e8",
     border: "1px solid #777",
     boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
   });
 
+  /* No `font`/colour rules on title/body any more: their content is now a
+   * bitmap-blitted canvas (see bitmap-text.ts and paintHoverCardText below),
+   * matching the font the game itself draws with instead of a system one
+   * (#197, #199). Each is a plain container repainted on every hover move. */
   const title = document.createElement("div");
-  Object.assign(title.style, {
-    fontWeight: "700",
-    marginBottom: "6px",
-    color: "#f0d878",
-    letterSpacing: "0.02em",
-  });
+  title.style.marginBottom = "6px";
 
   const row = document.createElement("div");
   Object.assign(row.style, {
@@ -550,7 +579,6 @@ function buildHoverCardElement(): {
 
   const body = document.createElement("div");
   Object.assign(body.style, {
-    whiteSpace: "pre-wrap",
     flex: "1 1 auto",
     minWidth: "0",
   });
@@ -778,8 +806,8 @@ function installMapHoverCards(ctx: HookCtx): void {
     if (!state) return false;
     const content = hoverCardContent(core, state, resolved.grid);
     if (!content) return false;
-    card.title.textContent = content.title;
-    card.body.textContent = content.text;
+    paintHoverCardText(card.title, content.title, "#f0d878", HOVER_CARD_TITLE_MAX_CHARS, false);
+    paintHoverCardText(card.body, content.text, "#e8e8e8", HOVER_CARD_BODY_MAX_CHARS, true);
     const painted = paintTilePreview(
       card.img,
       resolved.grid,
@@ -1138,6 +1166,7 @@ export default {
       installRepeatShortcuts({
         ...(ctx.ui ? { ui: ctx.ui } : {}),
         ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
+        ...(ctx.prefs ? { prefs: ctx.prefs } : {}),
         ...(ctx.log ? { log: ctx.log } : {}),
       });
     }
