@@ -20,9 +20,15 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.6.0 - 2026-09-11
+
 ### Added
 
 - [Visible] [Accessibility] **The repeated-action shortcuts card now offers a "Don't show this again" checkbox.** Checking it before closing the card stops it from opening again on later characters; the trigger-key binding itself is left untouched either way (#198).
+
+### Changed
+
+- [Internal] [Accessibility] The title/birth boot-phase tracker used to track gameplay zoom activation now listens through the game's own input door instead of a raw `window` keydown listener, so a keystroke owned by an open mod panel's own field can no longer be misread as a title-screen command (#151).
 
 ### Removed
 
@@ -39,10 +45,6 @@ were not retagged.
 - [Visible] [UI] **A mod-drawn card's own text no longer clips its last character by a pixel on some display scales.** Each character's position is now rounded in the same whole-device-pixel space the game's own display uses, so adjacent glyphs always tile edge to edge regardless of the screen's pixel ratio (#199).
 
 - [Visible] [Modding-API] **Most Quality of Life settings now correctly prompt a reload when toggled mid-run instead of silently doing nothing.** This covers remembering settings and cheats, forgiving pref-file parsing, map hover cards, first-encounter alerts, zoom/pan and sharpened tiles, and all five accessibility toggles (neostryder/neo-angband#186).
-
-### Changed
-
-- [Internal] [Accessibility] The title/birth boot-phase tracker used to track gameplay zoom activation now listens through the game's own input door instead of a raw `window` keydown listener, so a keystroke owned by an open mod panel's own field can no longer be misread as a title-screen command (#151).
 
 ## 1.5.0 - 2026-09-06
 
