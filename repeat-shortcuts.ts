@@ -57,7 +57,16 @@ export function bindRepeatShortcut(keymaps: KeymapsLike, trigger: string, action
   return keymaps.isBindableTriggerKey(trigger) && keymaps.bind(trigger, action);
 }
 
-/** Show the consented setup once per game boot when the accommodation is enabled. */
+/**
+ * Show the consented setup once per game boot when the accommodation is enabled.
+ *
+ * NON-MODAL, deliberately, on the same grounds first-encounter.ts's card
+ * gives for its own non-modal choice: this is an optional offer the player
+ * can act on or ignore, not a question blocking the way back to the game, so
+ * it must not take the whole screen. It also has to draw its own dismiss
+ * control - a non-modal panel gets none from the host - which the "Done"
+ * button and the corner close button below both are.
+ */
 export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
   if (!ctx.ui || !ctx.keymaps) {
     ctx.log?.("this game is too old for repeated-action shortcuts");
@@ -67,7 +76,7 @@ export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
   try {
     panel = ctx.ui.openPanel({
       id: "repeated-action-shortcuts",
-      modal: true,
+      modal: false,
       label: "Repeated-action shortcuts",
     });
   } catch (error) {
@@ -84,13 +93,40 @@ function drawPrompt(
 ): void {
   const root = panel.root;
   const style = document.createElement("style");
-  style.textContent = ":host { font: 16px sans-serif; } main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 38rem; margin: 12vh auto; padding: 1.25rem; } label { display: block; margin-top: .7rem; } input { width: 5rem; } button { margin: .5rem .5rem 0 0; }";
-  const main = document.createElement("main");
+  /* `.wrap` takes no pointer events and tucks into a corner, same shape as
+   * first-encounter.ts's card; `.card` opts back in so its own controls are
+   * still clickable. Small and out of the way rather than centered over the
+   * screen - see installRepeatShortcuts's comment for why. */
+  style.textContent =
+    ":host { all: initial; }" +
+    ".wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; font: 14px/1.4 system-ui, sans-serif; }" +
+    ".card { position: relative; pointer-events: auto; width: 22rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; background: #151515; color: #f5f5f5; border-radius: 10px; padding: .9rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid #d4b05b; box-sizing: border-box; }" +
+    "h2 { margin: 0; font-size: 1rem; }" +
+    "p { margin: .5rem 0 0; opacity: .85; }" +
+    "label { display: block; margin-top: .7rem; }" +
+    "input { width: 4.5rem; }" +
+    "button { margin: .5rem .5rem 0 0; }" +
+    ".close { position: absolute; top: .4rem; right: .5rem; background: none; border: none; color: #f5f5f5; font-size: 1rem; line-height: 1; cursor: pointer; opacity: .55; padding: .2rem; }" +
+    ".close:hover { opacity: 1; }";
+
+  const wrap = document.createElement("div");
+  wrap.className = "wrap";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.setAttribute("role", "group");
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "close";
+  close.textContent = "X";
+  close.setAttribute("aria-label", "Dismiss");
+  close.addEventListener("click", () => panel.close());
+
   const title = document.createElement("h2");
   title.textContent = "Repeated-action shortcuts";
   const words = document.createElement("p");
   words.textContent = "Bind one key to a repeated non-combat command. Existing bindings are left unchanged.";
-  main.append(title, words);
+  card.append(close, title, words);
 
   for (const shortcut of shortcuts) {
     const label = document.createElement("label");
@@ -100,6 +136,7 @@ function drawPrompt(
     input.maxLength = 5;
     input.setAttribute("aria-label", `${shortcut.label} shortcut key`);
     const bind = document.createElement("button");
+    bind.type = "button";
     bind.textContent = "Bind";
     const result = document.createElement("span");
     bind.addEventListener("click", () => {
@@ -112,12 +149,15 @@ function drawPrompt(
       result.textContent = " That key is unavailable.";
     });
     label.append(input, bind, result);
-    main.append(label);
+    card.append(label);
   }
 
   const done = document.createElement("button");
+  done.type = "button";
   done.textContent = "Done";
   done.addEventListener("click", () => panel.close());
-  main.append(done);
-  root.append(style, main);
+  card.append(done);
+
+  wrap.append(card);
+  root.append(style, wrap);
 }

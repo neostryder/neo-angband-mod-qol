@@ -20,6 +20,14 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [Accessibility] **The repeated-action shortcuts setup card no longer covers the screen, and no longer leaves the game zoomed in tight after it closes.** It is now a small non-modal card in the corner, the same shape as the first-encounter alert card, so it can be left open or dismissed without blocking a click or keypress meant for the game underneath (#151).
+
+### Changed
+
+- [Internal] [Accessibility] The title/birth boot-phase tracker used to track gameplay zoom activation now listens through the game's own input door instead of a raw `window` keydown listener, so a keystroke owned by an open mod panel's own field can no longer be misread as a title-screen command (#151).
+
 ## 1.5.0 - 2026-09-06
 
 ### Added
