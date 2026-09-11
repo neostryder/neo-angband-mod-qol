@@ -4,17 +4,13 @@ import {
   withDisplayPreference,
   type DisplayPreference,
 } from "./preferences";
+import { FONT_16X24 } from "./bitmap-font";
+import { paintBitmapButtonLabel, paintBitmapLine } from "./bitmap-text";
 
 export const PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48] as const;
 export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
 export const ACCESSIBILITY_ZOOM_INDEX = 5;
-
-/* Mirrors packages/web/src/term.ts's own FONT_STACK, so the DOM sidebar reads
- * as the same terminal rather than a generic system monospace font. A mod
- * cannot import core's constant directly (no cross-package imports), so this
- * is a deliberate copy - matched by eye at each Neo Angband release. */
-const SIDEBAR_FONT_STACK = '"Cascadia Mono", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace';
 
 export interface Pixels {
   readonly x: number;
@@ -724,7 +720,6 @@ function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
     pointerEvents: "auto",
     background: "rgba(0,0,0,0.96)",
     color: "#c8c8d4",
-    fontFamily: SIDEBAR_FONT_STACK,
     scrollbarWidth: "none",
   });
   const body = document.createElement("div");
@@ -759,18 +754,6 @@ function turnSidebarPage(rt: ZoomRuntime, direction: number): void {
   paintSidebar(rt, sidebar.section, sidebar.frame);
 }
 
-function fitSidebarText(sidebar: SidebarRuntime, preferred: number): void {
-  let fontSize = preferred;
-  sidebar.host.style.fontSize = `${String(fontSize)}px`;
-  while (
-    fontSize > 9 &&
-    (sidebar.body.scrollWidth > sidebar.body.clientWidth || sidebar.body.scrollHeight > sidebar.body.clientHeight)
-  ) {
-    fontSize -= 1;
-    sidebar.host.style.fontSize = `${String(fontSize)}px`;
-  }
-}
-
 function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameLike): void {
   if (!rt.gridActive) {
     /* Core paints gameplay HUD frames behind title and birth screens. The boot
@@ -803,13 +786,42 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   sidebar.frame = frame;
   const plan = sidebarPagePlan(section.entries.length, frame.layout, pixels, scale, sidebar.page);
   sidebar.page = plan.page;
+  const visible = section.entries.slice(plan.start, plan.end);
+
+  /* Glyphs are blitted at an exact pixel size (unlike a CSS font, there is no
+   * layout engine to reflow them), so the size that fits is computed up
+   * front instead of painting, measuring, and shrinking in a loop. Row
+   * height keeps the 1.25 line-height this sidebar always used; row width
+   * comes straight from FONT_16X24's own 16x24 aspect ratio, so a glyph is
+   * never stretched or squashed relative to how core itself draws it. */
+  let cellHeight = plan.fontSize * 1.25;
+  let cellWidth = cellHeight * (FONT_16X24.w / FONT_16X24.h);
+  if (frame.layout !== "top") {
+    let totalRows = 0;
+    let maxChars = 0;
+    let scanRow: number | null = null;
+    for (const entry of visible) {
+      totalRows += sidebarRowGap(frame.layout, scanRow, entry.screen?.row) + 1;
+      if (entry.screen) scanRow = entry.screen.row;
+      maxChars = Math.max(maxChars, entry.runs.reduce((n, run) => n + [...run.text].length, 0));
+    }
+    const heightScale = pixels.height / Math.max(1, totalRows * cellHeight);
+    const widthScale = pixels.width / Math.max(1, maxChars * cellWidth);
+    const shrink = Math.min(1, heightScale, widthScale);
+    if (shrink < 1) {
+      cellHeight *= shrink;
+      cellWidth *= shrink;
+    }
+  }
   Object.assign(sidebar.host.style, {
     display: "block",
     left: `${String(pixels.x + rt.gridOffset.x)}px`,
     top: `${String(pixels.y + rt.gridOffset.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
-    fontSize: `${String(plan.fontSize)}px`,
+    /* Still the em basis for the layout below's gap/padding - only the
+     * glyph cells themselves are sized from cellWidth/cellHeight now. */
+    fontSize: `${String(cellHeight / 1.25)}px`,
     lineHeight: "1.25",
   });
   Object.assign(sidebar.body.style, {
@@ -828,13 +840,6 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     justifyContent: frame.layout === "top" ? "space-between" : "normal",
     gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
     padding: frame.layout === "top" ? "0.25em 0.5em" : "0.4em 0.55em",
-    /* "pre" rather than "nowrap": core right-justifies numbers by padding
-     * with literal leading spaces (cnvStat, rjust in display.ts), and every
-     * whitespace value except "pre" (including "nowrap") collapses a run of
-     * spaces down to one, which is what was flattening those padded columns
-     * to the left. "pre" preserves them, so a monospace column of already
-     * fixed-width text reads right-aligned with no CSS alignment tricks. */
-    whiteSpace: "pre",
     width: "100%",
     height: "100%",
     minWidth: "0",
@@ -842,8 +847,9 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     boxSizing: "border-box",
   });
   sidebar.body.replaceChildren();
+  const dpr = window.devicePixelRatio || 1;
   let previousRow: number | null = null;
-  for (const entry of section.entries.slice(plan.start, plan.end)) {
+  for (const entry of visible) {
     const skipped = sidebarRowGap(frame.layout, previousRow, entry.screen?.row);
     for (let i = 0; i < skipped; i++) {
       const spacer = document.createElement("div");
@@ -858,15 +864,28 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     Object.assign(row.style, {
       minWidth: "0",
       overflow: "hidden",
-      textOverflow: "ellipsis",
       flex: "0 1 auto",
     });
-    for (const run of entry.runs) {
-      const span = document.createElement("span");
-      span.textContent = run.text;
-      span.style.color = run.css;
-      row.appendChild(span);
-    }
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("aria-hidden", "true");
+    Object.assign(canvas.style, { display: "block" });
+    paintBitmapLine(canvas, entry.runs, cellWidth, cellHeight, dpr);
+    row.appendChild(canvas);
+    /* The visible pixels are a canvas blit, not text, so a screen reader
+     * needs its own copy of what the row says - the standard visually-hidden
+     * pattern, not `aria-label` on the row, so it reads the same runs a
+     * sighted player sees rather than a second, hand-written description. */
+    const label = document.createElement("span");
+    label.textContent = entry.runs.map((run) => run.text).join("");
+    Object.assign(label.style, {
+      position: "absolute",
+      width: "1px",
+      height: "1px",
+      overflow: "hidden",
+      clip: "rect(0,0,0,0)",
+      whiteSpace: "nowrap",
+    });
+    row.appendChild(label);
     sidebar.body.appendChild(row);
   }
   if (plan.pages > 1) {
@@ -874,23 +893,27 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     button.type = "button";
     button.setAttribute("data-qol-sidebar-page", "");
     button.setAttribute("aria-label", `Show status page ${String((plan.page + 1) % plan.pages + 1)} of ${String(plan.pages)}`);
-    button.textContent = `${String(plan.page + 1)}/${String(plan.pages)} >`;
     Object.assign(button.style, {
       appearance: "none",
       background: "transparent",
       border: "1px solid #686878",
       borderRadius: "2px",
-      color: "#d8d87c",
       cursor: "pointer",
       flex: "0 0 auto",
-      font: "inherit",
       lineHeight: "inherit",
       padding: "0 0.35em",
     });
+    paintBitmapButtonLabel(
+      button,
+      `${String(plan.page + 1)}/${String(plan.pages)} >`,
+      "#d8d87c",
+      cellWidth,
+      cellHeight,
+      dpr,
+    );
     button.addEventListener("click", () => turnSidebarPage(rt, 1));
     sidebar.body.appendChild(button);
   }
-  fitSidebarText(sidebar, plan.fontSize);
 }
 
 export function installZoomPan(ctx: ZoomPanContext): void {
