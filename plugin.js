@@ -48,6 +48,7 @@ var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var ACCESSIBILITY_ZOOM_INDEX = 5;
+var SIDEBAR_FONT_STACK = '"Cascadia Mono", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace';
 var runtime = null;
 function markGridState(value) {
   if (typeof document !== "undefined" && document.body) {
@@ -126,6 +127,10 @@ function sidebarPagePlan(entryCount, layout, pixels, scale, requestedPage) {
     end: Math.min(entryCount, (page + 1) * perPage),
     fontSize: preferredFont
   };
+}
+function sidebarRowGap(layout, previousRow, row) {
+  if (layout === "top" || previousRow === null || row === void 0) return 0;
+  return Math.max(0, row - previousRow - 1);
 }
 function twoFingerGestureActive() {
   return (runtime?.touches.size ?? 0) >= 2;
@@ -505,7 +510,7 @@ function createSidebar(rt) {
     pointerEvents: "auto",
     background: "rgba(0,0,0,0.96)",
     color: "#c8c8d4",
-    fontFamily: "monospace",
+    fontFamily: SIDEBAR_FONT_STACK,
     scrollbarWidth: "none"
   });
   const body = document.createElement("div");
@@ -599,7 +604,13 @@ function paintSidebar(rt, section, frame) {
     justifyContent: frame.layout === "top" ? "space-between" : "normal",
     gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
     padding: frame.layout === "top" ? "0.25em 0.5em" : "0.4em 0.55em",
-    whiteSpace: "nowrap",
+    /* "pre" rather than "nowrap": core right-justifies numbers by padding
+     * with literal leading spaces (cnvStat, rjust in display.ts), and every
+     * whitespace value except "pre" (including "nowrap") collapses a run of
+     * spaces down to one, which is what was flattening those padded columns
+     * to the left. "pre" preserves them, so a monospace column of already
+     * fixed-width text reads right-aligned with no CSS alignment tricks. */
+    whiteSpace: "pre",
     width: "100%",
     height: "100%",
     minWidth: "0",
@@ -607,7 +618,16 @@ function paintSidebar(rt, section, frame) {
     boxSizing: "border-box"
   });
   sidebar.body.replaceChildren();
+  let previousRow = null;
   for (const entry of section.entries.slice(plan.start, plan.end)) {
+    const skipped = sidebarRowGap(frame.layout, previousRow, entry.screen?.row);
+    for (let i = 0; i < skipped; i++) {
+      const spacer = document.createElement("div");
+      spacer.setAttribute("aria-hidden", "true");
+      spacer.style.height = "1em";
+      sidebar.body.appendChild(spacer);
+    }
+    if (entry.screen) previousRow = entry.screen.row;
     const row = document.createElement("div");
     row.setAttribute("data-qol-vital", entry.key);
     row.title = entry.key;

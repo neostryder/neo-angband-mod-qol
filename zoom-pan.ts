@@ -10,6 +10,12 @@ export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
 export const ACCESSIBILITY_ZOOM_INDEX = 5;
 
+/* Mirrors packages/web/src/term.ts's own FONT_STACK, so the DOM sidebar reads
+ * as the same terminal rather than a generic system monospace font. A mod
+ * cannot import core's constant directly (no cross-package imports), so this
+ * is a deliberate copy - matched by eye at each Neo Angband release. */
+const SIDEBAR_FONT_STACK = '"Cascadia Mono", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace';
+
 export interface Pixels {
   readonly x: number;
   readonly y: number;
@@ -87,6 +93,12 @@ interface HudRunLike {
 interface HudEntryLike {
   readonly key: string;
   readonly runs: readonly HudRunLike[];
+  /** The absolute terminal row this entry prints at (core's `hud-view.ts`).
+   * Consecutive entries skip a row wherever core's side_handlers[] table has a
+   * blank grouping row between them - that gap is what makes the column read
+   * as vitals / stats / combat groups instead of one solid block. Optional
+   * because a mod-supplied section (not core's own) may not carry it. */
+  readonly screen?: { readonly row: number };
 }
 
 interface HudSectionLike {
@@ -258,6 +270,27 @@ export function sidebarPagePlan(
     end: Math.min(entryCount, (page + 1) * perPage),
     fontSize: preferredFont,
   };
+}
+
+/**
+ * How many blank rows belong between two consecutive sidebar entries.
+ *
+ * Core's side_handlers[] table (hud-view.ts) has four blank grouping rows -
+ * they never become entries of their own, but they DO advance the terminal
+ * row counter, so a gap between one entry's row and the next is exactly
+ * where a blank line belongs (that is what separates the vitals, stat and
+ * combat blocks in vanilla Angband instead of them reading as one block).
+ * Only meaningful in the "left" column: "top" flows entries left to right
+ * with no row semantics, and the first entry on a page has no previous row
+ * to compare against.
+ */
+export function sidebarRowGap(
+  layout: HudFrameLike["layout"],
+  previousRow: number | null,
+  row: number | undefined,
+): number {
+  if (layout === "top" || previousRow === null || row === undefined) return 0;
+  return Math.max(0, row - previousRow - 1);
 }
 
 /** Used by the optional map hold-card path so a pinch cannot become a hold. */
@@ -691,7 +724,7 @@ function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
     pointerEvents: "auto",
     background: "rgba(0,0,0,0.96)",
     color: "#c8c8d4",
-    fontFamily: "monospace",
+    fontFamily: SIDEBAR_FONT_STACK,
     scrollbarWidth: "none",
   });
   const body = document.createElement("div");
@@ -795,7 +828,13 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     justifyContent: frame.layout === "top" ? "space-between" : "normal",
     gap: frame.layout === "top" ? "0 0.55em" : "0.2em",
     padding: frame.layout === "top" ? "0.25em 0.5em" : "0.4em 0.55em",
-    whiteSpace: "nowrap",
+    /* "pre" rather than "nowrap": core right-justifies numbers by padding
+     * with literal leading spaces (cnvStat, rjust in display.ts), and every
+     * whitespace value except "pre" (including "nowrap") collapses a run of
+     * spaces down to one, which is what was flattening those padded columns
+     * to the left. "pre" preserves them, so a monospace column of already
+     * fixed-width text reads right-aligned with no CSS alignment tricks. */
+    whiteSpace: "pre",
     width: "100%",
     height: "100%",
     minWidth: "0",
@@ -803,7 +842,16 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     boxSizing: "border-box",
   });
   sidebar.body.replaceChildren();
+  let previousRow: number | null = null;
   for (const entry of section.entries.slice(plan.start, plan.end)) {
+    const skipped = sidebarRowGap(frame.layout, previousRow, entry.screen?.row);
+    for (let i = 0; i < skipped; i++) {
+      const spacer = document.createElement("div");
+      spacer.setAttribute("aria-hidden", "true");
+      spacer.style.height = "1em";
+      sidebar.body.appendChild(spacer);
+    }
+    if (entry.screen) previousRow = entry.screen.row;
     const row = document.createElement("div");
     row.setAttribute("data-qol-vital", entry.key);
     row.title = entry.key;
