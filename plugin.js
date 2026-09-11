@@ -1683,7 +1683,7 @@ function installRepeatShortcuts(ctx) {
 function drawPrompt2(panel, keymaps, shortcuts, prefs) {
   const root = panel.root;
   const style = document.createElement("style");
-  style.textContent = ":host { all: initial; }.wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }.card { position: relative; pointer-events: auto; width: 22rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; background: #151515; color: #f5f5f5; border-radius: 10px; padding: .9rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid #d4b05b; box-sizing: border-box; }.row { display: flex; align-items: center; gap: .4rem; margin-top: .7rem; }input[type=text] { width: 4.5rem; font: 14px monospace; }button { margin: .5rem .5rem 0 0; background: none; border: 1px solid #686878; border-radius: 4px; cursor: pointer; padding: .2rem .4rem; }.close { position: absolute; top: .4rem; right: .5rem; border: none; opacity: .55; padding: .2rem; }.close:hover { opacity: 1; }.forever { display: flex; align-items: center; gap: .4rem; margin-top: .7rem; }";
+  style.textContent = ":host { all: initial; }.wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }.card { position: relative; pointer-events: auto; width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-x: hidden; overflow-y: auto; background: #151515; color: #f5f5f5; border-radius: 10px; padding: .9rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid #d4b05b; box-sizing: border-box; }.row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }input[type=text] { width: 4.5rem; font: 14px monospace; }button { margin: .5rem .5rem 0 0; background: none; border: 1px solid #686878; border-radius: 4px; cursor: pointer; padding: .2rem .4rem; }.close { position: absolute; top: .4rem; right: .5rem; border: none; opacity: .55; padding: .2rem; }.close:hover { opacity: 1; }.forever { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }";
   const wrap = document.createElement("div");
   wrap.className = "wrap";
   const card = document.createElement("div");
@@ -1692,9 +1692,10 @@ function drawPrompt2(panel, keymaps, shortcuts, prefs) {
   const dpr = window.devicePixelRatio || 1;
   const cellHeight = 18;
   const cellWidth = cellHeight * (16 / 24);
-  const maxChars = Math.max(10, Math.floor((22 * 16 - 32) / cellWidth));
+  const maxChars = Math.max(10, Math.floor((24 * 16 - 32) / cellWidth));
   const titleCellHeight = 20;
   const titleCellWidth = titleCellHeight * (16 / 24);
+  const titleMaxChars = Math.max(6, Math.floor((24 * 16 - 32 - 40) / titleCellWidth));
   const close = document.createElement("button");
   close.type = "button";
   close.className = "close";
@@ -1702,7 +1703,9 @@ function drawPrompt2(panel, keymaps, shortcuts, prefs) {
   paintBitmapButtonLabel(close, "X", "#f5f5f5", cellWidth, cellHeight, dpr);
   close.setAttribute("aria-label", "Dismiss");
   const title = bitmapTextBlock(
-    [[{ text: "Repeated-action shortcuts", css: "#f5f5f5" }]],
+    wrapBitmapText("Repeated-action shortcuts", titleMaxChars).map((line) => [
+      { text: line, css: "#f5f5f5" }
+    ]),
     titleCellWidth,
     titleCellHeight,
     dpr
@@ -1907,7 +1910,7 @@ function drawCard(panel, content) {
   const root = panel.root;
   const style = document.createElement("style");
   const accent = content.tier ? TIER_COLOR[content.tier] : TIER_COLOR.ordinary;
-  style.textContent = ":host { all: initial; }.wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }.card { position: relative; pointer-events: auto; width: 19rem; max-width: calc(100vw - 2rem); background: #17140f; color: #f2ead8; border-radius: 10px; padding: .8rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid " + accent + "; animation: qol-first-encounter-in .3s ease-out; }@keyframes qol-first-encounter-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }.head { display: flex; align-items: center; gap: .6rem; }.glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; }.depth { margin-top: .3rem; }.close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; opacity: .55; padding: .2rem; }.close:hover { opacity: 1; }";
+  style.textContent = ":host { all: initial; }.wrap { position: fixed; inset: auto 1rem 1rem auto; display: flex; justify-content: flex-end; pointer-events: none; }.card { position: relative; pointer-events: auto; width: 19rem; max-width: calc(100vw - 2rem); background: #17140f; color: #f2ead8; border-radius: 10px; padding: .8rem 1rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); border: 2px solid " + accent + "; animation: qol-first-encounter-in .3s ease-out; }@keyframes qol-first-encounter-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }.head { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }.glyph { flex: none; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; }.depth { margin-top: .3rem; }.close { position: absolute; top: .3rem; right: .45rem; pointer-events: auto; background: none; border: none; opacity: .55; padding: .2rem; }.close:hover { opacity: 1; }";
   const wrap = document.createElement("div");
   wrap.className = "wrap";
   const card = document.createElement("div");

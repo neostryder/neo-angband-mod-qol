@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [UI] **The repeated-action shortcuts card no longer overlaps its own title text with the close button, and no longer shows an unwanted horizontal scrollbar when its "Rest as needed" row overflows.** The card's bitmap-glyph text sits wider per character than the system font it replaced, and its layout was not widened or given room to wrap to match; the title now wraps clear of the close button and the card is wide enough for its one shortcut row to fit on a single line (#203).
+
 ## 1.6.0 - 2026-09-11
 
 ### Added
