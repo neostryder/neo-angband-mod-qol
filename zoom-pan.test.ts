@@ -63,7 +63,11 @@ function fakeDisplay(initial = snapshot()): {
   setVisualFilter: ReturnType<typeof vi.fn>;
 } {
   let current = initial;
-  let listener: ((event: KeyboardEvent) => void) | null = null;
+  /* An array, not a single slot: the real display (main.ts) broadcasts one
+   * keydown to every subscriber (installKeyboard AND installTitleBoundary
+   * both call ctx.display.onKey now), and a single-slot fake would have the
+   * second registration silently steal the first one's events. */
+  const listeners: Array<(event: KeyboardEvent) => void> = [];
   const setGrid = vi.fn();
   const setCamera = vi.fn((origin: { x: number; y: number } | null) => {
     if (origin) current = { ...current, viewport: { ...current.viewport, origin } };
@@ -81,9 +85,10 @@ function fakeDisplay(initial = snapshot()): {
     display: {
       snapshot: () => current,
       onKey: (next) => {
-        listener = next;
+        listeners.push(next);
         return () => {
-          listener = null;
+          const i = listeners.indexOf(next);
+          if (i >= 0) listeners.splice(i, 1);
         };
       },
       setGrid,
@@ -94,7 +99,9 @@ function fakeDisplay(initial = snapshot()): {
       setVisualFilter,
       repaint: vi.fn(),
     },
-    key: (event) => listener?.(event),
+    key: (event) => {
+      for (const listener of [...listeners]) listener(event);
+    },
     setGrid,
     setCamera,
     setMapView,
@@ -258,6 +265,35 @@ describe("input integration", () => {
 
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
     expect(readDisplayPreference(stored).zoomIndex).toBe(2);
+  });
+
+  it("no longer tracks the title/birth boundary on a raw window listener", () => {
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    const body = { style: {}, setAttribute: vi.fn() };
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      querySelector: () => null,
+    });
+
+    const fake = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
+    body.setAttribute.mockClear(); // drop the "title" mark installZoomPan makes on the way up
+
+    /* Dispatched straight on window, bypassing the fake display's onKey
+     * entirely - exactly the channel the old raw `window.addEventListener`
+     * listened on, and exactly how a key typed into an open mod panel's own
+     * <input> used to reach this tracker too (a raw window listener sees
+     * every keydown, panel-owned ones included). If the boundary tracker
+     * ever goes back to listening on window directly, this event reaches it
+     * again and the assertion below catches it. */
+    const event = new Event("keydown");
+    Object.defineProperty(event, "key", { value: "n" });
+    fakeWindow.dispatchEvent(event);
+    expect(body.setAttribute).not.toHaveBeenCalled();
   });
 
   it("leaves the title fitted, then applies the persisted grid at the first HUD", () => {

@@ -497,6 +497,20 @@ function scheduleScreenFit(rt: ZoomRuntime): void {
   }, 0);
 }
 
+/**
+ * Through `ctx.display.onKey`, NOT a raw `window` listener.
+ *
+ * A raw listener sees every keydown the browser delivers, including one typed
+ * into an open mod panel's own `<input>` - a QoL accessibility helper's setup
+ * card among them. `ctx.display.onKey` is backed by the input door
+ * (input-door.ts), which withholds a key a panel already owns before it ever
+ * reaches a subscriber here, the same protection installKeyboard's zoom and
+ * pan bindings already had. Without it, typing a stray "n" or "l" into that
+ * card's bind field while still on the title screen could flip `bootPhase`
+ * straight to "birth" or "game-pending", and the next ordinary key then
+ * activates gameplay reflow under a screen that is still showing the title
+ * art - which is letterboxed at a fixed 80x24 and never expects a zoomed grid.
+ */
 function installTitleBoundary(rt: ZoomRuntime): void {
   const onKey = (event: KeyboardEvent): void => {
     if (rt.gridActive || event.ctrlKey || event.altKey || event.metaKey) return;
@@ -518,8 +532,7 @@ function installTitleBoundary(rt: ZoomRuntime): void {
       markGridState(rt.bootPhase);
     }
   };
-  window.addEventListener("keydown", onKey, true);
-  rt.cleanups.push(() => window.removeEventListener("keydown", onKey, true));
+  rt.cleanups.push(rt.display.onKey(onKey));
 }
 
 function installWheel(rt: ZoomRuntime): void {
