@@ -20,9 +20,15 @@ were not retagged.
 
 ## [Unreleased]
 
+### Removed
+
+- [Visible] [Accessibility] **Repeated-action shortcuts no longer offers cardinal run bindings.** A run is already one key (`.` plus a direction in the original keyset, one shifted direction key in roguelike), so a bound shortcut saved nothing. Only the conditional-rest shortcut remains (#151).
+
 ### Fixed
 
 - [Visible] [Accessibility] **The repeated-action shortcuts setup card no longer covers the screen, and no longer leaves the game zoomed in tight after it closes.** It is now a small non-modal card in the corner, the same shape as the first-encounter alert card, so it can be left open or dismissed without blocking a click or keypress meant for the game underneath (#151).
+
+- [Visible] [UI] **The status sidebar's vitals rows no longer stretch apart to fill the window height.** They now pack at the top, matching the original game's layout (#196).
 
 ### Changed
 

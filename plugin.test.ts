@@ -31,7 +31,6 @@ import {
 import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import { readRememberedSettings } from "./preferences";
-import { defaultRepeatShortcuts } from "./repeat-shortcuts";
 import plugin, {
   hoverCardContent,
   hoverCardText,
@@ -350,21 +349,6 @@ describe("qol.autoDig: walking into diggable terrain", () => {
     const spent = walkAction(state, { code: "walk", dir });
     expect(spent).toBe(state.z.moveEnergy);
     expect(state.chunk.feat(grid)).toBe(FEAT.GRANITE); // still there
-  });
-});
-
-describe("qol.accessibilityRepeatShortcuts: repeated non-combat commands", () => {
-  it("starts the core running state from the direction encoded in an offered macro", () => {
-    const { state, registry, dir } = dugGame(FEAT.FLOOR);
-    const shortcut = defaultRepeatShortcuts(false).find((entry) => entry.action === `.${String(dir)}`);
-    expect(shortcut).toBeDefined();
-
-    const before = loc(state.actor.grid.x, state.actor.grid.y);
-    const spent = registry.get("run")!(state, { code: "run", dir });
-
-    expect(spent).toBe(state.z.moveEnergy);
-    expect(state.actor.grid).not.toEqual(before);
-    expect(state.run?.running).toBeGreaterThan(0);
   });
 });
 

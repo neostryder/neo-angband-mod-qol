@@ -33,7 +33,7 @@ See the [settings reference](SETTINGS.md) for every flag, its default, and when 
 | **Accessibility: enlarged display** (`qol.accessibilityZoom`) | off | Opt in to the enlarged-display accommodation independently. The visual behaviour arrives with the associated accommodation update. |
 | **Accessibility: high-contrast display** (`qol.accessibilityHighContrast`) | off | Opt in to high-contrast rendering independently. The visual behaviour arrives with the associated accommodation update. |
 | **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | When you gain a spell or known activation, offers an unused shortcut key for the casting or activation command. You may accept, choose another key, or decline. |
-| **Accessibility: repeated-action shortcuts** (`qol.accessibilityRepeatShortcuts`) | off | Offers unused one-key shortcuts for resting as needed and, in the original keyset, cardinal runs. Existing shortcuts are never replaced. Reported by `misha_cilantro`. |
+| **Accessibility: repeated-action shortcuts** (`qol.accessibilityRepeatShortcuts`) | off | Offers an unused one-key shortcut for resting as needed. Existing shortcuts are never replaced. Reported by `misha_cilantro`. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
@@ -72,12 +72,12 @@ host-owned modal after you learn a spell or gain a known activatable item. It su
 an unused function key, lets you type another unused printable key, `Enter`, or an
 `F1` through `F12` key, and lets you decline. A bound shortcut opens the ordinary
 casting or activation command, so the game's normal item, spell, aiming, and safety
-choices still apply. The repeated-action helper offers `R&[Enter]` for conditional rest,
-and in the original keyset `.8`, `.2`, `.4`, and `.6` for cardinal runs. These are
-the game's ordinary commands, so running keeps its existing stop checks and resting
-keeps its existing interruption checks. The roguelike keyset already starts a run
-with one shifted direction key, so it offers only the rest shortcut. Existing keymaps
-are never replaced.
+choices still apply. The repeated-action helper offers `R&[Enter]` for conditional
+rest, the one command here that costs more than a key or two every time it is used.
+A cardinal run needs no shortcut of its own: it is already just `.` plus a direction
+in the original keyset, or one shifted direction key in roguelike, so a bound key
+would not save a keystroke. Resting keeps its existing interruption checks either
+way. Existing keymaps are never replaced.
 
 ### Zoom, pan, and responsive layout
 

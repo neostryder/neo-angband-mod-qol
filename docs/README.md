@@ -27,7 +27,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Accessibility: high-contrast display | `qol.accessibilityHighContrast` | off | Boost contrast and colour separation after the game has rendered each frame. |
 | Accessibility: colourblind correction | `qol.accessibilityColorblind` | off | Apply a red-green daltonization correction after the game has rendered each frame. |
 | Accessibility: activation shortcut helper | `qol.accessibilityMacroWizard` | off | When you learn a spell or gain a known activatable item, offer to bind the casting or activation command to an unused shortcut key. |
-| Accessibility: repeated-action shortcuts | `qol.accessibilityRepeatShortcuts` | off | Offer unused one-key shortcuts for resting as needed and, in the original keyset, running in each cardinal direction. |
+| Accessibility: repeated-action shortcuts | `qol.accessibilityRepeatShortcuts` | off | Offer an unused one-key shortcut for resting as needed. |
 
 ## What it needs
 
