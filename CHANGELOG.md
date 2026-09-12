@@ -18,6 +18,12 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## [Unreleased]
+
+### Fixed
+
+- [Visible] [UI] **The enlarged responsive display no longer moves the game canvas according to a different browser-window measurement.** The zoom layout now follows the core's measured game surface, so a bounded or offset game view stays full-sized and aligned when enlarged display is enabled (#207).
+
 ## 1.6.2 - 2026-09-11
 
 ### Fixed

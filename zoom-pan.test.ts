@@ -223,6 +223,38 @@ describe("sidebar row gaps", () => {
 });
 
 describe("input integration", () => {
+  it("uses the core-measured surface for an enlarged persisted zoom without moving its canvas", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1442;
+    fakeWindow.innerHeight = 852;
+    const body = { style: {}, setAttribute: vi.fn() };
+    const querySelector = vi.fn(() => {
+      throw new Error("QoL must not reposition the core-owned canvas");
+    });
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", { body, documentElement: { style: {} }, querySelector });
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const zoom = fakeDisplay(snapshot({ surface: { x: 900, y: 40, width: 360, height: 300 } }));
+    const stored = { v: 2, display: { v: 1, zoomIndex: 7, interfaceZoomIndex: 0, mapDetail: 0 } };
+    installZoomPan({
+      flags: { "qol.zoomPan": true, "qol.accessibilityZoom": true },
+      prefs: { get: () => stored, set: () => undefined },
+      display: zoom.display,
+    });
+
+    zoom.key(fakeKey("5", { ctrlKey: false }));
+    vi.runAllTimers();
+
+    expect(zoom.setGrid).toHaveBeenLastCalledWith({
+      cellHeight: 21,
+      minCols: 24,
+      minRows: 12,
+      snapViewportToEven: true,
+    });
+    expect(querySelector).not.toHaveBeenCalled();
+  });
+
   it("applies the first Ctrl-= and Ctrl-Arrow instead of spending them on activation", () => {
     vi.useFakeTimers();
     /* Past the title/birth boundary already, same as the Ctrl-Wheel test

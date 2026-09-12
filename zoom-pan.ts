@@ -32,6 +32,7 @@ export interface DisplaySnapshotLike {
     readonly size: { readonly width: number; readonly height: number };
     readonly screenOrigin?: { readonly x: number; readonly y: number };
   };
+  readonly surface?: Pixels;
   readonly level: { readonly width: number; readonly height: number };
   readonly layout: "left" | "top" | "none";
   readonly regions: {
@@ -127,12 +128,6 @@ interface SidebarRuntime {
   frame: HudFrameLike | null;
 }
 
-interface CanvasStyle {
-  readonly position: string;
-  readonly left: string;
-  readonly top: string;
-}
-
 interface ZoomRuntime {
   readonly ctx: ZoomPanContext;
   readonly display: DisplayLike;
@@ -145,9 +140,6 @@ interface ZoomRuntime {
   bootPhase: "title" | "birth" | "name" | "game-pending";
   activationTimer: ReturnType<typeof setTimeout> | null;
   readonly activationActions: Array<() => void>;
-  gridOffset: TouchPoint;
-  canvas: HTMLElement | null;
-  canvasStyle: CanvasStyle | null;
   screenFitActive: boolean;
   screenFitTimer: ReturnType<typeof setTimeout> | null;
 }
@@ -315,7 +307,10 @@ function writePreference(rt: ZoomRuntime): void {
 function applyGridAndSidebar(rt: ZoomRuntime): void {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
-  const narrow = typeof window !== "undefined" && window.innerWidth < 480;
+  const surface = rt.display.snapshot().surface;
+  const narrow = surface?.width !== undefined
+    ? surface.width < 480
+    : typeof window !== "undefined" && window.innerWidth < 480;
   const cellHeight = narrow ? Math.min(21, requestedCellHeight) : requestedCellHeight;
   rt.display.setGrid({
     cellHeight,
@@ -328,38 +323,6 @@ function applyGridAndSidebar(rt: ZoomRuntime): void {
   rt.display.setSidebarExtent({
     columns: Math.round(13 * scale),
     topRows: Math.max(1, Math.ceil(scale)),
-  });
-  centerGrid(rt);
-}
-
-function shiftedPixels(rt: ZoomRuntime, pixels: Pixels | undefined): Pixels | undefined {
-  return pixels ? {
-    ...pixels,
-    x: pixels.x + rt.gridOffset.x,
-    y: pixels.y + rt.gridOffset.y,
-  } : undefined;
-}
-
-function centerGrid(rt: ZoomRuntime): void {
-  if (!rt.gridActive || typeof document === "undefined" || typeof window === "undefined") return;
-  const snapshot = rt.display.snapshot();
-  const x = Math.max(0, Math.floor((window.innerWidth - snapshot.grid.cols * snapshot.grid.cellWidth) / 2));
-  const y = Math.max(0, Math.floor((window.innerHeight - snapshot.grid.rows * snapshot.grid.cellHeight) / 2));
-  rt.gridOffset = { x, y };
-  const canvas = rt.canvas ?? document.querySelector<HTMLElement>("#game");
-  if (!canvas) return;
-  if (!rt.canvasStyle) {
-    rt.canvasStyle = {
-      position: canvas.style.position,
-      left: canvas.style.left,
-      top: canvas.style.top,
-    };
-  }
-  rt.canvas = canvas;
-  Object.assign(canvas.style, {
-    position: "fixed",
-    left: `${String(x)}px`,
-    top: `${String(y)}px`,
   });
 }
 
@@ -523,11 +486,6 @@ function scheduleScreenFit(rt: ZoomRuntime): void {
     if (runtime !== rt || !rt.gridActive) return;
     rt.screenFitActive = true;
     if (rt.sidebar) rt.sidebar.host.style.display = "none";
-    rt.gridOffset = { x: 0, y: 0 };
-    if (rt.canvas) {
-      rt.canvas.style.left = "0px";
-      rt.canvas.style.top = "0px";
-    }
     rt.display.setGrid(null);
   }, 0);
 }
@@ -577,7 +535,7 @@ function installWheel(rt: ZoomRuntime): void {
      * zoom must not own the still-letterboxed pre-game screens. */
     if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
     const snapshot = rt.display.snapshot();
-    const sidebar = shiftedPixels(rt, snapshot.regions.sidebar?.pixels);
+    const sidebar = snapshot.regions.sidebar?.pixels;
     event.preventDefault();
     event.stopImmediatePropagation();
     const direction = event.deltaY < 0 ? 1 : -1;
@@ -615,7 +573,7 @@ function installTouch(rt: ZoomRuntime): void {
     const pair = touchPair(rt);
     if (!pair) return;
     const metrics = pairMetrics(pair);
-    const sidebar = shiftedPixels(rt, rt.display.snapshot().regions.sidebar?.pixels);
+    const sidebar = rt.display.snapshot().regions.sidebar?.pixels;
     rt.gesture = {
       context: pointInPixels(metrics.center.x, metrics.center.y, sidebar) ? "sidebar" : "view",
       ...metrics,
@@ -703,7 +661,6 @@ function installResponsiveMap(rt: ZoomRuntime): void {
         applyGridAndSidebar(rt);
         rt.display.repaint();
       }
-      centerGrid(rt);
     }, 0);
   };
   window.addEventListener("resize", onResize);
@@ -776,7 +733,6 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
     rt.display.repaint();
     return;
   }
-  centerGrid(rt);
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
@@ -823,8 +779,8 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   }
   Object.assign(sidebar.host.style, {
     display: "block",
-    left: `${String(pixels.x + rt.gridOffset.x)}px`,
-    top: `${String(pixels.y + rt.gridOffset.y)}px`,
+    left: `${String(pixels.x)}px`,
+    top: `${String(pixels.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
     /* Still the em basis for the layout below's gap/padding - only the
@@ -952,9 +908,6 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     bootPhase: initialBootPhase(),
     activationTimer: null,
     activationActions: [],
-    gridOffset: { x: 0, y: 0 },
-    canvas: null,
-    canvasStyle: null,
     screenFitActive: false,
     screenFitTimer: null,
   };
@@ -1003,9 +956,6 @@ export function uninstallZoomPan(): void {
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
-  if (rt.canvas && rt.canvasStyle) {
-    Object.assign(rt.canvas.style, rt.canvasStyle);
-  }
   rt.display.setMapView(null);
   rt.display.setCamera(null);
   rt.display.setSidebarExtent(null);

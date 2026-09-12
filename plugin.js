@@ -834,7 +834,8 @@ function writePreference(rt) {
 function applyGridAndSidebar(rt) {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
-  const narrow = typeof window !== "undefined" && window.innerWidth < 480;
+  const surface = rt.display.snapshot().surface;
+  const narrow = surface?.width !== void 0 ? surface.width < 480 : typeof window !== "undefined" && window.innerWidth < 480;
   const cellHeight = narrow ? Math.min(21, requestedCellHeight) : requestedCellHeight;
   rt.display.setGrid({
     cellHeight,
@@ -847,36 +848,6 @@ function applyGridAndSidebar(rt) {
   rt.display.setSidebarExtent({
     columns: Math.round(13 * scale),
     topRows: Math.max(1, Math.ceil(scale))
-  });
-  centerGrid(rt);
-}
-function shiftedPixels(rt, pixels) {
-  return pixels ? {
-    ...pixels,
-    x: pixels.x + rt.gridOffset.x,
-    y: pixels.y + rt.gridOffset.y
-  } : void 0;
-}
-function centerGrid(rt) {
-  if (!rt.gridActive || typeof document === "undefined" || typeof window === "undefined") return;
-  const snapshot = rt.display.snapshot();
-  const x = Math.max(0, Math.floor((window.innerWidth - snapshot.grid.cols * snapshot.grid.cellWidth) / 2));
-  const y = Math.max(0, Math.floor((window.innerHeight - snapshot.grid.rows * snapshot.grid.cellHeight) / 2));
-  rt.gridOffset = { x, y };
-  const canvas = rt.canvas ?? document.querySelector("#game");
-  if (!canvas) return;
-  if (!rt.canvasStyle) {
-    rt.canvasStyle = {
-      position: canvas.style.position,
-      left: canvas.style.left,
-      top: canvas.style.top
-    };
-  }
-  rt.canvas = canvas;
-  Object.assign(canvas.style, {
-    position: "fixed",
-    left: `${String(x)}px`,
-    top: `${String(y)}px`
   });
 }
 function activateGameplayGrid(rt, action) {
@@ -1017,11 +988,6 @@ function scheduleScreenFit(rt) {
     if (runtime !== rt || !rt.gridActive) return;
     rt.screenFitActive = true;
     if (rt.sidebar) rt.sidebar.host.style.display = "none";
-    rt.gridOffset = { x: 0, y: 0 };
-    if (rt.canvas) {
-      rt.canvas.style.left = "0px";
-      rt.canvas.style.top = "0px";
-    }
     rt.display.setGrid(null);
   }, 0);
 }
@@ -1053,7 +1019,7 @@ function installWheel(rt) {
     if (!event.ctrlKey || event.deltaY === 0) return;
     if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
     const snapshot = rt.display.snapshot();
-    const sidebar = shiftedPixels(rt, snapshot.regions.sidebar?.pixels);
+    const sidebar = snapshot.regions.sidebar?.pixels;
     event.preventDefault();
     event.stopImmediatePropagation();
     const direction = event.deltaY < 0 ? 1 : -1;
@@ -1086,7 +1052,7 @@ function installTouch(rt) {
     const pair = touchPair(rt);
     if (!pair) return;
     const metrics = pairMetrics(pair);
-    const sidebar = shiftedPixels(rt, rt.display.snapshot().regions.sidebar?.pixels);
+    const sidebar = rt.display.snapshot().regions.sidebar?.pixels;
     rt.gesture = {
       context: pointInPixels(metrics.center.x, metrics.center.y, sidebar) ? "sidebar" : "view",
       ...metrics
@@ -1167,7 +1133,6 @@ function installResponsiveMap(rt) {
         applyGridAndSidebar(rt);
         rt.display.repaint();
       }
-      centerGrid(rt);
     }, 0);
   };
   window.addEventListener("resize", onResize);
@@ -1233,7 +1198,6 @@ function paintSidebar(rt, section, frame) {
     rt.display.repaint();
     return;
   }
-  centerGrid(rt);
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
@@ -1273,8 +1237,8 @@ function paintSidebar(rt, section, frame) {
   }
   Object.assign(sidebar.host.style, {
     display: "block",
-    left: `${String(pixels.x + rt.gridOffset.x)}px`,
-    top: `${String(pixels.y + rt.gridOffset.y)}px`,
+    left: `${String(pixels.x)}px`,
+    top: `${String(pixels.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
     /* Still the em basis for the layout below's gap/padding - only the
@@ -1395,9 +1359,6 @@ function installZoomPan(ctx) {
     bootPhase: initialBootPhase(),
     activationTimer: null,
     activationActions: [],
-    gridOffset: { x: 0, y: 0 },
-    canvas: null,
-    canvasStyle: null,
     screenFitActive: false,
     screenFitTimer: null
   };
@@ -1442,9 +1403,6 @@ function uninstallZoomPan() {
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
-  if (rt.canvas && rt.canvasStyle) {
-    Object.assign(rt.canvas.style, rt.canvasStyle);
-  }
   rt.display.setMapView(null);
   rt.display.setCamera(null);
   rt.display.setSidebarExtent(null);
