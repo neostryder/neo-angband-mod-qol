@@ -969,6 +969,7 @@ function installKeyboard(rt) {
     rt.display.onKey((event) => {
       const zoom = event.ctrlKey && !event.altKey && !event.metaKey ? zoomKeyDirection(event) : 0;
       const direction = event.ctrlKey && !event.altKey && !event.metaKey ? directionKey(event) : null;
+      if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
       if (zoom !== 0 || direction !== null) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -981,7 +982,6 @@ function installKeyboard(rt) {
           }
         };
         if (!rt.gridActive) {
-          rt.bootPhase = "game-pending";
           markGridState("game-pending:display-shortcut");
           activateGameplayGrid(rt, action);
         } else {
@@ -990,7 +990,6 @@ function installKeyboard(rt) {
         return;
       }
       if (!rt.gridActive) {
-        rt.bootPhase = "game-pending";
         markGridState("game-pending:display-key");
         activateGameplayGrid(rt);
         return;
@@ -1052,6 +1051,7 @@ function installTitleBoundary(rt) {
 function installWheel(rt) {
   const onWheel = (event) => {
     if (!event.ctrlKey || event.deltaY === 0) return;
+    if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
     const snapshot = rt.display.snapshot();
     const sidebar = shiftedPixels(rt, snapshot.regions.sidebar?.pixels);
     event.preventDefault();
@@ -1059,7 +1059,6 @@ function installWheel(rt) {
     const direction = event.deltaY < 0 ? 1 : -1;
     const action = pointInPixels(event.clientX, event.clientY, sidebar) ? () => zoomInterface(rt, direction) : () => zoomView(rt, direction);
     if (!rt.gridActive) {
-      rt.bootPhase = "game-pending";
       markGridState("game-pending:wheel");
       activateGameplayGrid(rt, action);
     } else {

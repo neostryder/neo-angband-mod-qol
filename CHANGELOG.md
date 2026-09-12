@@ -23,6 +23,7 @@ were not retagged.
 ### Fixed
 
 - [Visible] [UI] **The repeated-action shortcuts card no longer overlaps its own title text with the close button, and no longer shows an unwanted horizontal scrollbar when its "Rest as needed" row overflows.** The card's bitmap-glyph text sits wider per character than the system font it replaced, and its layout was not widened or given room to wrap to match; the title now wraps clear of the close button and the card is wide enough for its one shortcut row to fit on a single line (#203).
+- [Visible] [UI] **A stray key or a Ctrl-Wheel event on the title, birth, or naming screens no longer activates the responsive gameplay grid.** With zoom and pan enabled, any unhandled keydown - a bare Alt press among them - or a Ctrl-Wheel event used to activate the grid immediately, applying a saved gameplay zoom to a screen that is still letterboxed at a fixed size and shrinking the visible title art and menu into a corner of the window. Activation now waits until the title, birth, and naming flow has genuinely finished (#205).
 
 ## 1.6.0 - 2026-09-11
 

@@ -464,6 +464,14 @@ function installKeyboard(rt: ZoomRuntime): void {
       const direction = event.ctrlKey && !event.altKey && !event.metaKey
         ? directionKey(event)
         : null;
+      /* A saved gameplay zoom must not own title, birth or name (see
+       * installResponsiveMap's own version of this guard) - only a key
+       * arriving after installTitleBoundary has already advanced bootPhase to
+       * "game-pending" means the player is genuinely entering play. Before
+       * that, title/birth/name are still letterboxed at a fixed 80x24 and any
+       * ordinary key (a bare Alt press among them) must not activate the
+       * responsive grid under them. */
+      if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
       if (zoom !== 0 || direction !== null) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -476,7 +484,6 @@ function installKeyboard(rt: ZoomRuntime): void {
           }
         };
         if (!rt.gridActive) {
-          rt.bootPhase = "game-pending";
           markGridState("game-pending:display-shortcut");
           activateGameplayGrid(rt, action);
         } else {
@@ -485,7 +492,6 @@ function installKeyboard(rt: ZoomRuntime): void {
         return;
       }
       if (!rt.gridActive) {
-        rt.bootPhase = "game-pending";
         markGridState("game-pending:display-key");
         activateGameplayGrid(rt);
         return;
@@ -567,6 +573,9 @@ function installTitleBoundary(rt: ZoomRuntime): void {
 function installWheel(rt: ZoomRuntime): void {
   const onWheel = (event: WheelEvent): void => {
     if (!event.ctrlKey || event.deltaY === 0) return;
+    /* Same title/birth/name boundary as installKeyboard: a saved gameplay
+     * zoom must not own the still-letterboxed pre-game screens. */
+    if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
     const snapshot = rt.display.snapshot();
     const sidebar = shiftedPixels(rt, snapshot.regions.sidebar?.pixels);
     event.preventDefault();
@@ -576,7 +585,6 @@ function installWheel(rt: ZoomRuntime): void {
       ? (): void => zoomInterface(rt, direction)
       : (): void => zoomView(rt, direction);
     if (!rt.gridActive) {
-      rt.bootPhase = "game-pending";
       markGridState("game-pending:wheel");
       activateGameplayGrid(rt, action);
     } else {
