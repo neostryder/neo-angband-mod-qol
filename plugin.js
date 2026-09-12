@@ -1991,7 +1991,7 @@ function installFirstEncounter(ctx) {
   }
   const ui = ctx.ui;
   const core = ctx.core;
-  const key = characterKeyFor(ctx.state.player);
+  const key = characterKeyFor(ctx.state.actor.player);
   const notebook = readFirstEncounterPrefs(ctx.prefs?.get(), key);
   const save = () => ctx.prefs?.set(toFirstEncounterPrefs(key, notebook));
   timer = setInterval(() => {

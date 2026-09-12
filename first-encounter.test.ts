@@ -1,18 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   artifactCardContent,
   carriedKnownArtifacts,
   characterKey,
   classifyMonsterThreat,
+  installFirstEncounter,
   monsterCardContent,
   newArtifactFinds,
   newMonsterSightings,
   readFirstEncounterPrefs,
   toFirstEncounterPrefs,
+  uninstallFirstEncounter,
   type ArtifactLike,
   type GameObjectLike,
   type MonsterRaceLike,
 } from "./first-encounter";
+
+afterEach(() => {
+  uninstallFirstEncounter();
+});
 
 function race(overrides: Partial<MonsterRaceLike> = {}): MonsterRaceLike {
   return { ridx: 1, name: "Grip, Farmer Maggot's Dog", level: 2, dChar: "C", dAttr: 4, unique: false, ...overrides };
@@ -54,6 +60,39 @@ describe("characterKey", () => {
     expect(characterKey(base)).toBe(characterKey({ ...base }));
     expect(characterKey(base)).not.toBe(characterKey({ ...base, fullName: "Sam" }));
     expect(characterKey(base)).not.toBe(characterKey({ ...base, auBirth: 101 }));
+  });
+});
+
+describe("installFirstEncounter", () => {
+  it("reads the live player from state.actor.player, not state.player", () => {
+    /* GameState.actor: PlayerActor, PlayerActor.player: Player - the player
+     * is never a direct field of state. installFirstEncounter threw
+     * "Cannot read properties of undefined (reading 'fullName')" in a real
+     * boot when this file's own state typing skipped the actor level. */
+    const ctx = {
+      core: {
+        monsterListCollect: () => ({ entries: [] }),
+        liveObjectIsKnownArtifact: () => false,
+        fmtDepth: (depth: number) => `${depth}ft`,
+        colorToCss: () => "#fff",
+      },
+      state: {
+        chunk: { depth: 5 },
+        gear: { store: new Map() },
+        actor: {
+          player: {
+            fullName: "Frodo",
+            race: { name: "Hobbit" },
+            cls: { name: "Rogue" },
+            auBirth: 100,
+            htBirth: 40,
+            wtBirth: 60,
+          },
+        },
+      },
+      ui: { openPanel: () => ({ root: {} as ShadowRoot, closed: Promise.resolve(), close: () => {} }) },
+    };
+    expect(() => installFirstEncounter(ctx)).not.toThrow();
   });
 });
 
