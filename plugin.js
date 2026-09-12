@@ -759,6 +759,7 @@ var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var ACCESSIBILITY_ZOOM_INDEX = 5;
 var runtime = null;
+var configuredDisplay = null;
 function markGridState(value) {
   if (typeof document !== "undefined" && document.body) {
     document.body.setAttribute("data-qol-grid-state", value);
@@ -1365,11 +1366,14 @@ function installZoomPan(ctx) {
   const display = ctx.display;
   const enabled = ctx.flags["qol.zoomPan"] === true || ctx.flags["qol.accessibilityZoom"] === true;
   const crisp = ctx.flags["qol.sharpenZoomedTiles"] === true;
+  const fullMapOverview = ctx.flags["qol.fullMapOverview"] === true;
   if (!display) {
-    if (enabled || crisp) ctx.log?.("this game is too old for zoom, pan, and responsive layout");
+    if (enabled || crisp || fullMapOverview) ctx.log?.("this game is too old for display conveniences");
     return;
   }
   display.setTileScaling(crisp ? "crisp" : "auto");
+  display.setFullMapOverview?.(fullMapOverview);
+  configuredDisplay = display;
   if (!enabled) return;
   const rt = {
     ctx,
@@ -1423,6 +1427,9 @@ function zoomPanHud(ctx) {
   return { sidebar: { present: (section, frame) => paintSidebar(rt, section, frame) } };
 }
 function uninstallZoomPan() {
+  const display = configuredDisplay;
+  configuredDisplay = null;
+  display?.setFullMapOverview?.(false);
   const rt = runtime;
   runtime = null;
   if (!rt) return;

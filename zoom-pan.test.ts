@@ -61,6 +61,7 @@ function fakeDisplay(initial = snapshot()): {
   setMapView: ReturnType<typeof vi.fn>;
   setSidebarExtent: ReturnType<typeof vi.fn>;
   setTileScaling: ReturnType<typeof vi.fn>;
+  setFullMapOverview: ReturnType<typeof vi.fn>;
   setVisualFilter: ReturnType<typeof vi.fn>;
 } {
   let current = initial;
@@ -81,6 +82,7 @@ function fakeDisplay(initial = snapshot()): {
   });
   const setSidebarExtent = vi.fn();
   const setTileScaling = vi.fn();
+  const setFullMapOverview = vi.fn();
   const setVisualFilter = vi.fn();
   return {
     display: {
@@ -97,6 +99,7 @@ function fakeDisplay(initial = snapshot()): {
       setMapView,
       setSidebarExtent,
       setTileScaling,
+      setFullMapOverview,
       setVisualFilter,
       repaint: vi.fn(),
     },
@@ -108,6 +111,7 @@ function fakeDisplay(initial = snapshot()): {
     setMapView,
     setSidebarExtent,
     setTileScaling,
+    setFullMapOverview,
     setVisualFilter,
   };
 }
@@ -490,6 +494,17 @@ describe("input integration", () => {
     });
     expect(fake.setTileScaling).toHaveBeenCalledWith("crisp");
     expect(fake.setGrid).not.toHaveBeenCalled();
+  });
+
+  it("selects the full-detail map path independently from zoom and clears it on uninstall", () => {
+    const fake = fakeDisplay();
+    installZoomPan({
+      flags: { "qol.zoomPan": false, "qol.fullMapOverview": true },
+      display: fake.display,
+    });
+    expect(fake.setFullMapOverview).toHaveBeenCalledWith(true);
+    uninstallZoomPan();
+    expect(fake.setFullMapOverview).toHaveBeenLastCalledWith(false);
   });
 
   it("enlarges the responsive grid without requiring ordinary zoom and pan", () => {

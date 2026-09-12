@@ -12,6 +12,7 @@ Rules marked hooks side are rebuilt when changed. Rules marked register side nee
 | `qol.firstEncounterAlerts` | off | Shows a card for first monster encounters and artifacts. | Yes, register side. |
 | `qol.zoomPan` | on | Enables responsive zoom and pan controls for the game display. | Yes, register side. |
 | `qol.sharpenZoomedTiles` | off | Uses crisp sampling for reduced graphics tiles. | Yes, register side. |
+| `qol.fullMapOverview` | off | Shows every known dungeon grid on the Map overview, smoothly reduced to fit in ASCII and graphics modes. | Yes, register side. |
 | `qol.accessibilityZoom` | off | Starts the responsive display at a larger cell size. | Yes, register side. |
 | `qol.accessibilityHighContrast` | off | Applies a high contrast filter to rendered frames. | Yes, register side. |
 | `qol.accessibilityColorblind` | off | Applies red green colour correction to rendered frames. | Yes, register side. |

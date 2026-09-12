@@ -80,6 +80,13 @@
       "requiresReload": true
     },
     {
+      "flag": "qol.fullMapOverview",
+      "title": "Full-detail Map overview",
+      "description": "Show every known dungeon grid on the (M)ap overview, smoothly reduced to fit the modal. This preserves ASCII details that the classic compressed map combines into one cell. It works in ASCII and graphics modes.",
+      "default": false,
+      "requiresReload": true
+    },
+    {
       "flag": "qol.accessibilityZoom",
       "title": "Accessibility: enlarged display",
       "description": "Use the responsive display at a larger, more readable default cell size. It works even if the separate Zoom, pan, and responsive layout rule is off, and does not change your saved normal zoom setting.",

@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [UI] **The optional full-detail Map overview keeps every known dungeon grid in ASCII and graphics modes.** The completed picture is smoothly reduced to fit instead of compressing several ASCII grids into one cell (#212).
+
 ### Fixed
 
 - [Internal] [Save-Compat] **First-encounter notebooks now share the Quality of Life preferences envelope with remembered settings, display settings, and repeated-action shortcut dismissal.** Saving any one of those preferences no longer silently overwrites another (#200).

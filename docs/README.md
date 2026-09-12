@@ -23,6 +23,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 | First-encounter alerts | `qol.firstEncounterAlerts` | off | The first time this character meets a monster type, or picks up an artifact, a small card appears in the corner of the screen with its name and native depth. |
 | Zoom, pan, and responsive layout | `qol.zoomPan` | on | Use a real responsive grid whose visible rows and columns change with zoom. |
 | Sharpen zoomed graphics | `qol.sharpenZoomedTiles` | off | Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. |
+| Full-detail Map overview | `qol.fullMapOverview` | off | Show every known dungeon grid on the Map overview, smoothly reduced to fit in ASCII and graphics modes. |
 | Accessibility: enlarged display | `qol.accessibilityZoom` | off | Use the responsive display at a larger, more readable default cell size. |
 | Accessibility: high-contrast display | `qol.accessibilityHighContrast` | off | Boost contrast and colour separation after the game has rendered each frame. |
 | Accessibility: colourblind correction | `qol.accessibilityColorblind` | off | Apply a red-green daltonization correction after the game has rendered each frame. |

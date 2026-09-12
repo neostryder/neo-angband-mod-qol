@@ -63,6 +63,7 @@ export interface DisplayLike {
   } | null): void;
   setSidebarExtent(extent: { readonly columns: number; readonly topRows: number } | null): void;
   setTileScaling(mode: "auto" | "crisp"): void;
+  setFullMapOverview?(enabled: boolean): void;
   setVisualFilter(filter: string | null): void;
   repaint(): void;
 }
@@ -145,6 +146,7 @@ interface ZoomRuntime {
 }
 
 let runtime: ZoomRuntime | null = null;
+let configuredDisplay: DisplayLike | null = null;
 
 function markGridState(value: string): void {
   if (typeof document !== "undefined" && document.body) {
@@ -885,11 +887,14 @@ export function installZoomPan(ctx: ZoomPanContext): void {
   const display = ctx.display;
   const enabled = ctx.flags["qol.zoomPan"] === true || ctx.flags["qol.accessibilityZoom"] === true;
   const crisp = ctx.flags["qol.sharpenZoomedTiles"] === true;
+  const fullMapOverview = ctx.flags["qol.fullMapOverview"] === true;
   if (!display) {
-    if (enabled || crisp) ctx.log?.("this game is too old for zoom, pan, and responsive layout");
+    if (enabled || crisp || fullMapOverview) ctx.log?.("this game is too old for display conveniences");
     return;
   }
   display.setTileScaling(crisp ? "crisp" : "auto");
+  display.setFullMapOverview?.(fullMapOverview);
+  configuredDisplay = display;
   if (!enabled) return;
   const rt: ZoomRuntime = {
     ctx,
@@ -949,6 +954,9 @@ export function zoomPanHud(ctx: ZoomPanContext): {
 }
 
 export function uninstallZoomPan(): void {
+  const display = configuredDisplay;
+  configuredDisplay = null;
+  display?.setFullMapOverview?.(false);
   const rt = runtime;
   runtime = null;
   if (!rt) return;
