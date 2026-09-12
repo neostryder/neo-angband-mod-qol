@@ -225,6 +225,10 @@ describe("sidebar row gaps", () => {
 describe("input integration", () => {
   it("applies the first Ctrl-= and Ctrl-Arrow instead of spending them on activation", () => {
     vi.useFakeTimers();
+    /* Past the title/birth boundary already, same as the Ctrl-Wheel test
+     * below - a Ctrl-zoom/Ctrl-pan shortcut still on the title screen must not
+     * activate the responsive grid under the still-letterboxed title art. */
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
     let stored: unknown = null;
     const zoom = fakeDisplay();
     installZoomPan({
@@ -318,6 +322,23 @@ describe("input integration", () => {
 
   it("leaves the title fitted, then applies the persisted grid at the first HUD", () => {
     vi.useFakeTimers();
+    /* installTitleBoundary only installs when window is defined - stub a
+     * minimal one (same shape as the Ctrl-Wheel test above) so the "l" key
+     * below drives the real title/birth boundary tracker instead of being a
+     * no-op, rather than pre-seeding bootPhase via the URL the way the other
+     * tests in this block do. That is what lets this test show both halves:
+     * still-title leaves the grid fitted, and only past the boundary does an
+     * ordinary key enable it. */
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    const body = { style: {}, setAttribute: vi.fn() };
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      querySelector: () => null,
+    });
     const fake = fakeDisplay();
     let stored: unknown = {
       v: 2,
@@ -336,6 +357,10 @@ describe("input integration", () => {
     );
     vi.runAllTimers();
     expect(fake.setGrid).not.toHaveBeenCalled();
+    /* Crosses the title/birth boundary the same way a player loading an
+     * existing character would (installTitleBoundary's own "l" handling) -
+     * only past that point may an ordinary key enable gameplay reflow. */
+    fake.key(fakeKey("l", { ctrlKey: false }));
     fake.key(fakeKey("5", { ctrlKey: false }));
     activateHud(ctx);
     expect(fake.setGrid).toHaveBeenLastCalledWith({
@@ -359,6 +384,7 @@ describe("input integration", () => {
 
   it("targets the sidebar with Shift and pans a map in two-cell steps", () => {
     vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
     const fake = fakeDisplay(snapshot({ mode: "map" }));
     let stored: unknown = null;
     const ctx = {
@@ -383,6 +409,47 @@ describe("input integration", () => {
     expect(last.origin.y % 2).toBe(0);
   });
 
+  it("ignores an ordinary key, a Ctrl-zoom shortcut and a Ctrl-wheel while still on the title screen", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    const body = { style: {}, setAttribute: vi.fn() };
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      querySelector: () => null,
+    });
+    const fake = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
+
+    /* A bare Alt press: the title screen's own reported shrink-to-a-corner
+     * bug, since a modifier-only keydown still reached installKeyboard's
+     * generic fallback before bootPhase ever left "title". */
+    fake.key(fakeKey("Alt", { ctrlKey: false, altKey: true }));
+    vi.runAllTimers();
+    expect(fake.setGrid).not.toHaveBeenCalled();
+
+    const zoomEvent = fakeKey("=");
+    fake.key(zoomEvent);
+    vi.runAllTimers();
+    expect(zoomEvent.preventDefault).not.toHaveBeenCalled();
+    expect(fake.setGrid).not.toHaveBeenCalled();
+
+    const wheelEvent = new Event("wheel", { cancelable: true });
+    Object.defineProperties(wheelEvent, {
+      ctrlKey: { value: true },
+      deltaY: { value: 120 },
+      clientX: { value: 10 },
+      clientY: { value: 10 },
+    });
+    fakeWindow.dispatchEvent(wheelEvent);
+    vi.runAllTimers();
+    expect(wheelEvent.defaultPrevented).toBe(false);
+    expect(fake.setGrid).not.toHaveBeenCalled();
+  });
+
   it("keeps crisp tile sampling independent from zoom enablement", () => {
     const fake = fakeDisplay();
     installZoomPan({
@@ -395,6 +462,7 @@ describe("input integration", () => {
 
   it("enlarges the responsive grid without requiring ordinary zoom and pan", () => {
     vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
     const fake = fakeDisplay();
     const ctx = {
       flags: { "qol.zoomPan": false, "qol.accessibilityZoom": true },
