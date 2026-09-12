@@ -36,3 +36,9 @@ Original prompt: Build a real zoomable, pannable, responsive interface for the Q
 - A 390x845 resize re-snapped without input to a 378 px grid/sidebar centered at x=6 and y=2; document, body, client, and scroll dimensions all matched the viewport.
 - At 1280x720 the document and body stayed exactly 1280x720; the top HUD measured 1280x96 with matching client/scroll sizes and all seven compact entries visible. At roomy lower zoom the same planner leaves all 18 vertical entries on one page.
 - Title, play, map, sidebar page 2, character sheet, help, and desktop play were inspected from real Electron screenshots under .test-out/final5. The map and text-heavy screens were centered, complete, and scroll-free; the map footer showed the full "Hit any key to continue" prompt.
+
+## Issue #207 checkpoint
+
+- The core terminal measures the main canvas against #game-view, which can be narrower or offset relative to the browser window. QoL independently used window.innerWidth/innerHeight to move that core-owned canvas, so the two coordinate systems could diverge.
+- The fix publishes the core-measured surface rectangle through ctx.display.snapshot(), removes QoL canvas repositioning and offset compensation, and uses the published surface width for the narrow layout threshold.
+- Added regression coverage for both QoL flags, a persisted maximum zoom index, and a 360px core surface inside a 1442px browser window.

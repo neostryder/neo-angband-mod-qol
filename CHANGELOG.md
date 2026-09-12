@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.7.0 - 2026-09-12
+
 ### Added
 
 - [Visible] [UI] **Misc. niceties now also shows the selected store item's full description on the message line while browsing stock.** The same off-by-default bundled setting continues to mark overlong list names with trailing ellipses (#214).
