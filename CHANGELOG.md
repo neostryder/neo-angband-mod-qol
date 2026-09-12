@@ -18,6 +18,12 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## 1.6.2 - 2026-09-11
+
+### Fixed
+
+- [Visible] [UI] **First-encounter alerts no longer crash the mod on boot.** With that rule enabled, `register()` read the live player from the wrong place and threw before installing any of the mod's other effects, rooms or commands, so the whole mod showed "NOT WORKING" in the Mods menu regardless of which other rules were on (#206).
+
 ## 1.6.1 - 2026-09-11
 
 ### Fixed

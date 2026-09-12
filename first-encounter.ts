@@ -275,7 +275,10 @@ interface PlayerLike {
 interface StateLike {
   readonly chunk: { readonly depth: number };
   readonly gear: { readonly store: ReadonlyMap<number, GameObjectLike> };
-  readonly player: PlayerLike;
+  /* The player lives at state.actor.player (GameState.actor: PlayerActor,
+   * PlayerActor.player: Player), not state.player directly - matching
+   * zoom-pan.ts's own state.actor access elsewhere in this mod. */
+  readonly actor: { readonly player: PlayerLike };
 }
 
 export interface FirstEncounterContext {
@@ -443,7 +446,7 @@ export function installFirstEncounter(ctx: FirstEncounterContext): void {
   }
   const ui = ctx.ui;
   const core = ctx.core;
-  const key = characterKeyFor(ctx.state.player);
+  const key = characterKeyFor(ctx.state.actor.player);
   const notebook = readFirstEncounterPrefs(ctx.prefs?.get(), key);
   const save = (): void => ctx.prefs?.set(toFirstEncounterPrefs(key, notebook));
 
