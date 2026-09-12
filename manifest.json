@@ -82,7 +82,7 @@
     {
       "flag": "qol.miscNiceties",
       "title": "Misc. niceties",
-      "description": "Bundle small independent display conveniences that are not each worth a separate setting. Its first effect shows an ellipsis when a store item name is too long for its column, rather than silently cutting the name off. More independent niceties can join this switch later.",
+      "description": "Bundle small independent display conveniences that are not each worth a separate setting. It shows an ellipsis when a store item name is too long for its column, rather than silently cutting the name off, and shows the selected store item's full description on the message line while browsing. More independent niceties can join this switch later.",
       "default": false,
       "requiresReload": true
     },

@@ -65,6 +65,7 @@ export interface DisplayLike {
   setTileScaling(mode: "auto" | "crisp"): void;
   setFullMapOverview?(enabled: boolean): void;
   setStoreItemNameEllipsis?(enabled: boolean): void;
+  setStoreSelectionDescription?(enabled: boolean): void;
   setVisualFilter(filter: string | null): void;
   repaint(): void;
 }

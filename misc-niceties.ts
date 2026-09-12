@@ -19,6 +19,7 @@ export function installMiscNiceties(ctx: MiscNicetiesContext): void {
   }
   configuredDisplay = display;
   display.setStoreItemNameEllipsis?.(true);
+  display.setStoreSelectionDescription?.(true);
 }
 
 /** Clear the display choices this bundled toggle owns before the mod unloads. */
@@ -26,4 +27,5 @@ export function uninstallMiscNiceties(): void {
   const display = configuredDisplay;
   configuredDisplay = null;
   display?.setStoreItemNameEllipsis?.(false);
+  display?.setStoreSelectionDescription?.(false);
 }

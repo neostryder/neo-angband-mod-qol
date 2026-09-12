@@ -2036,11 +2036,13 @@ function installMiscNiceties(ctx) {
   }
   configuredDisplay2 = display;
   display.setStoreItemNameEllipsis?.(true);
+  display.setStoreSelectionDescription?.(true);
 }
 function uninstallMiscNiceties() {
   const display = configuredDisplay2;
   configuredDisplay2 = null;
   display?.setStoreItemNameEllipsis?.(false);
+  display?.setStoreSelectionDescription?.(false);
 }
 
 // plugin.ts

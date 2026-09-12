@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] **Misc. niceties now also shows the selected store item's full description on the message line while browsing stock.** The same off-by-default bundled setting continues to mark overlong list names with trailing ellipses (#214).
+
 - [Visible] [UI] **Misc. niceties adds a bundled display toggle, starting with trailing ellipses for store item names that exceed their list column.** More small independent display conveniences can join the same off-by-default setting later (#214).
 
 ### Changed
