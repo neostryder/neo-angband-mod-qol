@@ -18,7 +18,7 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
-## [Unreleased]
+## 1.6.1 - 2026-09-11
 
 ### Fixed
 
