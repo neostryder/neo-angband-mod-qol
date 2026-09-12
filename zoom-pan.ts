@@ -64,6 +64,7 @@ export interface DisplayLike {
   setSidebarExtent(extent: { readonly columns: number; readonly topRows: number } | null): void;
   setTileScaling(mode: "auto" | "crisp"): void;
   setFullMapOverview?(enabled: boolean): void;
+  setStoreItemNameEllipsis?(enabled: boolean): void;
   setVisualFilter(filter: string | null): void;
   repaint(): void;
 }

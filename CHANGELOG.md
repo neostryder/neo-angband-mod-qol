@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [UI] **Misc. niceties adds a bundled display toggle, starting with trailing ellipses for store item names that exceed their list column.** More small independent display conveniences can join the same off-by-default setting later (#214).
+
 ### Changed
 
 - [Visible] [UI] **Sharpen zoomed graphics now also enables a full-detail Map overview in ASCII and graphics modes.** The completed picture is smoothly reduced to fit instead of compressing several ASCII grids into one cell (#212).

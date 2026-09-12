@@ -2024,6 +2024,25 @@ function uninstallFirstEncounter() {
   queue = [];
 }
 
+// misc-niceties.ts
+var configuredDisplay2 = null;
+function installMiscNiceties(ctx) {
+  uninstallMiscNiceties();
+  if (ctx.flags["qol.miscNiceties"] !== true) return;
+  const display = ctx.display;
+  if (!display) {
+    ctx.log?.("this game is too old for misc. niceties");
+    return;
+  }
+  configuredDisplay2 = display;
+  display.setStoreItemNameEllipsis?.(true);
+}
+function uninstallMiscNiceties() {
+  const display = configuredDisplay2;
+  configuredDisplay2 = null;
+  display?.setStoreItemNameEllipsis?.(false);
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
@@ -2551,6 +2570,7 @@ var plugin_default = {
    */
   register(host, ctx) {
     installZoomPan(ctx);
+    installMiscNiceties(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
@@ -2622,6 +2642,7 @@ var plugin_default = {
   },
   uninstall() {
     uninstallZoomPan();
+    uninstallMiscNiceties();
     uninstallFirstEncounter();
   }
 };
