@@ -36,6 +36,11 @@
  */
 
 import { bitmapTextBlock, paintBitmapButtonLabel, wrapBitmapText } from "./bitmap-text";
+import {
+  readFirstEncounterPreference,
+  withFirstEncounterPreference,
+  type FirstEncounterPreference,
+} from "./preferences";
 
 /** The shape of a monster race this feature needs, already resolved to plain data. */
 export interface MonsterRaceLike {
@@ -96,47 +101,34 @@ export function characterKey(fingerprint: BirthFingerprint): string {
   ].join("|");
 }
 
-/** The one JSON value kept in ctx.prefs for this feature. */
-export interface FirstEncounterPrefs {
-  readonly v: 1;
-  readonly characterKey: string;
-  readonly monsters: readonly number[];
-  readonly artifacts: readonly number[];
-}
-
 export interface FirstEncounterNotebook {
   readonly monsters: Set<number>;
   readonly artifacts: Set<number>;
 }
 
 /** An empty notebook when nothing is stored, or the stored one belongs to a different character. */
-export function readFirstEncounterPrefs(raw: unknown, key: string): FirstEncounterNotebook {
-  if (raw && typeof raw === "object") {
-    const stored = raw as Partial<FirstEncounterPrefs>;
-    if (stored.v === 1 && stored.characterKey === key) {
-      return {
-        monsters: new Set(
-          Array.isArray(stored.monsters) ? stored.monsters.filter((n) => typeof n === "number") : [],
-        ),
-        artifacts: new Set(
-          Array.isArray(stored.artifacts) ? stored.artifacts.filter((n) => typeof n === "number") : [],
-        ),
-      };
-    }
+export function readFirstEncounterNotebook(raw: unknown, key: string): FirstEncounterNotebook {
+  const stored = readFirstEncounterPreference(raw);
+  if (stored?.characterKey === key) {
+    return {
+      monsters: new Set(stored.monsters),
+      artifacts: new Set(stored.artifacts),
+    };
   }
   return { monsters: new Set(), artifacts: new Set() };
 }
 
-export function toFirstEncounterPrefs(
+export function withFirstEncounterNotebook(
+  raw: unknown,
   key: string,
   notebook: FirstEncounterNotebook,
-): FirstEncounterPrefs {
-  return {
-    v: 1,
+): import("./preferences").QolPreferences {
+  const firstEncounter: FirstEncounterPreference = {
     characterKey: key,
     monsters: [...notebook.monsters],
     artifacts: [...notebook.artifacts],
   };
+  return withFirstEncounterPreference(raw, firstEncounter);
 }
 
 /** Races present now that are not yet in the notebook, one entry per race even if several stand on the level. */
@@ -447,8 +439,8 @@ export function installFirstEncounter(ctx: FirstEncounterContext): void {
   const ui = ctx.ui;
   const core = ctx.core;
   const key = characterKeyFor(ctx.state.actor.player);
-  const notebook = readFirstEncounterPrefs(ctx.prefs?.get(), key);
-  const save = (): void => ctx.prefs?.set(toFirstEncounterPrefs(key, notebook));
+  const notebook = readFirstEncounterNotebook(ctx.prefs?.get(), key);
+  const save = (): void => ctx.prefs?.set(withFirstEncounterNotebook(ctx.prefs?.get(), key, notebook));
 
   timer = setInterval(() => {
     let visible: readonly MonsterRaceLike[];

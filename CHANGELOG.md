@@ -22,6 +22,8 @@ were not retagged.
 
 ### Fixed
 
+- [Internal] [Save-Compat] **First-encounter notebooks now share the Quality of Life preferences envelope with remembered settings, display settings, and repeated-action shortcut dismissal.** Saving any one of those preferences no longer silently overwrites another (#200).
+
 - [Visible] [UI] **The enlarged responsive display no longer moves the game canvas according to a different browser-window measurement.** The zoom layout now follows the core's measured game surface, so a bounded or offset game view stays full-sized and aligned when enlarged display is enabled (#207).
 
 ## 1.6.2 - 2026-09-11

@@ -11,11 +11,12 @@ var DEFAULT_DISPLAY_PREFERENCE = {
 function finiteInteger(value, fallback, min, max) {
   return typeof value === "number" && Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : fallback;
 }
-function readDisplayPreference(raw) {
-  if (!raw || typeof raw !== "object") return DEFAULT_DISPLAY_PREFERENCE;
-  const top = raw;
-  const candidate = top.v === 2 ? top.display : void 0;
-  if (!candidate || candidate.v !== 1) return DEFAULT_DISPLAY_PREFERENCE;
+function isRecord(value) {
+  return !!value && typeof value === "object";
+}
+function storedDisplayPreference(raw) {
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display) || raw.display.v !== 1) return null;
+  const candidate = raw.display;
   return {
     v: 1,
     zoomIndex: finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 7),
@@ -28,29 +29,55 @@ function readDisplayPreference(raw) {
     mapDetail: finiteInteger(candidate.mapDetail, DEFAULT_DISPLAY_PREFERENCE.mapDetail, 0, 3)
   };
 }
+function storedRememberedSettings(raw) {
+  if (!isRecord(raw)) return null;
+  const candidate = raw.v === 2 ? raw.options : raw.v === 1 ? raw : void 0;
+  return isRecord(candidate) && candidate.v === 1 && isRecord(candidate.values) ? candidate : null;
+}
+function readFirstEncounterPreference(raw) {
+  if (!isRecord(raw)) return null;
+  const candidate = raw.v === 2 ? raw.firstEncounter : raw.v === 1 ? raw : void 0;
+  if (!isRecord(candidate) || typeof candidate.characterKey !== "string" || !Array.isArray(candidate.monsters) || !Array.isArray(candidate.artifacts)) {
+    return null;
+  }
+  return {
+    characterKey: candidate.characterKey,
+    monsters: candidate.monsters.filter((value) => typeof value === "number"),
+    artifacts: candidate.artifacts.filter((value) => typeof value === "number")
+  };
+}
+function preservedPreferences(raw) {
+  const options = storedRememberedSettings(raw);
+  const display = storedDisplayPreference(raw);
+  const firstEncounter = readFirstEncounterPreference(raw);
+  const hideRepeatShortcuts = isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
+  return {
+    ...options ? { options } : {},
+    ...display ? { display } : {},
+    ...hideRepeatShortcuts ? { hideRepeatShortcuts } : {},
+    ...firstEncounter ? { firstEncounter } : {}
+  };
+}
+function readDisplayPreference(raw) {
+  return storedDisplayPreference(raw) ?? DEFAULT_DISPLAY_PREFERENCE;
+}
 function readRememberedSettings(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const top = raw;
-  const candidate = top.v === 2 ? top.options : top.v === 1 ? raw : void 0;
-  return candidate?.v === 1 ? candidate : null;
+  return storedRememberedSettings(raw);
 }
 function withDisplayPreference(raw, display) {
-  const options = readRememberedSettings(raw);
-  return { v: 2, ...options ? { options } : {}, display };
+  return { v: 2, ...preservedPreferences(raw), display };
 }
 function withRememberedSettings(raw, options) {
-  const display = readDisplayPreference(raw);
-  return { v: 2, options, display };
+  return { v: 2, ...preservedPreferences(raw), options };
 }
 function readHideRepeatShortcuts(raw) {
-  if (!raw || typeof raw !== "object") return false;
-  const top = raw;
-  return top.v === 2 && top.hideRepeatShortcuts === true;
+  return isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
 }
 function withHideRepeatShortcuts(raw, hidden) {
-  const options = readRememberedSettings(raw);
-  const display = readDisplayPreference(raw);
-  return { v: 2, ...options ? { options } : {}, display, hideRepeatShortcuts: hidden };
+  return { v: 2, ...preservedPreferences(raw), hideRepeatShortcuts: hidden };
+}
+function withFirstEncounterPreference(raw, firstEncounter) {
+  return { v: 2, ...preservedPreferences(raw), firstEncounter };
 }
 
 // bitmap-font.ts
@@ -1752,29 +1779,23 @@ function characterKey(fingerprint) {
     fingerprint.wtBirth
   ].join("|");
 }
-function readFirstEncounterPrefs(raw, key) {
-  if (raw && typeof raw === "object") {
-    const stored = raw;
-    if (stored.v === 1 && stored.characterKey === key) {
-      return {
-        monsters: new Set(
-          Array.isArray(stored.monsters) ? stored.monsters.filter((n) => typeof n === "number") : []
-        ),
-        artifacts: new Set(
-          Array.isArray(stored.artifacts) ? stored.artifacts.filter((n) => typeof n === "number") : []
-        )
-      };
-    }
+function readFirstEncounterNotebook(raw, key) {
+  const stored = readFirstEncounterPreference(raw);
+  if (stored?.characterKey === key) {
+    return {
+      monsters: new Set(stored.monsters),
+      artifacts: new Set(stored.artifacts)
+    };
   }
   return { monsters: /* @__PURE__ */ new Set(), artifacts: /* @__PURE__ */ new Set() };
 }
-function toFirstEncounterPrefs(key, notebook) {
-  return {
-    v: 1,
+function withFirstEncounterNotebook(raw, key, notebook) {
+  const firstEncounter = {
     characterKey: key,
     monsters: [...notebook.monsters],
     artifacts: [...notebook.artifacts]
   };
+  return withFirstEncounterPreference(raw, firstEncounter);
 }
 function newMonsterSightings(visible, alreadySeen) {
   const found = [];
@@ -1950,8 +1971,8 @@ function installFirstEncounter(ctx) {
   const ui = ctx.ui;
   const core = ctx.core;
   const key = characterKeyFor(ctx.state.actor.player);
-  const notebook = readFirstEncounterPrefs(ctx.prefs?.get(), key);
-  const save = () => ctx.prefs?.set(toFirstEncounterPrefs(key, notebook));
+  const notebook = readFirstEncounterNotebook(ctx.prefs?.get(), key);
+  const save = () => ctx.prefs?.set(withFirstEncounterNotebook(ctx.prefs?.get(), key, notebook));
   timer = setInterval(() => {
     let visible;
     try {

@@ -8,13 +8,20 @@ import {
   monsterCardContent,
   newArtifactFinds,
   newMonsterSightings,
-  readFirstEncounterPrefs,
-  toFirstEncounterPrefs,
+  readFirstEncounterNotebook,
+  withFirstEncounterNotebook,
   uninstallFirstEncounter,
   type ArtifactLike,
   type GameObjectLike,
   type MonsterRaceLike,
 } from "./first-encounter";
+import {
+  readHideRepeatShortcuts,
+  readRememberedSettings,
+  withDisplayPreference,
+  withHideRepeatShortcuts,
+  withRememberedSettings,
+} from "./preferences";
 
 afterEach(() => {
   uninstallFirstEncounter();
@@ -96,37 +103,107 @@ describe("installFirstEncounter", () => {
   });
 });
 
-describe("readFirstEncounterPrefs / toFirstEncounterPrefs", () => {
+describe("shared first-encounter preference envelope", () => {
   it("starts empty when nothing is stored", () => {
-    const notebook = readFirstEncounterPrefs(undefined, "frodo-key");
+    const notebook = readFirstEncounterNotebook(undefined, "frodo-key");
     expect([...notebook.monsters]).toEqual([]);
     expect([...notebook.artifacts]).toEqual([]);
   });
 
-  it("round-trips what was written for the same character key", () => {
-    const written = toFirstEncounterPrefs("frodo-key", {
+  it("writes a notebook without clobbering the other preference groups", () => {
+    const options = {
+      v: 1 as const,
+      values: { use_sound: true },
+      hitpointWarn: 5,
+      delayFactor: 3,
+      lazymoveDelay: 0,
+    };
+    const display = { v: 1 as const, zoomIndex: 4, interfaceZoomIndex: 2, mapDetail: 1 };
+    const existing = withHideRepeatShortcuts(withRememberedSettings({ v: 2, display }, options), true);
+    const written = withFirstEncounterNotebook(existing, "frodo-key", {
       monsters: new Set([1, 2]),
       artifacts: new Set([9]),
     });
-    const read = readFirstEncounterPrefs(written, "frodo-key");
+    const read = readFirstEncounterNotebook(written, "frodo-key");
     expect([...read.monsters].sort()).toEqual([1, 2]);
     expect([...read.artifacts]).toEqual([9]);
+    expect(written.display).toEqual(display);
+    expect(readRememberedSettings(written)).toEqual(options);
+    expect(readHideRepeatShortcuts(written)).toBe(true);
   });
 
-  it("starts fresh when the stored data belongs to a different character", () => {
-    const written = toFirstEncounterPrefs("frodo-key", {
+  it("keeps a stored notebook when every other preference writer runs", () => {
+    const written = withFirstEncounterNotebook({ v: 2 }, "frodo-key", {
       monsters: new Set([1]),
       artifacts: new Set([9]),
     });
-    const read = readFirstEncounterPrefs(written, "sam-key");
+    const options = {
+      v: 1 as const,
+      values: { use_sound: true },
+      hitpointWarn: 5,
+      delayFactor: 3,
+      lazymoveDelay: 0,
+    };
+    const withDisplay = withDisplayPreference(written, {
+      v: 1,
+      zoomIndex: 4,
+      interfaceZoomIndex: 2,
+      mapDetail: 1,
+    });
+    const withOptions = withRememberedSettings(withDisplay, options);
+    const withHidden = withHideRepeatShortcuts(withOptions, true);
+    expect(readFirstEncounterNotebook(withHidden, "frodo-key")).toEqual({
+      monsters: new Set([1]),
+      artifacts: new Set([9]),
+    });
+  });
+
+  it("starts fresh when the stored data belongs to a different character", () => {
+    const written = withFirstEncounterNotebook({ v: 2 }, "frodo-key", {
+      monsters: new Set([1]),
+      artifacts: new Set([9]),
+    });
+    const read = readFirstEncounterNotebook(written, "sam-key");
     expect([...read.monsters]).toEqual([]);
     expect([...read.artifacts]).toEqual([]);
   });
 
-  it("ignores a differently-shaped or unversioned value rather than throwing", () => {
-    expect(readFirstEncounterPrefs({ v: 2, whatever: true }, "frodo-key").monsters.size).toBe(0);
-    expect(readFirstEncounterPrefs("not an object", "frodo-key").monsters.size).toBe(0);
-    expect(readFirstEncounterPrefs(null, "frodo-key").monsters.size).toBe(0);
+  it("reads the former v1-only notebook and moves it into the shared envelope on save", () => {
+    const legacy = { v: 1, characterKey: "frodo-key", monsters: [1, "bad", 2], artifacts: [9] };
+    expect(readFirstEncounterNotebook(legacy, "frodo-key")).toEqual({
+      monsters: new Set([1, 2]),
+      artifacts: new Set([9]),
+    });
+    const migrated = withFirstEncounterNotebook(legacy, "frodo-key", {
+      monsters: new Set([1, 2]),
+      artifacts: new Set([9]),
+    });
+    expect(migrated).toEqual({
+      v: 2,
+      firstEncounter: { characterKey: "frodo-key", monsters: [1, 2], artifacts: [9] },
+    });
+  });
+
+  it("reads a v2-only envelope as an empty notebook without disturbing it on save", () => {
+    const v2Only = {
+      v: 2,
+      display: { v: 1, zoomIndex: 2, interfaceZoomIndex: 1, mapDetail: 0 },
+      hideRepeatShortcuts: true,
+    };
+    expect(readFirstEncounterNotebook(v2Only, "frodo-key")).toEqual({
+      monsters: new Set(),
+      artifacts: new Set(),
+    });
+    expect(withFirstEncounterNotebook(v2Only, "frodo-key", {
+      monsters: new Set([1]),
+      artifacts: new Set(),
+    })).toMatchObject({ display: v2Only.display, hideRepeatShortcuts: true });
+  });
+
+  it("ignores an unrecognized value rather than throwing", () => {
+    expect(readFirstEncounterNotebook({ v: 2, whatever: true }, "frodo-key").monsters.size).toBe(0);
+    expect(readFirstEncounterNotebook("not an object", "frodo-key").monsters.size).toBe(0);
+    expect(readFirstEncounterNotebook(null, "frodo-key").monsters.size).toBe(0);
   });
 });
 

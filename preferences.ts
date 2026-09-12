@@ -15,6 +15,13 @@ export interface DisplayPreference {
   readonly mapDetail: number;
 }
 
+/** The one character's first-encounter notebook that ctx.prefs can retain. */
+export interface FirstEncounterPreference {
+  readonly characterKey: string;
+  readonly monsters: readonly number[];
+  readonly artifacts: readonly number[];
+}
+
 /** The single value kept in ctx.prefs. */
 export interface QolPreferences {
   readonly v: 2;
@@ -26,6 +33,9 @@ export interface QolPreferences {
    * opt-out rather than a one-time introduction like first-encounter's own
    * notebook. */
   readonly hideRepeatShortcuts?: boolean;
+  /** First-encounter alerts are per character within the one install-wide
+   * preference slot. */
+  readonly firstEncounter?: FirstEncounterPreference;
 }
 
 export const DEFAULT_DISPLAY_PREFERENCE: DisplayPreference = {
@@ -41,11 +51,13 @@ function finiteInteger(value: unknown, fallback: number, min: number, max: numbe
     : fallback;
 }
 
-export function readDisplayPreference(raw: unknown): DisplayPreference {
-  if (!raw || typeof raw !== "object") return DEFAULT_DISPLAY_PREFERENCE;
-  const top = raw as Partial<QolPreferences>;
-  const candidate = top.v === 2 ? top.display : undefined;
-  if (!candidate || candidate.v !== 1) return DEFAULT_DISPLAY_PREFERENCE;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+function storedDisplayPreference(raw: unknown): DisplayPreference | null {
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display) || raw.display.v !== 1) return null;
+  const candidate = raw.display;
   return {
     v: 1,
     zoomIndex: finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 7),
@@ -59,38 +71,79 @@ export function readDisplayPreference(raw: unknown): DisplayPreference {
   };
 }
 
+function storedRememberedSettings(raw: unknown): RememberedSettings | null {
+  if (!isRecord(raw)) return null;
+  const candidate = raw.v === 2 ? raw.options : raw.v === 1 ? raw : undefined;
+  return isRecord(candidate) && candidate.v === 1 && isRecord(candidate.values)
+    ? candidate as unknown as RememberedSettings
+    : null;
+}
+
+/** Read a v2 notebook field, or the v1 top-level notebook this feature used
+ * before all preferences shared one envelope. */
+export function readFirstEncounterPreference(raw: unknown): FirstEncounterPreference | null {
+  if (!isRecord(raw)) return null;
+  const candidate = raw.v === 2 ? raw.firstEncounter : raw.v === 1 ? raw : undefined;
+  if (
+    !isRecord(candidate) ||
+    typeof candidate.characterKey !== "string" ||
+    !Array.isArray(candidate.monsters) ||
+    !Array.isArray(candidate.artifacts)
+  ) {
+    return null;
+  }
+  return {
+    characterKey: candidate.characterKey,
+    monsters: candidate.monsters.filter((value): value is number => typeof value === "number"),
+    artifacts: candidate.artifacts.filter((value): value is number => typeof value === "number"),
+  };
+}
+
+/** Preserve every known preference group while upgrading either former v1
+ * top-level shape into the shared v2 envelope. */
+function preservedPreferences(raw: unknown): Omit<QolPreferences, "v"> {
+  const options = storedRememberedSettings(raw);
+  const display = storedDisplayPreference(raw);
+  const firstEncounter = readFirstEncounterPreference(raw);
+  const hideRepeatShortcuts = isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
+  return {
+    ...(options ? { options } : {}),
+    ...(display ? { display } : {}),
+    ...(hideRepeatShortcuts ? { hideRepeatShortcuts } : {}),
+    ...(firstEncounter ? { firstEncounter } : {}),
+  };
+}
+
+export function readDisplayPreference(raw: unknown): DisplayPreference {
+  return storedDisplayPreference(raw) ?? DEFAULT_DISPLAY_PREFERENCE;
+}
+
 /** Read both the current wrapper and the 1.0.0 direct options shape. */
 export function readRememberedSettings(raw: unknown): RememberedSettings | null {
-  if (!raw || typeof raw !== "object") return null;
-  const top = raw as { readonly v?: unknown; readonly options?: RememberedSettings };
-  const candidate = top.v === 2
-    ? top.options
-    : top.v === 1
-      ? raw as RememberedSettings
-      : undefined;
-  return candidate?.v === 1 ? candidate : null;
+  return storedRememberedSettings(raw);
 }
 
 export function withDisplayPreference(raw: unknown, display: DisplayPreference): QolPreferences {
-  const options = readRememberedSettings(raw);
-  return { v: 2, ...(options ? { options } : {}), display };
+  return { v: 2, ...preservedPreferences(raw), display };
 }
 
 export function withRememberedSettings(raw: unknown, options: RememberedSettings): QolPreferences {
-  const display = readDisplayPreference(raw);
-  return { v: 2, options, display };
+  return { v: 2, ...preservedPreferences(raw), options };
 }
 
 /** Whether the player has permanently dismissed the repeated-action
  * shortcuts card. False for anything that is not a v2 envelope. */
 export function readHideRepeatShortcuts(raw: unknown): boolean {
-  if (!raw || typeof raw !== "object") return false;
-  const top = raw as Partial<QolPreferences>;
-  return top.v === 2 && top.hideRepeatShortcuts === true;
+  return isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
 }
 
 export function withHideRepeatShortcuts(raw: unknown, hidden: boolean): QolPreferences {
-  const options = readRememberedSettings(raw);
-  const display = readDisplayPreference(raw);
-  return { v: 2, ...(options ? { options } : {}), display, hideRepeatShortcuts: hidden };
+  return { v: 2, ...preservedPreferences(raw), hideRepeatShortcuts: hidden };
+}
+
+export function withFirstEncounterPreference(
+  raw: unknown,
+  firstEncounter: FirstEncounterPreference,
+): QolPreferences {
+  return { v: 2, ...preservedPreferences(raw), firstEncounter };
 }
