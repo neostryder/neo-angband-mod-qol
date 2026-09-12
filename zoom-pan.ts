@@ -886,14 +886,13 @@ export function installZoomPan(ctx: ZoomPanContext): void {
   uninstallZoomPan();
   const display = ctx.display;
   const enabled = ctx.flags["qol.zoomPan"] === true || ctx.flags["qol.accessibilityZoom"] === true;
-  const crisp = ctx.flags["qol.sharpenZoomedTiles"] === true;
-  const fullMapOverview = ctx.flags["qol.fullMapOverview"] === true;
+  const sharpenZoomedTiles = ctx.flags["qol.sharpenZoomedTiles"] === true;
   if (!display) {
-    if (enabled || crisp || fullMapOverview) ctx.log?.("this game is too old for display conveniences");
+    if (enabled || sharpenZoomedTiles) ctx.log?.("this game is too old for display conveniences");
     return;
   }
-  display.setTileScaling(crisp ? "crisp" : "auto");
-  display.setFullMapOverview?.(fullMapOverview);
+  display.setTileScaling(sharpenZoomedTiles ? "crisp" : "auto");
+  display.setFullMapOverview?.(sharpenZoomedTiles);
   configuredDisplay = display;
   if (!enabled) return;
   const rt: ZoomRuntime = {

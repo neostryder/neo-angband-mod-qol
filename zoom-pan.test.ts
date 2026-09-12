@@ -486,23 +486,15 @@ describe("input integration", () => {
     expect(fake.setGrid).not.toHaveBeenCalled();
   });
 
-  it("keeps crisp tile sampling independent from zoom enablement", () => {
+  it("uses sharpened zoomed graphics for crisp tiles and the full-detail map path", () => {
     const fake = fakeDisplay();
     installZoomPan({
       flags: { "qol.zoomPan": false, "qol.sharpenZoomedTiles": true },
       display: fake.display,
     });
     expect(fake.setTileScaling).toHaveBeenCalledWith("crisp");
-    expect(fake.setGrid).not.toHaveBeenCalled();
-  });
-
-  it("selects the full-detail map path independently from zoom and clears it on uninstall", () => {
-    const fake = fakeDisplay();
-    installZoomPan({
-      flags: { "qol.zoomPan": false, "qol.fullMapOverview": true },
-      display: fake.display,
-    });
     expect(fake.setFullMapOverview).toHaveBeenCalledWith(true);
+    expect(fake.setGrid).not.toHaveBeenCalled();
     uninstallZoomPan();
     expect(fake.setFullMapOverview).toHaveBeenLastCalledWith(false);
   });

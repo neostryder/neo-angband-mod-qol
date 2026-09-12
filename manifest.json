@@ -74,15 +74,8 @@
     },
     {
       "flag": "qol.sharpenZoomedTiles",
-      "title": "Sharpen zoomed graphics",
-      "description": "Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. This can make pixel-art edges clearer at zoom levels where the default high-quality downscale looks soft. It has no effect in ASCII mode.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.fullMapOverview",
-      "title": "Full-detail Map overview",
-      "description": "Show every known dungeon grid on the (M)ap overview, smoothly reduced to fit the modal. This preserves ASCII details that the classic compressed map combines into one cell. It works in ASCII and graphics modes.",
+      "title": "Sharpen zoomed graphics and Map overview",
+      "description": "Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. This can make pixel-art edges clearer at zoom levels where the default high-quality downscale looks soft. It also shows every known dungeon grid on the (M)ap overview, smoothly reduced to fit in ASCII and graphics modes instead of using the classic compressed miniature.",
       "default": false,
       "requiresReload": true
     },

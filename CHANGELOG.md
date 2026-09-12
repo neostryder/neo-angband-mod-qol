@@ -20,9 +20,9 @@ were not retagged.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- [Visible] [UI] **The optional full-detail Map overview keeps every known dungeon grid in ASCII and graphics modes.** The completed picture is smoothly reduced to fit instead of compressing several ASCII grids into one cell (#212).
+- [Visible] [UI] **Sharpen zoomed graphics now also enables a full-detail Map overview in ASCII and graphics modes.** The completed picture is smoothly reduced to fit instead of compressing several ASCII grids into one cell (#212).
 
 ### Fixed
 
