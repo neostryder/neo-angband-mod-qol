@@ -1,0 +1,30 @@
+# Create the GitHub Release that corresponds to each shipped version tag.
+name: GitHub Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract release notes
+        run: node .github/scripts/extract-changelog-section.mjs "${{ github.ref_name }}" > release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          prerelease=()
+          if [[ "$version" == 0.* ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Neo Angband: QoL $version" --notes-file release-notes.md --verify-tag "${prerelease[@]}"
