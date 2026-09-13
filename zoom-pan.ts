@@ -20,7 +20,10 @@ export interface Pixels {
 }
 
 export interface DisplaySnapshotLike {
-  readonly mode: "play" | "map";
+  /** "store" is a shop screen: it must hide this sidebar the same as "map"
+   * does, rather than paint the responsive status column over the shop's
+   * own item listing (neo-angband #234). */
+  readonly mode: "play" | "map" | "store";
   readonly grid: {
     readonly cols: number;
     readonly rows: number;
@@ -145,6 +148,13 @@ interface ZoomRuntime {
   readonly activationActions: Array<() => void>;
   screenFitActive: boolean;
   screenFitTimer: ReturnType<typeof setTimeout> | null;
+  /** Polls the display's own mode so the sidebar hides for a shop screen the
+   * same as it does for the map, even though nothing else in this file is
+   * told when a store opens or closes: entering one is reachable by a raw
+   * mouse click (click-to-pathfind) as much as by a tracked keypress, and a
+   * shop's own render loop never calls back into paintSidebar the way
+   * ordinary play does (neo-angband #234). */
+  sidebarVisibilityTimer: ReturnType<typeof setInterval> | null;
 }
 
 let runtime: ZoomRuntime | null = null;
@@ -344,6 +354,11 @@ function activateGameplayGrid(rt: ZoomRuntime, action?: () => void): void {
     markGridState("game");
     applyGridAndSidebar(rt);
     rt.display.repaint();
+    /* 200ms is imperceptible for a screen-entry toggle and cheap enough to
+     * run for the rest of this session: one snapshot() read and, at most, one
+     * style write. See the field doc on sidebarVisibilityTimer for why a poll
+     * is what covers this rather than another discrete event hook. */
+    rt.sidebarVisibilityTimer = setInterval(() => syncSidebarVisibility(rt), 200);
     for (const pending of rt.activationActions.splice(0)) pending();
   }, 0);
 }
@@ -706,9 +721,15 @@ function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
   };
 }
 
+/** "map" and "store" both replace the play viewport this sidebar overlays;
+ * neither leaves anywhere for the responsive status column to sit. */
+export function hidesSidebar(mode: DisplaySnapshotLike["mode"]): boolean {
+  return mode === "map" || mode === "store";
+}
+
 function syncSidebarVisibility(rt: ZoomRuntime): void {
   if (!rt.sidebar) return;
-  rt.sidebar.host.style.display = rt.display.snapshot().mode === "map" ? "none" : "block";
+  rt.sidebar.host.style.display = hidesSidebar(rt.display.snapshot().mode) ? "none" : "block";
 }
 
 function turnSidebarPage(rt: ZoomRuntime, direction: number): void {
@@ -740,7 +761,7 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
-  if (!sidebar || !pixels || frame.layout === "none" || rt.display.snapshot().mode === "map") {
+  if (!sidebar || !pixels || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
     if (sidebar) sidebar.host.style.display = "none";
     return;
   }
@@ -916,6 +937,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     activationActions: [],
     screenFitActive: false,
     screenFitTimer: null,
+    sidebarVisibilityTimer: null,
   };
   runtime = rt;
   markGridState(rt.bootPhase);
@@ -964,6 +986,7 @@ export function uninstallZoomPan(): void {
   markGridState("off");
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
+  if (rt.sidebarVisibilityTimer !== null) clearInterval(rt.sidebarVisibilityTimer);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
   rt.display.setMapView(null);
   rt.display.setCamera(null);

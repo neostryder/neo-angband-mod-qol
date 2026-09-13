@@ -11,6 +11,7 @@ import {
   installZoomPan,
   ACCESSIBILITY_ZOOM_INDEX,
   PLAY_ZOOM_CELL_HEIGHTS,
+  hidesSidebar,
   mapViewFor,
   pannedOrigin,
   pinchDirection,
@@ -126,7 +127,7 @@ function activateHud(ctx: Parameters<typeof installZoomPan>[0]): void {
   const section = { entries: [], region: { pixels: { x: 0, y: 0, width: 320, height: 480 } } };
   const frame = { layout: "left" } as const;
   zoomPanHud(ctx)?.sidebar?.present(section, frame);
-  vi.runAllTimers();
+  vi.advanceTimersByTime(0);
 }
 
 describe("one install-wide preference value", () => {
@@ -207,6 +208,38 @@ describe("scroll-free sidebar fitting", () => {
   });
 });
 
+describe("sidebar visibility by display mode (neo-angband #234)", () => {
+  it("hides for map and store, shows for ordinary play", () => {
+    expect(hidesSidebar("play")).toBe(false);
+    expect(hidesSidebar("map")).toBe(true);
+    /* A shop screen renders under the same viewport as "play" with no region
+     * of its own left for this overlay - hiding it here is what keeps a shop's
+     * own item listing from being painted over. */
+    expect(hidesSidebar("store")).toBe(true);
+  });
+
+  it("polls for a mode change once the grid activates, and stops polling on uninstall", () => {
+    /* A shop opens from a raw mouse click (click-to-pathfind) as readily as
+     * from a tracked keypress, and its own screen never calls back into
+     * paintSidebar the way ordinary play does - so nothing here is told the
+     * moment a store opens or closes. Polling display.snapshot().mode is what
+     * catches that regardless of how the player got there. */
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+    const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
+    const fake = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
+
+    fake.key(fakeKey("="));
+    vi.advanceTimersByTime(0);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 200);
+
+    uninstallZoomPan();
+    expect(clearIntervalSpy).toHaveBeenCalledWith(setIntervalSpy.mock.results[0]?.value);
+  });
+});
+
 describe("sidebar row gaps", () => {
   it("opens a blank line for each row core's side_handlers[] table skipped", () => {
     /* AU at row 6, then a gap for the equippy/blank rows before STR at row 9
@@ -248,7 +281,7 @@ describe("input integration", () => {
     });
 
     zoom.key(fakeKey("5", { ctrlKey: false }));
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
 
     expect(zoom.setGrid).toHaveBeenLastCalledWith({
       cellHeight: 21,
@@ -276,7 +309,7 @@ describe("input integration", () => {
     const zoomEvent = fakeKey("=");
     zoom.key(zoomEvent);
     expect(zoomEvent.preventDefault).toHaveBeenCalledOnce();
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(zoom.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
     expect(readDisplayPreference(stored).zoomIndex).toBe(4);
 
@@ -286,7 +319,7 @@ describe("input integration", () => {
     const panEvent = fakeKey("ArrowRight");
     pan.key(panEvent);
     expect(panEvent.preventDefault).toHaveBeenCalledOnce();
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(pan.setCamera).toHaveBeenLastCalledWith({ x: 22, y: 10 });
   });
 
@@ -321,7 +354,7 @@ describe("input integration", () => {
     });
     fakeWindow.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
 
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
     expect(readDisplayPreference(stored).zoomIndex).toBe(2);
@@ -391,7 +424,7 @@ describe("input integration", () => {
       { entries: [], region: { pixels: { x: 0, y: 0, width: 320, height: 480 } } },
       { layout: "left" },
     );
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(fake.setGrid).not.toHaveBeenCalled();
     /* Crosses the title/birth boundary the same way a player loading an
      * existing character would (installTitleBoundary's own "l" handling) -
@@ -414,7 +447,7 @@ describe("input integration", () => {
     expect(event.preventDefault).toHaveBeenCalledOnce();
 
     fake.key(fakeKey("C", { ctrlKey: false }));
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(fake.setGrid).toHaveBeenLastCalledWith(null);
   });
 
@@ -464,12 +497,12 @@ describe("input integration", () => {
      * bug, since a modifier-only keydown still reached installKeyboard's
      * generic fallback before bootPhase ever left "title". */
     fake.key(fakeKey("Alt", { ctrlKey: false, altKey: true }));
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(fake.setGrid).not.toHaveBeenCalled();
 
     const zoomEvent = fakeKey("=");
     fake.key(zoomEvent);
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(zoomEvent.preventDefault).not.toHaveBeenCalled();
     expect(fake.setGrid).not.toHaveBeenCalled();
 
@@ -481,7 +514,7 @@ describe("input integration", () => {
       clientY: { value: 10 },
     });
     fakeWindow.dispatchEvent(wheelEvent);
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
     expect(wheelEvent.defaultPrevented).toBe(false);
     expect(fake.setGrid).not.toHaveBeenCalled();
   });

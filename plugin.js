@@ -892,6 +892,7 @@ function activateGameplayGrid(rt, action) {
     markGridState("game");
     applyGridAndSidebar(rt);
     rt.display.repaint();
+    rt.sidebarVisibilityTimer = setInterval(() => syncSidebarVisibility(rt), 200);
     for (const pending2 of rt.activationActions.splice(0)) pending2();
   }, 0);
 }
@@ -1200,9 +1201,12 @@ function createSidebar(rt) {
     frame: null
   };
 }
+function hidesSidebar(mode) {
+  return mode === "map" || mode === "store";
+}
 function syncSidebarVisibility(rt) {
   if (!rt.sidebar) return;
-  rt.sidebar.host.style.display = rt.display.snapshot().mode === "map" ? "none" : "block";
+  rt.sidebar.host.style.display = hidesSidebar(rt.display.snapshot().mode) ? "none" : "block";
 }
 function turnSidebarPage(rt, direction) {
   const sidebar = rt.sidebar;
@@ -1229,7 +1233,7 @@ function paintSidebar(rt, section, frame) {
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
-  if (!sidebar || !pixels || frame.layout === "none" || rt.display.snapshot().mode === "map") {
+  if (!sidebar || !pixels || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
     if (sidebar) sidebar.host.style.display = "none";
     return;
   }
@@ -1390,7 +1394,8 @@ function installZoomPan(ctx) {
     activationTimer: null,
     activationActions: [],
     screenFitActive: false,
-    screenFitTimer: null
+    screenFitTimer: null,
+    sidebarVisibilityTimer: null
   };
   runtime = rt;
   markGridState(rt.bootPhase);
@@ -1435,6 +1440,7 @@ function uninstallZoomPan() {
   markGridState("off");
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
+  if (rt.sidebarVisibilityTimer !== null) clearInterval(rt.sidebarVisibilityTimer);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
   rt.display.setMapView(null);
   rt.display.setCamera(null);

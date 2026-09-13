@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [UI] **The responsive status sidebar no longer covers a shop's own item listing while zoom, pan, and responsive layout is enabled.** It now hides for a shop screen the same way it already does for the full-level map (neo-angband#234).
+
 ## 1.7.0 - 2026-09-12
 
 ### Added
