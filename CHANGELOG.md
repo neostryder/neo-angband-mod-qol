@@ -22,6 +22,10 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] **The zoomed play view now starts fitted to the available pane instead of stopping at the old 48-pixel zoom ceiling.** Its default uses the pane's binding dimension and sidebar width, then returns to the normal saved zoom steps after a manual zoom (#240).
+
+- [Visible] [UI] **The responsive sidebar now leaves the same one-column separation before the play map as vanilla Angband.** Its DOM padding no longer adds an extra empty column when zoom, pan, and responsive layout are enabled (#242).
+
 - [Visible] [UI] **The responsive status sidebar no longer covers a shop's own item listing while zoom, pan, and responsive layout is enabled.** It now hides for a shop screen the same way it already does for the full-level map (neo-angband#234).
 
 ## 1.7.0 - 2026-09-12

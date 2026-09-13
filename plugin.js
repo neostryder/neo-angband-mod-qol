@@ -758,6 +758,9 @@ var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var ACCESSIBILITY_ZOOM_INDEX = 5;
+var DEFAULT_PLAY_MAP_COLS = 66;
+var DEFAULT_PLAY_GRID_ROWS = 24;
+var RESERVED_RIGHT_COLUMN = 1;
 var runtime = null;
 var configuredDisplay = null;
 function markGridState(value) {
@@ -859,12 +862,27 @@ function writePreference(rt) {
     rt.ctx.log?.("could not persist the zoom and layout preference");
   }
 }
+function responsiveSidebarColumns(scale) {
+  return Math.max(6, Math.round(13 * scale) - 1);
+}
+function defaultPlayFillCellHeight(surface, sidebarColumns) {
+  let cellHeight = Math.max(8, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS));
+  const requiredColumns = sidebarColumns + DEFAULT_PLAY_MAP_COLS + RESERVED_RIGHT_COLUMN;
+  while (cellHeight > 8) {
+    const cellWidth = Math.max(4, Math.round(FONT_16X24.w / FONT_16X24.h * cellHeight));
+    if (Math.floor(surface.width / cellWidth) >= requiredColumns) return cellHeight;
+    cellHeight -= 1;
+  }
+  return 8;
+}
 function applyGridAndSidebar(rt) {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
   const surface = rt.display.snapshot().surface;
+  const sidebarColumns = responsiveSidebarColumns(scale);
   const narrow = surface?.width !== void 0 ? surface.width < 480 : typeof window !== "undefined" && window.innerWidth < 480;
-  const cellHeight = narrow ? Math.min(21, requestedCellHeight) : requestedCellHeight;
+  const defaultFill = !narrow && rt.useDefaultPlayFill && surface ? defaultPlayFillCellHeight(surface, sidebarColumns) : requestedCellHeight;
+  const cellHeight = narrow ? Math.min(21, defaultFill) : defaultFill;
   rt.display.setGrid({
     cellHeight,
     /* The phone floor leaves room for complete short footer prompts and menu
@@ -874,7 +892,7 @@ function applyGridAndSidebar(rt) {
     snapViewportToEven: true
   });
   rt.display.setSidebarExtent({
-    columns: Math.round(13 * scale),
+    columns: sidebarColumns,
     topRows: Math.max(1, Math.ceil(scale))
   });
 }
@@ -910,6 +928,7 @@ function zoomView(rt, direction) {
     rt.preference = { ...rt.preference, mapDetail: next };
     applyMapPreference(rt);
   } else {
+    rt.useDefaultPlayFill = false;
     const next = stepIndex(
       rt.preference.zoomIndex,
       direction,
@@ -1385,6 +1404,7 @@ function installZoomPan(ctx) {
       ...readDisplayPreference(ctx.prefs?.get()),
       ...ctx.flags["qol.accessibilityZoom"] === true ? { zoomIndex: Math.max(readDisplayPreference(ctx.prefs?.get()).zoomIndex, ACCESSIBILITY_ZOOM_INDEX) } : {}
     },
+    useDefaultPlayFill: ctx.flags["qol.accessibilityZoom"] !== true && readDisplayPreference(ctx.prefs?.get()).zoomIndex === DEFAULT_DISPLAY_PREFERENCE.zoomIndex,
     cleanups: [],
     touches: /* @__PURE__ */ new Map(),
     gesture: null,

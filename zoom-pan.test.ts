@@ -10,13 +10,16 @@ import {
 import {
   installZoomPan,
   ACCESSIBILITY_ZOOM_INDEX,
+  INTERFACE_ZOOM_SCALES,
   PLAY_ZOOM_CELL_HEIGHTS,
+  defaultPlayFillCellHeight,
   hidesSidebar,
   mapViewFor,
   pannedOrigin,
   pinchDirection,
   sidebarPagePlan,
   sidebarRowGap,
+  responsiveSidebarColumns,
   snapEven,
   stepIndex,
   uninstallZoomPan,
@@ -186,6 +189,25 @@ describe("whole-cell zoom and pan arithmetic", () => {
   });
 });
 
+describe("responsive play layout defaults", () => {
+  it("fits the complete vanilla play viewport to the binding pane dimension", () => {
+    /* 3840 by 2160 is width-bound: 72px cells yield 80 columns with the
+     * bitmap font's rounded 48px width, enough for 12 sidebar + 66 map cells.
+     * A 73px cell rounds to 49px wide and loses that final map column. */
+    expect(defaultPlayFillCellHeight({ width: 3840, height: 2160 }, 12)).toBe(72);
+    /* This pane is height-bound: the 24 terminal rows, rather than its width,
+     * set the fitted default. */
+    expect(defaultPlayFillCellHeight({ width: 4000, height: 960 }, 12)).toBe(40);
+  });
+
+  it("keeps vanilla's one-column sidebar-to-map separation at every interface scale", () => {
+    /* Vanilla's 13-cell sidebar only paints its first 12 cells (core
+     * hud-view.ts), so the DOM sidebar's own padding needs this one-cell
+     * reduction to avoid adding another blank column before the map. */
+    expect(INTERFACE_ZOOM_SCALES.map(responsiveSidebarColumns)).toEqual([9, 12, 15, 19]);
+  });
+});
+
 describe("scroll-free sidebar fitting", () => {
   it("pages a maximum-scale phone strip instead of overflowing it", () => {
     expect(sidebarPagePlan(7, "top", { width: 340, height: 48 }, 1.5, 0)).toEqual({
@@ -290,6 +312,27 @@ describe("input integration", () => {
       snapViewportToEven: true,
     });
     expect(querySelector).not.toHaveBeenCalled();
+  });
+
+  it("fills a roomy pane by default, then returns to the saved zoom ladder after a manual zoom", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    let stored: unknown = null;
+    const fake = fakeDisplay(snapshot({ surface: { x: 0, y: 0, width: 3840, height: 2160 } }));
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
+      display: fake.display,
+    });
+
+    fake.key(fakeKey("5", { ctrlKey: false }));
+    activateHud({ flags: { "qol.zoomPan": true }, display: fake.display });
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 72 }));
+    expect(fake.setSidebarExtent).toHaveBeenLastCalledWith({ columns: 12, topRows: 1 });
+
+    fake.key(fakeKey("+"));
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
+    expect(readDisplayPreference(stored).zoomIndex).toBe(4);
   });
 
   it("applies the first Ctrl-= and Ctrl-Arrow instead of spending them on activation", () => {
@@ -467,7 +510,7 @@ describe("input integration", () => {
     activateHud(ctx);
 
     fake.key(fakeKey("+", { shiftKey: true }));
-    expect(fake.setSidebarExtent).toHaveBeenLastCalledWith({ columns: 16, topRows: 2 });
+    expect(fake.setSidebarExtent).toHaveBeenLastCalledWith({ columns: 15, topRows: 2 });
 
     fake.key(fakeKey("ArrowRight"));
     expect(fake.setMapView).toHaveBeenCalledWith(expect.objectContaining({

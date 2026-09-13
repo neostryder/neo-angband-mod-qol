@@ -12,6 +12,15 @@ export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
 export const ACCESSIBILITY_ZOOM_INDEX = 5;
 
+/* Vanilla's fixed 80 by 24 terminal leaves 66 map columns after the classic
+ * sidebar and the reserved rightmost column, and 22 map rows between its
+ * message and status lines.  The responsive default starts from that same
+ * complete play view, then lets the live pane decide how large its cells can
+ * be. */
+const DEFAULT_PLAY_MAP_COLS = 66;
+const DEFAULT_PLAY_GRID_ROWS = 24;
+const RESERVED_RIGHT_COLUMN = 1;
+
 export interface Pixels {
   readonly x: number;
   readonly y: number;
@@ -138,6 +147,10 @@ interface ZoomRuntime {
   readonly ctx: ZoomPanContext;
   readonly display: DisplayLike;
   preference: DisplayPreference;
+  /** Until the player changes play zoom, fit the vanilla-sized play view to
+   * this pane instead of treating the persisted default ladder rung as a
+   * ceiling.  A manual zoom immediately returns to the established ladder. */
+  useDefaultPlayFill: boolean;
   readonly cleanups: Array<() => void>;
   readonly touches: Map<number, TouchPoint>;
   gesture: TouchGesture | null;
@@ -318,14 +331,49 @@ function writePreference(rt: ZoomRuntime): void {
   }
 }
 
+/**
+ * The responsive sidebar is a DOM panel with its own right padding.  Vanilla's
+ * terminal sidebar is 13 cells wide but its HUD painter deliberately leaves
+ * its last cell blank before the map (core's hud-view.ts).  Reserving twelve
+ * cells here leaves that same one-cell visual separation instead of combining
+ * the terminal reservation with the DOM padding into a wider gap.
+ */
+export function responsiveSidebarColumns(scale: number): number {
+  return Math.max(6, Math.round(13 * scale) - 1);
+}
+
+/**
+ * Largest whole-cell height that shows vanilla's normal 66 by 22 play view in
+ * the actual pane.  `GlyphTerm.fitReflow()` rounds a bitmap cell's width from
+ * its 16 by 24 source aspect, so use that exact rounding while choosing the
+ * height; otherwise a nominally fitting width can lose one map column.
+ */
+export function defaultPlayFillCellHeight(
+  surface: Pick<Pixels, "width" | "height">,
+  sidebarColumns: number,
+): number {
+  let cellHeight = Math.max(8, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS));
+  const requiredColumns = sidebarColumns + DEFAULT_PLAY_MAP_COLS + RESERVED_RIGHT_COLUMN;
+  while (cellHeight > 8) {
+    const cellWidth = Math.max(4, Math.round((FONT_16X24.w / FONT_16X24.h) * cellHeight));
+    if (Math.floor(surface.width / cellWidth) >= requiredColumns) return cellHeight;
+    cellHeight -= 1;
+  }
+  return 8;
+}
+
 function applyGridAndSidebar(rt: ZoomRuntime): void {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
   const surface = rt.display.snapshot().surface;
+  const sidebarColumns = responsiveSidebarColumns(scale);
   const narrow = surface?.width !== undefined
     ? surface.width < 480
     : typeof window !== "undefined" && window.innerWidth < 480;
-  const cellHeight = narrow ? Math.min(21, requestedCellHeight) : requestedCellHeight;
+  const defaultFill = !narrow && rt.useDefaultPlayFill && surface
+    ? defaultPlayFillCellHeight(surface, sidebarColumns)
+    : requestedCellHeight;
+  const cellHeight = narrow ? Math.min(21, defaultFill) : defaultFill;
   rt.display.setGrid({
     cellHeight,
     /* The phone floor leaves room for complete short footer prompts and menu
@@ -335,7 +383,7 @@ function applyGridAndSidebar(rt: ZoomRuntime): void {
     snapViewportToEven: true,
   });
   rt.display.setSidebarExtent({
-    columns: Math.round(13 * scale),
+    columns: sidebarColumns,
     topRows: Math.max(1, Math.ceil(scale)),
   });
 }
@@ -378,6 +426,7 @@ function zoomView(rt: ZoomRuntime, direction: number): void {
     rt.preference = { ...rt.preference, mapDetail: next };
     applyMapPreference(rt);
   } else {
+    rt.useDefaultPlayFill = false;
     const next = stepIndex(
       rt.preference.zoomIndex,
       direction,
@@ -927,6 +976,8 @@ export function installZoomPan(ctx: ZoomPanContext): void {
         ? { zoomIndex: Math.max(readDisplayPreference(ctx.prefs?.get()).zoomIndex, ACCESSIBILITY_ZOOM_INDEX) }
         : {}),
     },
+    useDefaultPlayFill: ctx.flags["qol.accessibilityZoom"] !== true &&
+      readDisplayPreference(ctx.prefs?.get()).zoomIndex === DEFAULT_DISPLAY_PREFERENCE.zoomIndex,
     cleanups: [],
     touches: new Map(),
     gesture: null,
