@@ -22,6 +22,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] **The responsive status sidebar now stays inside the tiled play view.** Its clipping layer follows the main display surface, so it cannot bleed into a neighbouring subwindow (#263).
+
 - [Visible] [UI] **Each tiled subwindow now keeps its own zoom after a reload.** Its per-panel level is saved with the Quality of Life preferences; pref-file export and import still need a core mod-contribution seam (#262).
 
 - [Visible] [Save-Compat] **First-encounter notebooks now survive reloading a named character.** The saved sighting list no longer treats the host's separately managed display name as a different character identity (#259).

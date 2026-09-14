@@ -1328,12 +1328,14 @@ function installResponsiveMap(rt) {
 }
 function createSidebar(rt) {
   if (typeof document === "undefined" || !document.body) return null;
+  const playView = document.getElementById("game-view");
+  if (!playView) return null;
   const host = document.createElement("div");
   host.setAttribute("data-qol-responsive-sidebar", "");
   host.setAttribute("role", "complementary");
   host.setAttribute("aria-label", "Character status");
   Object.assign(host.style, {
-    position: "fixed",
+    position: "absolute",
     zIndex: "1",
     boxSizing: "border-box",
     overflow: "hidden",
@@ -1345,7 +1347,7 @@ function createSidebar(rt) {
   });
   const body = document.createElement("div");
   host.appendChild(body);
-  document.body.appendChild(host);
+  playView.appendChild(host);
   rt.cleanups.push(() => host.remove());
   return {
     host,
@@ -1398,7 +1400,8 @@ function paintSidebar(rt, section, frame) {
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
-  if (!sidebar || !pixels || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
+  const surface = rt.display.snapshot().surface;
+  if (!sidebar || !pixels || !surface || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
     if (sidebar) sidebar.host.style.display = "none";
     return;
   }
@@ -1434,8 +1437,8 @@ function paintSidebar(rt, section, frame) {
   }
   Object.assign(sidebar.host.style, {
     display: "block",
-    left: `${String(pixels.x)}px`,
-    top: `${String(pixels.y)}px`,
+    left: `${String(pixels.x - surface.x)}px`,
+    top: `${String(pixels.y - surface.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
     /* Still the em basis for the layout below's gap/padding - only the

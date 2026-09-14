@@ -463,6 +463,66 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
 });
 
 describe("sidebar visibility by display mode (neo-angband #234, #250)", () => {
+  it("clips the sidebar to an offset tiled main view (neo-angband #263)", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const fakeWindow = new EventTarget() as EventTarget & { devicePixelRatio: number; innerWidth: number };
+    fakeWindow.devicePixelRatio = 1;
+    fakeWindow.innerWidth = 1200;
+    vi.stubGlobal("window", fakeWindow);
+    type ElementStub = {
+      style: Record<string, string>;
+      children: ElementStub[];
+      setAttribute: ReturnType<typeof vi.fn>;
+      appendChild: ReturnType<typeof vi.fn>;
+      replaceChildren: ReturnType<typeof vi.fn>;
+      remove: ReturnType<typeof vi.fn>;
+    };
+    const element = (): ElementStub => {
+      const next: ElementStub = {
+        style: {},
+        children: [],
+        setAttribute: vi.fn(),
+        appendChild: vi.fn((child: ElementStub) => { next.children.push(child); }),
+        replaceChildren: vi.fn(),
+        remove: vi.fn(),
+      };
+      return next;
+    };
+    let sidebarHost: ElementStub | undefined;
+    const body = element();
+    const playView = element();
+    playView.appendChild = vi.fn((host: ElementStub) => { sidebarHost = host; });
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      getElementById: vi.fn(() => playView),
+      createElement: vi.fn(element),
+    });
+    const mainView = { x: 400, y: 80, width: 500, height: 600 };
+    const fake = fakeDisplay(snapshot({ surface: mainView }));
+    const ctx = { flags: { "qol.zoomPan": true }, display: fake.display };
+    installZoomPan(ctx);
+    const section = {
+      entries: [],
+      /* Core projects these values to client pixels. The sidebar is mounted
+       * inside the main tile, so the implementation must translate them back
+       * to that tile's local coordinates. */
+      region: { pixels: { x: 400, y: 104, width: 192, height: 552 } },
+    };
+    zoomPanHud(ctx)?.sidebar?.present(section, { layout: "left" });
+    vi.advanceTimersByTime(0);
+    zoomPanHud(ctx)?.sidebar?.present(section, { layout: "left" });
+
+    expect(sidebarHost?.style).toMatchObject({
+      display: "block", left: "0px", top: "24px", width: "192px", height: "552px",
+    });
+    const panelRight = Number.parseFloat(sidebarHost?.style.left ?? "0") + Number.parseFloat(sidebarHost?.style.width ?? "0");
+    const panelBottom = Number.parseFloat(sidebarHost?.style.top ?? "0") + Number.parseFloat(sidebarHost?.style.height ?? "0");
+    expect(panelRight).toBeLessThanOrEqual(mainView.width);
+    expect(panelBottom).toBeLessThanOrEqual(mainView.height);
+  });
+
   it("hides for map, store and modal, shows for ordinary play", () => {
     expect(hidesSidebar("play")).toBe(false);
     expect(hidesSidebar("map")).toBe(true);
@@ -498,15 +558,15 @@ describe("sidebar visibility by display mode (neo-angband #234, #250)", () => {
       remove: vi.fn(),
     });
     const body = element();
+    const playView = element();
+    playView.appendChild = vi.fn((host) => { sidebarHost = host; });
     vi.stubGlobal("document", {
-      body: {
-        ...body,
-        appendChild: vi.fn((host) => { sidebarHost = host; }),
-      },
+      body,
       documentElement: { style: {} },
+      getElementById: vi.fn(() => playView),
       createElement: vi.fn(element),
     });
-    const fake = fakeDisplay();
+    const fake = fakeDisplay(snapshot({ surface: { x: 0, y: 0, width: 1200, height: 800 } }));
     installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
 
     /* The first presentation arms the gameplay grid; the second creates and

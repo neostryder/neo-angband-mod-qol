@@ -926,12 +926,18 @@ function installResponsiveMap(rt: ZoomRuntime): void {
 
 function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
   if (typeof document === "undefined" || !document.body) return null;
+  /* Core tiles the main terminal by moving #game-view. It is an absolute,
+   * overflow-hidden leaf, so putting this DOM overlay inside that same element
+   * is the one containment boundary that remains correct while a tile is moved
+   * before the next HUD paint supplies fresh pixel geometry. */
+  const playView = document.getElementById("game-view");
+  if (!playView) return null;
   const host = document.createElement("div");
   host.setAttribute("data-qol-responsive-sidebar", "");
   host.setAttribute("role", "complementary");
   host.setAttribute("aria-label", "Character status");
   Object.assign(host.style, {
-    position: "fixed",
+    position: "absolute",
     zIndex: "1",
     boxSizing: "border-box",
     overflow: "hidden",
@@ -943,7 +949,7 @@ function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
   });
   const body = document.createElement("div");
   host.appendChild(body);
-  document.body.appendChild(host);
+  playView.appendChild(host);
   rt.cleanups.push(() => host.remove());
   return {
     host,
@@ -1007,7 +1013,13 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   rt.sidebar ??= createSidebar(rt);
   const sidebar = rt.sidebar;
   const pixels = section.region?.pixels;
-  if (!sidebar || !pixels || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
+  /* Core publishes `section.region.pixels` in viewport coordinates, while the
+   * sidebar is an absolute child of the tiled main view. Translate to that
+   * surface's local coordinate system before applying it. The parent tile's
+   * overflow clipping then prevents any stale or oversized panel from reaching
+   * a neighbouring subwindow. */
+  const surface = rt.display.snapshot().surface;
+  if (!sidebar || !pixels || !surface || frame.layout === "none" || hidesSidebar(rt.display.snapshot().mode)) {
     if (sidebar) sidebar.host.style.display = "none";
     return;
   }
@@ -1050,8 +1062,8 @@ function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameL
   }
   Object.assign(sidebar.host.style, {
     display: "block",
-    left: `${String(pixels.x)}px`,
-    top: `${String(pixels.y)}px`,
+    left: `${String(pixels.x - surface.x)}px`,
+    top: `${String(pixels.y - surface.y)}px`,
     width: `${String(pixels.width)}px`,
     height: `${String(pixels.height)}px`,
     /* Still the em basis for the layout below's gap/padding - only the
