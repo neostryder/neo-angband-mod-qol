@@ -667,7 +667,14 @@ function installKeyboard(rt: ZoomRuntime): void {
         (!event.ctrlKey && ["?", "C", "i", "e", "~", "=", "Escape"].includes(event.key)) ||
         (event.ctrlKey && event.key.toLowerCase() === "p")
       );
-      if (modalKey && rt.display.snapshot().mode !== "map") scheduleScreenFit(rt);
+      if (modalKey && rt.display.snapshot().mode !== "map") {
+        /* Core increments modalDepth later in this same key event. The mode is
+         * still "play" here, so neither the deferred screen-fit callback nor
+         * the 200ms visibility poll can protect the terminal's first modal
+         * frame. */
+        hideSidebar(rt);
+        scheduleScreenFit(rt);
+      }
       if (!event.ctrlKey || event.altKey || event.metaKey) {
         if (event.key === "M") {
           setTimeout(() => {
@@ -689,7 +696,7 @@ function scheduleScreenFit(rt: ZoomRuntime): void {
     rt.screenFitTimer = null;
     if (runtime !== rt || !rt.gridActive) return;
     rt.screenFitActive = true;
-    if (rt.sidebar) rt.sidebar.host.style.display = "none";
+    hideSidebar(rt);
     rt.display.setGrid(null);
   }, 0);
 }
@@ -923,6 +930,10 @@ export function hidesSidebar(mode: DisplaySnapshotLike["mode"]): boolean {
 function syncSidebarVisibility(rt: ZoomRuntime): void {
   if (!rt.sidebar) return;
   rt.sidebar.host.style.display = hidesSidebar(rt.display.snapshot().mode) ? "none" : "block";
+}
+
+function hideSidebar(rt: ZoomRuntime): void {
+  if (rt.sidebar) rt.sidebar.host.style.display = "none";
 }
 
 function turnSidebarPage(rt: ZoomRuntime, direction: number): void {

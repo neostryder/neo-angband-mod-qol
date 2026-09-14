@@ -411,6 +411,54 @@ describe("sidebar visibility by display mode (neo-angband #234, #250)", () => {
     expect(hidesSidebar("modal")).toBe(true);
   });
 
+  it("hides the existing DOM sidebar in the Escape event before core changes mode", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const fakeWindow = new EventTarget() as EventTarget & { devicePixelRatio: number; innerWidth: number };
+    fakeWindow.devicePixelRatio = 1;
+    fakeWindow.innerWidth = 1200;
+    vi.stubGlobal("window", fakeWindow);
+    let sidebarHost: { style: Record<string, string> } | undefined;
+    const element = (): {
+      style: Record<string, string>;
+      setAttribute: ReturnType<typeof vi.fn>;
+      appendChild: ReturnType<typeof vi.fn>;
+      replaceChildren: ReturnType<typeof vi.fn>;
+      remove: ReturnType<typeof vi.fn>;
+    } => ({
+      style: {},
+      setAttribute: vi.fn(),
+      appendChild: vi.fn(),
+      replaceChildren: vi.fn(),
+      remove: vi.fn(),
+    });
+    const body = element();
+    vi.stubGlobal("document", {
+      body: {
+        ...body,
+        appendChild: vi.fn((host) => { sidebarHost = host; }),
+      },
+      documentElement: { style: {} },
+      createElement: vi.fn(element),
+    });
+    const fake = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
+
+    /* The first presentation arms the gameplay grid; the second creates and
+     * paints the sidebar exactly as a real gameplay HUD frame does. */
+    activateHud({ flags: { "qol.zoomPan": true }, display: fake.display });
+    activateHud({ flags: { "qol.zoomPan": true }, display: fake.display });
+    expect(sidebarHost?.style.display).toBe("block");
+
+    /* This is the precise #250 reopening gap: before core's Escape handler
+     * invokes openModal, snapshot() still says play. The DOM must nevertheless
+     * be hidden during this same event, not after a timer gets a chance to poll
+     * core's later modal mode. */
+    fake.key(fakeKey("Escape", { ctrlKey: false }));
+    expect(fake.display.snapshot().mode).toBe("play");
+    expect(sidebarHost?.style.display).toBe("none");
+  });
+
   it("polls for a mode change once the grid activates, and stops polling on uninstall", () => {
     /* A shop opens from a raw mouse click (click-to-pathfind) as readily as
      * from a tracked keypress, and its own screen never calls back into

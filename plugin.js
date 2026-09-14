@@ -1099,7 +1099,10 @@ function installKeyboard(rt) {
         return;
       }
       const modalKey = !event.altKey && !event.metaKey && (!event.ctrlKey && ["?", "C", "i", "e", "~", "=", "Escape"].includes(event.key) || event.ctrlKey && event.key.toLowerCase() === "p");
-      if (modalKey && rt.display.snapshot().mode !== "map") scheduleScreenFit(rt);
+      if (modalKey && rt.display.snapshot().mode !== "map") {
+        hideSidebar(rt);
+        scheduleScreenFit(rt);
+      }
       if (!event.ctrlKey || event.altKey || event.metaKey) {
         if (event.key === "M") {
           setTimeout(() => {
@@ -1120,7 +1123,7 @@ function scheduleScreenFit(rt) {
     rt.screenFitTimer = null;
     if (runtime !== rt || !rt.gridActive) return;
     rt.screenFitActive = true;
-    if (rt.sidebar) rt.sidebar.host.style.display = "none";
+    hideSidebar(rt);
     rt.display.setGrid(null);
   }, 0);
 }
@@ -1318,6 +1321,9 @@ function hidesSidebar(mode) {
 function syncSidebarVisibility(rt) {
   if (!rt.sidebar) return;
   rt.sidebar.host.style.display = hidesSidebar(rt.display.snapshot().mode) ? "none" : "block";
+}
+function hideSidebar(rt) {
+  if (rt.sidebar) rt.sidebar.host.style.display = "none";
 }
 function turnSidebarPage(rt, direction) {
   const sidebar = rt.sidebar;
