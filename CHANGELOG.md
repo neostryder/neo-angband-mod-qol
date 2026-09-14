@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.8.1 - 2026-09-13
+
 ### Fixed
 
 - [Visible] [UI] **The responsive status sidebar no longer draws over the Options Menu, or any other full-screen modal.** It already hid over the level map and a shop screen; it now hides over everything else core itself treats as a full-screen takeover too (#250).
