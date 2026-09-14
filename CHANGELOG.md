@@ -22,6 +22,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [Save-Compat] **First-encounter notebooks now survive reloading a named character.** The saved sighting list no longer treats the host's separately managed display name as a different character identity (#259).
+
 - [Visible] [UI] **Quality of Life cards now clean themselves up when the plugin is unloaded.** First-sighting alerts and shortcut helpers no longer leave their timers, queues, or open cards behind during a mod teardown (#251).
 
 - [Visible] [UI] **Choosing no responsive status sidebar now gives its space back to the play view.** The grid releases the sidebar reservation and refits using the full available pane (#252).

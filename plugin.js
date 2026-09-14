@@ -1942,7 +1942,6 @@ function classifyMonsterThreat(race, currentDepth) {
 }
 function characterKey(fingerprint) {
   return [
-    fingerprint.fullName,
     fingerprint.raceName,
     fingerprint.clsName,
     fingerprint.auBirth,
@@ -2126,7 +2125,6 @@ function drawCard(panel, content) {
 }
 function characterKeyFor(player) {
   return characterKey({
-    fullName: player.fullName,
     raceName: player.race.name,
     clsName: player.cls.name,
     auBirth: player.auBirth,

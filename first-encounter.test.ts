@@ -56,9 +56,8 @@ describe("classifyMonsterThreat", () => {
 });
 
 describe("characterKey", () => {
-  it("is stable for the same birth facts and differs when any one changes", () => {
+  it("is stable for the same save-persisted birth facts and differs when any one changes", () => {
     const base = {
-      fullName: "Frodo",
       raceName: "Hobbit",
       clsName: "Rogue",
       auBirth: 100,
@@ -66,8 +65,37 @@ describe("characterKey", () => {
       wtBirth: 60,
     };
     expect(characterKey(base)).toBe(characterKey({ ...base }));
-    expect(characterKey(base)).not.toBe(characterKey({ ...base, fullName: "Sam" }));
     expect(characterKey(base)).not.toBe(characterKey({ ...base, auBirth: 101 }));
+    expect(characterKey(base)).not.toBe(characterKey({ ...base, htBirth: 41 }));
+    expect(characterKey(base)).not.toBe(characterKey({ ...base, wtBirth: 61 }));
+  });
+
+  it("keeps the notebook when the host's roster name is absent after a reload (#259)", () => {
+    /* The web host keeps the displayed name in roster metadata. It can be
+     * present while a character is being played but absent from the Player
+     * exposed to a later plugin registration. Height, weight, and birth gold
+     * are save fields, so they are deliberately still part of this identity. */
+    const beforeReload = {
+      fullName: "Frodo",
+      raceName: "Hobbit",
+      clsName: "Rogue",
+      auBirth: 100,
+      htBirth: 40,
+      wtBirth: 60,
+    };
+    const afterReload = { ...beforeReload, fullName: "" };
+    const beforeKey = characterKey(beforeReload);
+    const afterKey = characterKey(afterReload);
+    const stored = withFirstEncounterNotebook({ v: 2 }, beforeKey, {
+      monsters: new Set([1]),
+      artifacts: new Set([9]),
+    });
+
+    expect(afterKey).toBe(beforeKey);
+    expect(readFirstEncounterNotebook(stored, afterKey)).toEqual({
+      monsters: new Set([1]),
+      artifacts: new Set([9]),
+    });
   });
 });
 
@@ -89,7 +117,6 @@ describe("installFirstEncounter", () => {
         gear: { store: new Map() },
         actor: {
           player: {
-            fullName: "Frodo",
             race: { name: "Hobbit" },
             cls: { name: "Rogue" },
             auBirth: 100,
@@ -118,7 +145,6 @@ describe("installFirstEncounter", () => {
         gear: { store: new Map() },
         actor: {
           player: {
-            fullName: "Frodo",
             race: { name: "Hobbit" },
             cls: { name: "Rogue" },
             auBirth: 100,

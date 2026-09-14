@@ -27,8 +27,10 @@
  * plugin can reach during play (docs/modding/PLUGINS.md, "Your own saved
  * data"). ctx.prefs is install-wide, but it is the one store this mod can
  * actually write to whenever it likes, so it holds a single character's
- * seen-lists keyed by a fingerprint built from birth-fixed facts (name,
- * race, class, birth stats). A new character has a different fingerprint,
+ * seen-lists keyed by a fingerprint built from save-persisted birth facts
+ * (race, class, birth stats). The web host keeps the displayed name in roster
+ * metadata rather than treating it as a reliable live-player identity, so it
+ * must not take part in this key. A new character has a different fingerprint,
  * which resets the notebook to blank; reloading the same character keeps it,
  * because the fingerprint has not changed. Alternating between two
  * characters shares the one slot and the more recently played one wins -
@@ -81,7 +83,6 @@ export function classifyMonsterThreat(race: MonsterRaceLike, currentDepth: numbe
 
 /** Birth-fixed facts that stay the same for a character's whole life. */
 export interface BirthFingerprint {
-  readonly fullName: string;
   readonly raceName: string;
   readonly clsName: string;
   readonly auBirth: number;
@@ -92,7 +93,6 @@ export interface BirthFingerprint {
 /** A stable key for one character, built only from facts that never change after birth. */
 export function characterKey(fingerprint: BirthFingerprint): string {
   return [
-    fingerprint.fullName,
     fingerprint.raceName,
     fingerprint.clsName,
     fingerprint.auBirth,
@@ -256,7 +256,6 @@ interface CoreLike {
 }
 
 interface PlayerLike {
-  readonly fullName: string;
   readonly race: { readonly name: string };
   readonly cls: { readonly name: string };
   readonly auBirth: number;
@@ -415,7 +414,6 @@ function drawCard(panel: PanelLike, content: EncounterCardContent): void {
 
 function characterKeyFor(player: PlayerLike): string {
   return characterKey({
-    fullName: player.fullName,
     raceName: player.race.name,
     clsName: player.cls.name,
     auBirth: player.auBirth,
