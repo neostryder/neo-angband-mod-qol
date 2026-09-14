@@ -1,7 +1,9 @@
 import {
   DEFAULT_DISPLAY_PREFERENCE,
   readDisplayPreference,
+  readSubwindowZoomPreference,
   withDisplayPreference,
+  withSubwindowZoomPreference,
   type DisplayPreference,
 } from "./preferences";
 import { FONT_16X24 } from "./bitmap-font";
@@ -212,6 +214,8 @@ interface ZoomRuntime {
   sidebarVisibilityTimer: ReturnType<typeof setInterval> | null;
   /** Each tiled panel has an independent rung, retained while it is hidden. */
   readonly subwindowZoomSteps: Map<string, number>;
+  /** Restored zoom needs applying once when a panel first becomes visible. */
+  readonly restoredSubwindowZoomPanels: Set<string>;
   /** Title-bar control unregister functions for panels visible this instant. */
   readonly subwindowControlCleanups: Map<string, readonly [() => void, () => void]>;
   subwindowControlsTimer: ReturnType<typeof setInterval> | null;
@@ -372,7 +376,11 @@ function playerCenter(rt: ZoomRuntime, snapshot: DisplaySnapshotLike): { x: numb
 
 function writePreference(rt: ZoomRuntime): void {
   try {
-    rt.ctx.prefs?.set(withDisplayPreference(rt.ctx.prefs.get(), rt.preference));
+    const preferences = withDisplayPreference(rt.ctx.prefs?.get(), rt.preference);
+    rt.ctx.prefs?.set(withSubwindowZoomPreference(
+      preferences,
+      Object.fromEntries(rt.subwindowZoomSteps),
+    ));
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
   }
@@ -531,9 +539,25 @@ function zoomSubwindow(rt: ZoomRuntime, id: string, direction: number): void {
   const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
   if (cellHeight === undefined) return;
   rt.subwindowZoomSteps.set(id, next);
+  rt.restoredSubwindowZoomPanels.add(id);
   /* These are the host's own compact-panel defaults: preserving them means a
    * zoom changes only cell size, never the panel's minimum useful text area. */
   subwindows.setGrid(id, {
+    cellHeight,
+    minCols: 20,
+    minRows: 3,
+    snapViewportToEven: false,
+  });
+  writePreference(rt);
+}
+
+function restoreSubwindowZoom(rt: ZoomRuntime, panel: SubwindowInfoLike): void {
+  if (rt.restoredSubwindowZoomPanels.has(panel.id)) return;
+  const step = rt.subwindowZoomSteps.get(panel.id);
+  const cellHeight = step === undefined ? undefined : SUBWINDOW_ZOOM_CELL_HEIGHTS[step];
+  if (cellHeight === undefined) return;
+  rt.restoredSubwindowZoomPanels.add(panel.id);
+  rt.ctx.subwindows?.setGrid(panel.id, {
     cellHeight,
     minCols: 20,
     minRows: 3,
@@ -568,9 +592,11 @@ function syncSubwindowControls(rt: ZoomRuntime): void {
     if (!visible.has(id)) {
       for (const cleanup of cleanups) cleanup();
       rt.subwindowControlCleanups.delete(id);
+      rt.restoredSubwindowZoomPanels.delete(id);
     }
   }
   for (const panel of panels) {
+    restoreSubwindowZoom(rt, panel);
     if (rt.subwindowControlCleanups.has(panel.id)) continue;
     const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
       glyph: "-",
@@ -1161,7 +1187,11 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     screenFitActive: false,
     screenFitTimer: null,
     sidebarVisibilityTimer: null,
-    subwindowZoomSteps: new Map(),
+    subwindowZoomSteps: new Map(
+      Object.entries(readSubwindowZoomPreference(ctx.prefs?.get()))
+        .filter(([, step]) => step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length),
+    ),
+    restoredSubwindowZoomPanels: new Set(),
     subwindowControlCleanups: new Map(),
     subwindowControlsTimer: null,
   };

@@ -52,16 +52,26 @@ function readFirstEncounterPreference(raw) {
     artifacts: candidate.artifacts.filter((value) => typeof value === "number")
   };
 }
+function readSubwindowZoomPreference(raw) {
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.subwindowZoom)) return {};
+  const steps = {};
+  for (const [id, value] of Object.entries(raw.subwindowZoom)) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) steps[id] = value;
+  }
+  return steps;
+}
 function preservedPreferences(raw) {
   const options = storedRememberedSettings(raw);
   const display = storedDisplayPreference(raw);
   const firstEncounter = readFirstEncounterPreference(raw);
   const hideRepeatShortcuts = isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
+  const subwindowZoom = readSubwindowZoomPreference(raw);
   return {
     ...options ? { options } : {},
     ...display ? { display } : {},
     ...hideRepeatShortcuts ? { hideRepeatShortcuts } : {},
-    ...firstEncounter ? { firstEncounter } : {}
+    ...firstEncounter ? { firstEncounter } : {},
+    ...Object.keys(subwindowZoom).length > 0 ? { subwindowZoom } : {}
   };
 }
 function readDisplayPreference(raw) {
@@ -84,6 +94,9 @@ function withHideRepeatShortcuts(raw, hidden) {
 }
 function withFirstEncounterPreference(raw, firstEncounter) {
   return { v: 2, ...preservedPreferences(raw), firstEncounter };
+}
+function withSubwindowZoomPreference(raw, subwindowZoom) {
+  return { v: 2, ...preservedPreferences(raw), subwindowZoom };
 }
 
 // bitmap-font.ts
@@ -864,7 +877,11 @@ function playerCenter(rt, snapshot) {
 }
 function writePreference(rt) {
   try {
-    rt.ctx.prefs?.set(withDisplayPreference(rt.ctx.prefs.get(), rt.preference));
+    const preferences = withDisplayPreference(rt.ctx.prefs?.get(), rt.preference);
+    rt.ctx.prefs?.set(withSubwindowZoomPreference(
+      preferences,
+      Object.fromEntries(rt.subwindowZoomSteps)
+    ));
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
   }
@@ -986,7 +1003,22 @@ function zoomSubwindow(rt, id, direction) {
   const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
   if (cellHeight === void 0) return;
   rt.subwindowZoomSteps.set(id, next);
+  rt.restoredSubwindowZoomPanels.add(id);
   subwindows.setGrid(id, {
+    cellHeight,
+    minCols: 20,
+    minRows: 3,
+    snapViewportToEven: false
+  });
+  writePreference(rt);
+}
+function restoreSubwindowZoom(rt, panel) {
+  if (rt.restoredSubwindowZoomPanels.has(panel.id)) return;
+  const step = rt.subwindowZoomSteps.get(panel.id);
+  const cellHeight = step === void 0 ? void 0 : SUBWINDOW_ZOOM_CELL_HEIGHTS[step];
+  if (cellHeight === void 0) return;
+  rt.restoredSubwindowZoomPanels.add(panel.id);
+  rt.ctx.subwindows?.setGrid(panel.id, {
     cellHeight,
     minCols: 20,
     minRows: 3,
@@ -1017,9 +1049,11 @@ function syncSubwindowControls(rt) {
     if (!visible.has(id)) {
       for (const cleanup of cleanups) cleanup();
       rt.subwindowControlCleanups.delete(id);
+      rt.restoredSubwindowZoomPanels.delete(id);
     }
   }
   for (const panel of panels) {
+    restoreSubwindowZoom(rt, panel);
     if (rt.subwindowControlCleanups.has(panel.id)) continue;
     const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
       glyph: "-",
@@ -1529,7 +1563,10 @@ function installZoomPan(ctx) {
     screenFitActive: false,
     screenFitTimer: null,
     sidebarVisibilityTimer: null,
-    subwindowZoomSteps: /* @__PURE__ */ new Map(),
+    subwindowZoomSteps: new Map(
+      Object.entries(readSubwindowZoomPreference(ctx.prefs?.get())).filter(([, step]) => step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length)
+    ),
+    restoredSubwindowZoomPanels: /* @__PURE__ */ new Set(),
     subwindowControlCleanups: /* @__PURE__ */ new Map(),
     subwindowControlsTimer: null
   };

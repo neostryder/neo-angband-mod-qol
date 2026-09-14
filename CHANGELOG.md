@@ -22,6 +22,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] **Each tiled subwindow now keeps its own zoom after a reload.** Its per-panel level is saved with the Quality of Life preferences; pref-file export and import still need a core mod-contribution seam (#262).
+
 - [Visible] [Save-Compat] **First-encounter notebooks now survive reloading a named character.** The saved sighting list no longer treats the host's separately managed display name as a different character identity (#259).
 
 - [Visible] [UI] **Quality of Life cards now clean themselves up when the plugin is unloaded.** First-sighting alerts and shortcut helpers no longer leave their timers, queues, or open cards behind during a mod teardown (#251).

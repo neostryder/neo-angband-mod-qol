@@ -22,6 +22,9 @@ export interface FirstEncounterPreference {
   readonly artifacts: readonly number[];
 }
 
+/** Zoom-ladder rungs remembered by tiled subwindow panel id. */
+export type SubwindowZoomPreference = Readonly<Record<string, number>>;
+
 /** The single value kept in ctx.prefs. */
 export interface QolPreferences {
   readonly v: 2;
@@ -36,6 +39,8 @@ export interface QolPreferences {
   /** First-encounter alerts are per character within the one install-wide
    * preference slot. */
   readonly firstEncounter?: FirstEncounterPreference;
+  /** Tiled-panel zoom is install-wide, like the play-view display setting. */
+  readonly subwindowZoom?: SubwindowZoomPreference;
 }
 
 export const DEFAULT_DISPLAY_PREFERENCE: DisplayPreference = {
@@ -108,6 +113,16 @@ export function readFirstEncounterPreference(raw: unknown): FirstEncounterPrefer
   };
 }
 
+/** Read valid non-negative zoom rungs keyed by a tiled panel's stable id. */
+export function readSubwindowZoomPreference(raw: unknown): SubwindowZoomPreference {
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.subwindowZoom)) return {};
+  const steps: Record<string, number> = {};
+  for (const [id, value] of Object.entries(raw.subwindowZoom)) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) steps[id] = value;
+  }
+  return steps;
+}
+
 /** Preserve every known preference group while upgrading either former v1
  * top-level shape into the shared v2 envelope. */
 function preservedPreferences(raw: unknown): Omit<QolPreferences, "v"> {
@@ -115,11 +130,13 @@ function preservedPreferences(raw: unknown): Omit<QolPreferences, "v"> {
   const display = storedDisplayPreference(raw);
   const firstEncounter = readFirstEncounterPreference(raw);
   const hideRepeatShortcuts = isRecord(raw) && raw.v === 2 && raw.hideRepeatShortcuts === true;
+  const subwindowZoom = readSubwindowZoomPreference(raw);
   return {
     ...(options ? { options } : {}),
     ...(display ? { display } : {}),
     ...(hideRepeatShortcuts ? { hideRepeatShortcuts } : {}),
     ...(firstEncounter ? { firstEncounter } : {}),
+    ...(Object.keys(subwindowZoom).length > 0 ? { subwindowZoom } : {}),
   };
 }
 
@@ -155,4 +172,11 @@ export function withFirstEncounterPreference(
   firstEncounter: FirstEncounterPreference,
 ): QolPreferences {
   return { v: 2, ...preservedPreferences(raw), firstEncounter };
+}
+
+export function withSubwindowZoomPreference(
+  raw: unknown,
+  subwindowZoom: SubwindowZoomPreference,
+): QolPreferences {
+  return { v: 2, ...preservedPreferences(raw), subwindowZoom };
 }

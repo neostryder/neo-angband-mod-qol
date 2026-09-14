@@ -3,6 +3,7 @@ import {
   DEFAULT_DISPLAY_PREFERENCE,
   readDisplayPreference,
   readRememberedSettings,
+  readSubwindowZoomPreference,
   withDisplayPreference,
   withRememberedSettings,
   type RememberedSettings,
@@ -285,6 +286,57 @@ describe("scroll-free sidebar fitting", () => {
 });
 
 describe("independent tiled subwindow zoom (neo-angband #241)", () => {
+  it("restores a panel zoom after a reload through the shared preference store", () => {
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    let stored: unknown = null;
+    const prefs = { get: () => stored, set: (value: unknown) => { stored = value; } };
+    const firstDisplay = fakeDisplay();
+    const firstPanels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs,
+      display: firstDisplay.display,
+      subwindows: firstPanels.subwindows,
+    });
+
+    firstPanels.controls.get("messages:zoom-in")?.onActivate();
+    expect(readSubwindowZoomPreference(stored)).toEqual({ messages: 4 });
+    uninstallZoomPan();
+
+    const secondDisplay = fakeDisplay();
+    const secondPanels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs,
+      display: secondDisplay.display,
+      subwindows: secondPanels.subwindows,
+    });
+
+    expect(secondPanels.setGrid).toHaveBeenCalledWith("messages", {
+      cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[4],
+      minCols: 20,
+      minRows: 3,
+      snapViewportToEven: false,
+    });
+  });
+
+  it("leaves a fresh install at the core subwindow zoom default", () => {
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    let stored: unknown = null;
+    const prefs = { get: () => stored, set: (value: unknown) => { stored = value; } };
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      prefs,
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    expect(readSubwindowZoomPreference(stored)).toEqual({});
+    expect(panels.setGrid).not.toHaveBeenCalled();
+  });
+
   it("zooms only the hovered panel with Ctrl-Wheel", () => {
     vi.useFakeTimers();
     const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
