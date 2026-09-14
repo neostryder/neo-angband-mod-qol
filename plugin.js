@@ -801,6 +801,7 @@ var ACCESSIBILITY_ZOOM_INDEX = 9;
 var DEFAULT_PLAY_MAP_COLS = 66;
 var DEFAULT_PLAY_GRID_ROWS = 24;
 var RESERVED_RIGHT_COLUMN = 1;
+var SUBWINDOW_ZOOM_PREF_BLOCK_NAME = "qol-zoom";
 var runtime = null;
 var configuredDisplay = null;
 function markGridState(value) {
@@ -905,6 +906,37 @@ function writePreference(rt) {
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
   }
+}
+function isRecord2(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function serializeSubwindowZoomPrefBlock(rt) {
+  if (rt.subwindowZoomSteps.size === 0) return null;
+  return JSON.stringify({ v: 1, panels: Object.fromEntries(rt.subwindowZoomSteps) });
+}
+function parseSubwindowZoomPrefBlock(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (!isRecord2(parsed) || parsed.v !== 1 || !isRecord2(parsed.panels)) return null;
+    const panels = [];
+    for (const [id, step] of Object.entries(parsed.panels)) {
+      if (id.length === 0 || typeof step !== "number" || !Number.isInteger(step) || step < 0 || step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length) {
+        return null;
+      }
+      panels.push([id, step]);
+    }
+    return { panels: Object.fromEntries(panels) };
+  } catch {
+    return null;
+  }
+}
+function applySubwindowZoomPrefBlock(rt, value) {
+  for (const [id, step] of Object.entries(value.panels)) {
+    rt.subwindowZoomSteps.set(id, step);
+    rt.restoredSubwindowZoomPanels.delete(id);
+  }
+  syncSubwindowControls(rt);
+  writePreference(rt);
 }
 function responsiveSidebarColumns(scale) {
   return Math.max(6, Math.round(13 * scale) - 1);
@@ -1103,6 +1135,15 @@ function installSubwindowControls(rt) {
   if (!rt.ctx.subwindows) return;
   syncSubwindowControls(rt);
   rt.subwindowControlsTimer = setInterval(() => syncSubwindowControls(rt), 200);
+}
+function installSubwindowZoomPrefBlock(rt) {
+  const subwindows = rt.ctx.subwindows;
+  if (!subwindows) return;
+  rt.cleanups.push(subwindows.registerPrefBlock(SUBWINDOW_ZOOM_PREF_BLOCK_NAME, {
+    serialize: () => serializeSubwindowZoomPrefBlock(rt),
+    parse: parseSubwindowZoomPrefBlock,
+    apply: (value) => applySubwindowZoomPrefBlock(rt, value)
+  }));
 }
 function panView(rt, dx, dy) {
   if (!rt.gridActive) return;
@@ -1627,6 +1668,7 @@ function installZoomPan(ctx) {
     });
   }
   installKeyboard(rt);
+  installSubwindowZoomPrefBlock(rt);
   installSubwindowControls(rt);
   if (typeof window !== "undefined") {
     installTitleBoundary(rt);

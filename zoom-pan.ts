@@ -113,6 +113,12 @@ export interface SubwindowControlLike {
   onActivate(): void;
 }
 
+export interface SubwindowPrefBlockLike<T> {
+  serialize(): string | null;
+  parse(text: string): T | null;
+  apply(value: T): void;
+}
+
 export interface SubwindowsLike {
   list(): readonly SubwindowInfoLike[];
   setGrid(id: string, request: {
@@ -122,6 +128,7 @@ export interface SubwindowsLike {
     readonly snapViewportToEven: boolean;
   } | null): void;
   addControl(id: string, key: string, control: SubwindowControlLike): () => void;
+  registerPrefBlock<T>(name: string, block: SubwindowPrefBlockLike<T>): () => void;
 }
 
 interface PreferenceStoreLike {
@@ -224,6 +231,12 @@ interface ZoomRuntime {
   readonly subwindowControlCleanups: Map<string, readonly [() => void, () => void]>;
   subwindowControlsTimer: ReturnType<typeof setInterval> | null;
 }
+
+interface SubwindowZoomPrefBlockValue {
+  readonly panels: Readonly<Record<string, number>>;
+}
+
+const SUBWINDOW_ZOOM_PREF_BLOCK_NAME = "qol-zoom";
 
 let runtime: ZoomRuntime | null = null;
 let configuredDisplay: DisplayLike | null = null;
@@ -388,6 +401,52 @@ function writePreference(rt: ZoomRuntime): void {
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The mod-owned part of a subwindow pref file.  A versioned wrapper prevents
+ * unrelated JSON from being mistaken for a map of panel ids to zoom rungs. */
+function serializeSubwindowZoomPrefBlock(rt: ZoomRuntime): string | null {
+  if (rt.subwindowZoomSteps.size === 0) return null;
+  return JSON.stringify({ v: 1, panels: Object.fromEntries(rt.subwindowZoomSteps) });
+}
+
+function parseSubwindowZoomPrefBlock(text: string): SubwindowZoomPrefBlockValue | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!isRecord(parsed) || parsed.v !== 1 || !isRecord(parsed.panels)) return null;
+    const panels: Array<readonly [string, number]> = [];
+    for (const [id, step] of Object.entries(parsed.panels)) {
+      if (
+        id.length === 0 ||
+        typeof step !== "number" ||
+        !Number.isInteger(step) ||
+        step < 0 ||
+        step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length
+      ) {
+        return null;
+      }
+      panels.push([id, step]);
+    }
+    return { panels: Object.fromEntries(panels) };
+  } catch {
+    return null;
+  }
+}
+
+function applySubwindowZoomPrefBlock(rt: ZoomRuntime, value: SubwindowZoomPrefBlockValue): void {
+  for (const [id, step] of Object.entries(value.panels)) {
+    rt.subwindowZoomSteps.set(id, step);
+    /* A pref file may arrive after this panel was already restored from the
+     * ordinary preference store, so let the shared restoration path apply its
+     * newly loaded rung now. */
+    rt.restoredSubwindowZoomPanels.delete(id);
+  }
+  syncSubwindowControls(rt);
+  writePreference(rt);
 }
 
 /**
@@ -640,6 +699,16 @@ function installSubwindowControls(rt: ZoomRuntime): void {
   if (!rt.ctx.subwindows) return;
   syncSubwindowControls(rt);
   rt.subwindowControlsTimer = setInterval(() => syncSubwindowControls(rt), 200);
+}
+
+function installSubwindowZoomPrefBlock(rt: ZoomRuntime): void {
+  const subwindows = rt.ctx.subwindows;
+  if (!subwindows) return;
+  rt.cleanups.push(subwindows.registerPrefBlock(SUBWINDOW_ZOOM_PREF_BLOCK_NAME, {
+    serialize: () => serializeSubwindowZoomPrefBlock(rt),
+    parse: parseSubwindowZoomPrefBlock,
+    apply: (value) => applySubwindowZoomPrefBlock(rt, value),
+  }));
 }
 
 function panView(rt: ZoomRuntime, dx: number, dy: number): void {
@@ -1257,6 +1326,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     });
   }
   installKeyboard(rt);
+  installSubwindowZoomPrefBlock(rt);
   installSubwindowControls(rt);
   if (typeof window !== "undefined") {
     installTitleBoundary(rt);

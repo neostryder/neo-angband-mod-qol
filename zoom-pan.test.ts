@@ -30,6 +30,7 @@ import {
   type DisplaySnapshotLike,
   type SubwindowControlLike,
   type SubwindowInfoLike,
+  type SubwindowPrefBlockLike,
   type SubwindowsLike,
 } from "./zoom-pan";
 
@@ -144,25 +145,35 @@ function fakeSubwindows(initial: readonly SubwindowInfoLike[]): {
   subwindows: SubwindowsLike;
   setGrid: ReturnType<typeof vi.fn>;
   addControl: ReturnType<typeof vi.fn>;
+  registerPrefBlock: ReturnType<typeof vi.fn>;
   controls: Map<string, SubwindowControlLike>;
+  prefBlocks: Map<string, SubwindowPrefBlockLike<unknown>>;
   setPanels(panels: readonly SubwindowInfoLike[]): void;
 } {
   let panels = initial;
   const controls = new Map<string, SubwindowControlLike>();
+  const prefBlocks = new Map<string, SubwindowPrefBlockLike<unknown>>();
   const setGrid = vi.fn();
   const addControl = vi.fn((id: string, key: string, control: SubwindowControlLike) => {
     controls.set(`${id}:${key}`, control);
     return vi.fn(() => controls.delete(`${id}:${key}`));
+  });
+  const registerPrefBlock = vi.fn((name: string, block: SubwindowPrefBlockLike<unknown>) => {
+    prefBlocks.set(name, block);
+    return vi.fn(() => prefBlocks.delete(name));
   });
   return {
     subwindows: {
       list: () => panels,
       setGrid,
       addControl,
+      registerPrefBlock,
     },
     setGrid,
     addControl,
+    registerPrefBlock,
     controls,
+    prefBlocks,
     setPanels: (next) => { panels = next; },
   };
 }
@@ -342,6 +353,62 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
     expect(panels.setGrid).not.toHaveBeenCalled();
   });
 
+  it("round-trips a panel zoom through its registered pref-file block", () => {
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const sourceDisplay = fakeDisplay();
+    const sourcePanels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: sourceDisplay.display,
+      subwindows: sourcePanels.subwindows,
+    });
+
+    sourcePanels.controls.get("messages:zoom-in")?.onActivate();
+    const sourceBlock = sourcePanels.prefBlocks.get("qol-zoom");
+    expect(sourceBlock?.serialize()).toBe('{"v":1,"panels":{"messages":4}}');
+    const prefText = sourceBlock?.serialize();
+    uninstallZoomPan();
+    expect(sourcePanels.prefBlocks.has("qol-zoom")).toBe(false);
+
+    const restoredDisplay = fakeDisplay();
+    const restoredPanels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: restoredDisplay.display,
+      subwindows: restoredPanels.subwindows,
+    });
+
+    const restoredBlock = restoredPanels.prefBlocks.get("qol-zoom");
+    const parsed = restoredBlock?.parse(prefText ?? "");
+    expect(parsed).toEqual({ panels: { messages: 4 } });
+    if (parsed !== null && parsed !== undefined) restoredBlock?.apply(parsed);
+    expect(restoredPanels.setGrid).toHaveBeenCalledWith("messages", {
+      cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[4],
+      minCols: 20,
+      minRows: 3,
+      snapViewportToEven: false,
+    });
+  });
+
+  it("rejects malformed or foreign pref-file blocks without changing a panel zoom", () => {
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    panels.controls.get("messages:zoom-in")?.onActivate();
+    const block = panels.prefBlocks.get("qol-zoom");
+    const before = block?.serialize();
+    expect(() => block?.parse("{not json")).not.toThrow();
+    expect(block?.parse("{not json")).toBeNull();
+    expect(block?.parse('{"v":2,"enabled":{"messages":true}}')).toBeNull();
+    expect(block?.serialize()).toBe(before);
+  });
+
   it("zooms only the hovered panel with Ctrl-Wheel", () => {
     vi.useFakeTimers();
     const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
@@ -454,6 +521,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
     vi.useFakeTimers();
     vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
     const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
     installZoomPan({ flags: { "qol.zoomPan": true }, display: display.display });
 
     const event = fakeKey("=");
@@ -464,6 +532,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
     expect(display.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({
       cellHeight: PLAY_ZOOM_CELL_HEIGHTS[8],
     }));
+    expect(panels.registerPrefBlock).not.toHaveBeenCalled();
   });
 });
 
