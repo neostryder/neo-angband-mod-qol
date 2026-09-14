@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.8.0 - 2026-09-13
+
 ### Added
 
 - [Visible] [UI] **Each tiled subwindow now has its own zoom level.** Hover a panel and use Ctrl-Wheel, or focus it and use Ctrl-+ or Ctrl--; faint - and + title-bar controls offer the same adjustment (#241).
