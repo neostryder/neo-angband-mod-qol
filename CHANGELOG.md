@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.8.2 - 2026-09-13
+
 ### Fixed
 
 - [Visible] [UI] **The responsive status sidebar now disappears in the same key event that opens the Game menu.** It no longer has a moment to cover the first frame while core changes its display mode to the full-screen modal (#250).
