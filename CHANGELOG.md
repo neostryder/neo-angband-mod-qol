@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [UI] **Each tiled subwindow now has its own zoom level.** Hover a panel and use Ctrl-Wheel, or focus it and use Ctrl-+ or Ctrl--; faint - and + title-bar controls offer the same adjustment (#241).
+
 ### Fixed
 
 - [Visible] [UI] **The zoomed play view now starts fitted to the available pane instead of stopping at the old 48-pixel zoom ceiling.** Its default uses the pane's binding dimension and sidebar width, then returns to the normal saved zoom steps after a manual zoom (#240).

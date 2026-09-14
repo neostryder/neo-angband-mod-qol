@@ -12,6 +12,7 @@ import {
   ACCESSIBILITY_ZOOM_INDEX,
   INTERFACE_ZOOM_SCALES,
   PLAY_ZOOM_CELL_HEIGHTS,
+  SUBWINDOW_ZOOM_CELL_HEIGHTS,
   defaultPlayFillCellHeight,
   hidesSidebar,
   mapViewFor,
@@ -26,6 +27,9 @@ import {
   zoomPanHud,
   type DisplayLike,
   type DisplaySnapshotLike,
+  type SubwindowControlLike,
+  type SubwindowInfoLike,
+  type SubwindowsLike,
 } from "./zoom-pan";
 
 function snapshot(overrides: Partial<DisplaySnapshotLike> = {}): DisplaySnapshotLike {
@@ -133,6 +137,43 @@ function activateHud(ctx: Parameters<typeof installZoomPan>[0]): void {
   vi.advanceTimersByTime(0);
 }
 
+function fakeSubwindows(initial: readonly SubwindowInfoLike[]): {
+  subwindows: SubwindowsLike;
+  setGrid: ReturnType<typeof vi.fn>;
+  addControl: ReturnType<typeof vi.fn>;
+  controls: Map<string, SubwindowControlLike>;
+  setPanels(panels: readonly SubwindowInfoLike[]): void;
+} {
+  let panels = initial;
+  const controls = new Map<string, SubwindowControlLike>();
+  const setGrid = vi.fn();
+  const addControl = vi.fn((id: string, key: string, control: SubwindowControlLike) => {
+    controls.set(`${id}:${key}`, control);
+    return vi.fn(() => controls.delete(`${id}:${key}`));
+  });
+  return {
+    subwindows: {
+      list: () => panels,
+      setGrid,
+      addControl,
+    },
+    setGrid,
+    addControl,
+    controls,
+    setPanels: (next) => { panels = next; },
+  };
+}
+
+function subwindow(overrides: Partial<SubwindowInfoLike> = {}): SubwindowInfoLike {
+  return {
+    id: "messages",
+    bounds: { x: 600, y: 100, width: 300, height: 200 },
+    focused: false,
+    grid: { cols: 40, rows: 10, cellWidth: 11, cellHeight: 16 },
+    ...overrides,
+  };
+}
+
 describe("one install-wide preference value", () => {
   const options: RememberedSettings = {
     v: 1,
@@ -227,6 +268,132 @@ describe("scroll-free sidebar fitting", () => {
   it("keeps a roomy vertical sidebar on one page and pages a short one", () => {
     expect(sidebarPagePlan(18, "left", { width: 240, height: 600 }, 1, 0).pages).toBe(1);
     expect(sidebarPagePlan(18, "left", { width: 240, height: 120 }, 1, 0).pages).toBeGreaterThan(1);
+  });
+});
+
+describe("independent tiled subwindow zoom (neo-angband #241)", () => {
+  it("zooms only the hovered panel with Ctrl-Wheel", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    const event = new Event("wheel", { cancelable: true });
+    Object.defineProperties(event, {
+      ctrlKey: { value: true },
+      deltaY: { value: -120 },
+      clientX: { value: 700 },
+      clientY: { value: 180 },
+    });
+    fakeWindow.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(panels.setGrid).toHaveBeenCalledWith("messages", {
+      cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[4],
+      minCols: 20,
+      minRows: 3,
+      snapViewportToEven: false,
+    });
+    expect(display.setGrid).not.toHaveBeenCalled();
+  });
+
+  it("zooms only the focused panel with Ctrl plus or minus", () => {
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow({ focused: true })]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    const event = fakeKey("-");
+    display.key(event);
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(panels.setGrid).toHaveBeenCalledWith("messages", expect.objectContaining({ cellHeight: 14 }));
+    expect(display.setGrid).not.toHaveBeenCalled();
+  });
+
+  it("leaves Ctrl-Wheel outside a panel for the existing main-view zoom", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    const event = new Event("wheel", { cancelable: true });
+    Object.defineProperties(event, {
+      ctrlKey: { value: true },
+      deltaY: { value: 120 },
+      clientX: { value: 100 },
+      clientY: { value: 100 },
+    });
+    fakeWindow.dispatchEvent(event);
+    vi.advanceTimersByTime(0);
+
+    expect(panels.setGrid).not.toHaveBeenCalled();
+    expect(display.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
+  });
+
+  it("adds panel controls and keeps them in sync as panels disappear", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    expect(panels.addControl).toHaveBeenCalledWith("messages", "zoom-out", expect.objectContaining({
+      glyph: "-",
+      title: "Zoom out",
+    }));
+    expect(panels.addControl).toHaveBeenCalledWith("messages", "zoom-in", expect.objectContaining({
+      glyph: "+",
+      title: "Zoom in",
+    }));
+    panels.controls.get("messages:zoom-in")?.onActivate();
+    expect(panels.setGrid).toHaveBeenLastCalledWith("messages", expect.objectContaining({ cellHeight: 18 }));
+
+    panels.setPanels([]);
+    vi.advanceTimersByTime(200);
+    expect(panels.controls.size).toBe(0);
+  });
+
+  it("falls through to the main view when the optional subwindow capability is absent", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: display.display });
+
+    const event = fakeKey("=");
+    display.key(event);
+    vi.advanceTimersByTime(0);
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(display.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({
+      cellHeight: PLAY_ZOOM_CELL_HEIGHTS[4],
+    }));
   });
 });
 

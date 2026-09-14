@@ -135,6 +135,8 @@ interface HookCtx {
   };
   /** Live web display geometry, absent during content composition or on old hosts. */
   readonly display?: ZoomPanContext["display"] | undefined;
+  /** Live tiled-panel geometry and title-bar controls, absent without the subwindow shell. */
+  readonly subwindows?: ZoomPanContext["subwindows"] | undefined;
   /** Whether this character was created this session rather than loaded. */
   readonly newCharacter?: boolean;
   /** The live game, when there is one. Absent during content composition. */

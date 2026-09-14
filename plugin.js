@@ -755,6 +755,7 @@ function paintBitmapButtonLabel(button, text, css, cellWidth, cellHeight, dpr) {
 
 // zoom-pan.ts
 var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
+var SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var ACCESSIBILITY_ZOOM_INDEX = 5;
@@ -953,6 +954,83 @@ function zoomInterface(rt, direction) {
   applyGridAndSidebar(rt);
   writePreference(rt);
 }
+function subwindowZoomIndex(rt, panel) {
+  const remembered = rt.subwindowZoomSteps.get(panel.id);
+  if (remembered !== void 0) return remembered;
+  let closest = 0;
+  for (let i = 1; i < SUBWINDOW_ZOOM_CELL_HEIGHTS.length; i++) {
+    const candidate = SUBWINDOW_ZOOM_CELL_HEIGHTS[i];
+    const current = SUBWINDOW_ZOOM_CELL_HEIGHTS[closest];
+    if (candidate !== void 0 && current !== void 0 && Math.abs(candidate - panel.grid.cellHeight) < Math.abs(current - panel.grid.cellHeight)) {
+      closest = i;
+    }
+  }
+  rt.subwindowZoomSteps.set(panel.id, closest);
+  return closest;
+}
+function zoomSubwindow(rt, id, direction) {
+  const subwindows = rt.ctx.subwindows;
+  const panel = subwindows?.list().find((candidate) => candidate.id === id);
+  if (!subwindows || !panel) return;
+  const current = subwindowZoomIndex(rt, panel);
+  const next = stepIndex(current, direction, SUBWINDOW_ZOOM_CELL_HEIGHTS.length - 1);
+  if (next === current) return;
+  const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
+  if (cellHeight === void 0) return;
+  rt.subwindowZoomSteps.set(id, next);
+  subwindows.setGrid(id, {
+    cellHeight,
+    minCols: 20,
+    minRows: 3,
+    snapViewportToEven: false
+  });
+}
+function focusedSubwindow(rt) {
+  return rt.ctx.subwindows?.list().find((panel) => panel.focused);
+}
+function hoveredSubwindow(rt, x, y) {
+  return rt.ctx.subwindows?.list().find((panel) => pointInPixels(x, y, panel.bounds));
+}
+function clearSubwindowControls(rt) {
+  for (const cleanups of rt.subwindowControlCleanups.values()) {
+    for (const cleanup of cleanups) cleanup();
+  }
+  rt.subwindowControlCleanups.clear();
+}
+function syncSubwindowControls(rt) {
+  const subwindows = rt.ctx.subwindows;
+  if (!subwindows) {
+    clearSubwindowControls(rt);
+    return;
+  }
+  const panels = subwindows.list();
+  const visible = new Set(panels.map((panel) => panel.id));
+  for (const [id, cleanups] of rt.subwindowControlCleanups) {
+    if (!visible.has(id)) {
+      for (const cleanup of cleanups) cleanup();
+      rt.subwindowControlCleanups.delete(id);
+    }
+  }
+  for (const panel of panels) {
+    if (rt.subwindowControlCleanups.has(panel.id)) continue;
+    const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
+      glyph: "-",
+      title: "Zoom out",
+      onActivate: () => zoomSubwindow(rt, panel.id, -1)
+    });
+    const zoomIn = subwindows.addControl(panel.id, "zoom-in", {
+      glyph: "+",
+      title: "Zoom in",
+      onActivate: () => zoomSubwindow(rt, panel.id, 1)
+    });
+    rt.subwindowControlCleanups.set(panel.id, [zoomOut, zoomIn]);
+  }
+}
+function installSubwindowControls(rt) {
+  if (!rt.ctx.subwindows) return;
+  syncSubwindowControls(rt);
+  rt.subwindowControlsTimer = setInterval(() => syncSubwindowControls(rt), 200);
+}
 function panView(rt, dx, dy) {
   if (!rt.gridActive) return;
   let snapshot = rt.display.snapshot();
@@ -989,6 +1067,13 @@ function installKeyboard(rt) {
       const zoom = event.ctrlKey && !event.altKey && !event.metaKey ? zoomKeyDirection(event) : 0;
       const direction = event.ctrlKey && !event.altKey && !event.metaKey ? directionKey(event) : null;
       if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
+      const focused = zoom !== 0 ? focusedSubwindow(rt) : void 0;
+      if (zoom !== 0 && focused) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        zoomSubwindow(rt, focused.id, zoom);
+        return;
+      }
       if (zoom !== 0 || direction !== null) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -1066,6 +1151,13 @@ function installWheel(rt) {
   const onWheel = (event) => {
     if (!event.ctrlKey || event.deltaY === 0) return;
     if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
+    const hovered = hoveredSubwindow(rt, event.clientX, event.clientY);
+    if (hovered) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      zoomSubwindow(rt, hovered.id, event.deltaY < 0 ? 1 : -1);
+      return;
+    }
     const snapshot = rt.display.snapshot();
     const sidebar = snapshot.regions.sidebar?.pixels;
     event.preventDefault();
@@ -1415,7 +1507,10 @@ function installZoomPan(ctx) {
     activationActions: [],
     screenFitActive: false,
     screenFitTimer: null,
-    sidebarVisibilityTimer: null
+    sidebarVisibilityTimer: null,
+    subwindowZoomSteps: /* @__PURE__ */ new Map(),
+    subwindowControlCleanups: /* @__PURE__ */ new Map(),
+    subwindowControlsTimer: null
   };
   runtime = rt;
   markGridState(rt.bootPhase);
@@ -1436,6 +1531,7 @@ function installZoomPan(ctx) {
     });
   }
   installKeyboard(rt);
+  installSubwindowControls(rt);
   if (typeof window !== "undefined") {
     installTitleBoundary(rt);
     installWheel(rt);
@@ -1461,6 +1557,8 @@ function uninstallZoomPan() {
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
   if (rt.sidebarVisibilityTimer !== null) clearInterval(rt.sidebarVisibilityTimer);
+  if (rt.subwindowControlsTimer !== null) clearInterval(rt.subwindowControlsTimer);
+  clearSubwindowControls(rt);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
   rt.display.setMapView(null);
   rt.display.setCamera(null);

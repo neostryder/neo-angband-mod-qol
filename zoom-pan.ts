@@ -8,6 +8,10 @@ import { FONT_16X24 } from "./bitmap-font";
 import { paintBitmapButtonLabel, paintBitmapLine } from "./bitmap-text";
 
 export const PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48] as const;
+/* Subwindows start at core's compact 16px default and need room to become
+ * smaller without making a tiled panel's labels needlessly huge.  Their ladder
+ * is deliberately independent from the play view's wider 16-48px range. */
+export const SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24] as const;
 export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
 export const ACCESSIBILITY_ZOOM_INDEX = 5;
@@ -82,6 +86,35 @@ export interface DisplayLike {
   repaint(): void;
 }
 
+export interface SubwindowInfoLike {
+  readonly id: string;
+  readonly bounds: Pixels;
+  readonly focused: boolean;
+  readonly grid: {
+    readonly cols: number;
+    readonly rows: number;
+    readonly cellWidth: number;
+    readonly cellHeight: number;
+  };
+}
+
+export interface SubwindowControlLike {
+  readonly glyph: string;
+  readonly title?: string;
+  onActivate(): void;
+}
+
+export interface SubwindowsLike {
+  list(): readonly SubwindowInfoLike[];
+  setGrid(id: string, request: {
+    readonly cellHeight: number;
+    readonly minCols: number;
+    readonly minRows: number;
+    readonly snapViewportToEven: boolean;
+  } | null): void;
+  addControl(id: string, key: string, control: SubwindowControlLike): () => void;
+}
+
 interface PreferenceStoreLike {
   get(): unknown;
   set(value: unknown): void;
@@ -91,6 +124,8 @@ export interface ZoomPanContext {
   readonly flags: Readonly<Record<string, boolean>>;
   readonly prefs?: PreferenceStoreLike | undefined;
   readonly display?: DisplayLike | undefined;
+  /** Optional while no tiled subwindow shell is mounted. */
+  readonly subwindows?: SubwindowsLike | undefined;
   readonly state?: {
     readonly actor?: { readonly grid?: { readonly x: number; readonly y: number } };
   } | undefined;
@@ -168,6 +203,11 @@ interface ZoomRuntime {
    * shop's own render loop never calls back into paintSidebar the way
    * ordinary play does (neo-angband #234). */
   sidebarVisibilityTimer: ReturnType<typeof setInterval> | null;
+  /** Each tiled panel has an independent rung, retained while it is hidden. */
+  readonly subwindowZoomSteps: Map<string, number>;
+  /** Title-bar control unregister functions for panels visible this instant. */
+  readonly subwindowControlCleanups: Map<string, readonly [() => void, () => void]>;
+  subwindowControlsTimer: ReturnType<typeof setInterval> | null;
 }
 
 let runtime: ZoomRuntime | null = null;
@@ -453,6 +493,93 @@ function zoomInterface(rt: ZoomRuntime, direction: number): void {
   writePreference(rt);
 }
 
+function subwindowZoomIndex(rt: ZoomRuntime, panel: SubwindowInfoLike): number {
+  const remembered = rt.subwindowZoomSteps.get(panel.id);
+  if (remembered !== undefined) return remembered;
+  let closest = 0;
+  for (let i = 1; i < SUBWINDOW_ZOOM_CELL_HEIGHTS.length; i++) {
+    const candidate = SUBWINDOW_ZOOM_CELL_HEIGHTS[i];
+    const current = SUBWINDOW_ZOOM_CELL_HEIGHTS[closest];
+    if (candidate !== undefined && current !== undefined &&
+      Math.abs(candidate - panel.grid.cellHeight) < Math.abs(current - panel.grid.cellHeight)) {
+      closest = i;
+    }
+  }
+  rt.subwindowZoomSteps.set(panel.id, closest);
+  return closest;
+}
+
+function zoomSubwindow(rt: ZoomRuntime, id: string, direction: number): void {
+  const subwindows = rt.ctx.subwindows;
+  const panel = subwindows?.list().find((candidate) => candidate.id === id);
+  if (!subwindows || !panel) return;
+  const current = subwindowZoomIndex(rt, panel);
+  const next = stepIndex(current, direction, SUBWINDOW_ZOOM_CELL_HEIGHTS.length - 1);
+  if (next === current) return;
+  const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
+  if (cellHeight === undefined) return;
+  rt.subwindowZoomSteps.set(id, next);
+  /* These are the host's own compact-panel defaults: preserving them means a
+   * zoom changes only cell size, never the panel's minimum useful text area. */
+  subwindows.setGrid(id, {
+    cellHeight,
+    minCols: 20,
+    minRows: 3,
+    snapViewportToEven: false,
+  });
+}
+
+function focusedSubwindow(rt: ZoomRuntime): SubwindowInfoLike | undefined {
+  return rt.ctx.subwindows?.list().find((panel) => panel.focused);
+}
+
+function hoveredSubwindow(rt: ZoomRuntime, x: number, y: number): SubwindowInfoLike | undefined {
+  return rt.ctx.subwindows?.list().find((panel) => pointInPixels(x, y, panel.bounds));
+}
+
+function clearSubwindowControls(rt: ZoomRuntime): void {
+  for (const cleanups of rt.subwindowControlCleanups.values()) {
+    for (const cleanup of cleanups) cleanup();
+  }
+  rt.subwindowControlCleanups.clear();
+}
+
+function syncSubwindowControls(rt: ZoomRuntime): void {
+  const subwindows = rt.ctx.subwindows;
+  if (!subwindows) {
+    clearSubwindowControls(rt);
+    return;
+  }
+  const panels = subwindows.list();
+  const visible = new Set(panels.map((panel) => panel.id));
+  for (const [id, cleanups] of rt.subwindowControlCleanups) {
+    if (!visible.has(id)) {
+      for (const cleanup of cleanups) cleanup();
+      rt.subwindowControlCleanups.delete(id);
+    }
+  }
+  for (const panel of panels) {
+    if (rt.subwindowControlCleanups.has(panel.id)) continue;
+    const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
+      glyph: "-",
+      title: "Zoom out",
+      onActivate: () => zoomSubwindow(rt, panel.id, -1),
+    });
+    const zoomIn = subwindows.addControl(panel.id, "zoom-in", {
+      glyph: "+",
+      title: "Zoom in",
+      onActivate: () => zoomSubwindow(rt, panel.id, 1),
+    });
+    rt.subwindowControlCleanups.set(panel.id, [zoomOut, zoomIn]);
+  }
+}
+
+function installSubwindowControls(rt: ZoomRuntime): void {
+  if (!rt.ctx.subwindows) return;
+  syncSubwindowControls(rt);
+  rt.subwindowControlsTimer = setInterval(() => syncSubwindowControls(rt), 200);
+}
+
 function panView(rt: ZoomRuntime, dx: number, dy: number): void {
   if (!rt.gridActive) return;
   let snapshot = rt.display.snapshot();
@@ -503,6 +630,13 @@ function installKeyboard(rt: ZoomRuntime): void {
        * ordinary key (a bare Alt press among them) must not activate the
        * responsive grid under them. */
       if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
+      const focused = zoom !== 0 ? focusedSubwindow(rt) : undefined;
+      if (zoom !== 0 && focused) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        zoomSubwindow(rt, focused.id, zoom);
+        return;
+      }
       if (zoom !== 0 || direction !== null) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -602,6 +736,13 @@ function installWheel(rt: ZoomRuntime): void {
     /* Same title/birth/name boundary as installKeyboard: a saved gameplay
      * zoom must not own the still-letterboxed pre-game screens. */
     if (!rt.gridActive && rt.bootPhase !== "game-pending") return;
+    const hovered = hoveredSubwindow(rt, event.clientX, event.clientY);
+    if (hovered) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      zoomSubwindow(rt, hovered.id, event.deltaY < 0 ? 1 : -1);
+      return;
+    }
     const snapshot = rt.display.snapshot();
     const sidebar = snapshot.regions.sidebar?.pixels;
     event.preventDefault();
@@ -989,6 +1130,9 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     screenFitActive: false,
     screenFitTimer: null,
     sidebarVisibilityTimer: null,
+    subwindowZoomSteps: new Map(),
+    subwindowControlCleanups: new Map(),
+    subwindowControlsTimer: null,
   };
   runtime = rt;
   markGridState(rt.bootPhase);
@@ -1009,6 +1153,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     });
   }
   installKeyboard(rt);
+  installSubwindowControls(rt);
   if (typeof window !== "undefined") {
     installTitleBoundary(rt);
     installWheel(rt);
@@ -1038,6 +1183,8 @@ export function uninstallZoomPan(): void {
   if (rt.activationTimer !== null) clearTimeout(rt.activationTimer);
   if (rt.screenFitTimer !== null) clearTimeout(rt.screenFitTimer);
   if (rt.sidebarVisibilityTimer !== null) clearInterval(rt.sidebarVisibilityTimer);
+  if (rt.subwindowControlsTimer !== null) clearInterval(rt.subwindowControlsTimer);
+  clearSubwindowControls(rt);
   for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
   rt.display.setMapView(null);
   rt.display.setCamera(null);
