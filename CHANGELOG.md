@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.8.3 - 2026-09-13
+
 ### Fixed
 
 - [Visible] [UI] **The earlier play-view zoom ladder expansion now reaches 128-pixel cells.** Its saved-height migration, narrow-pane handling, and automatic fitted default stay aligned with the wider range (#253).
