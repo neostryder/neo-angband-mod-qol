@@ -33,10 +33,12 @@ export interface Pixels {
 }
 
 export interface DisplaySnapshotLike {
-  /** "store" is a shop screen: it must hide this sidebar the same as "map"
-   * does, rather than paint the responsive status column over the shop's
-   * own item listing (neo-angband #234). */
-  readonly mode: "play" | "map" | "store";
+  /** "store" is a shop screen and "modal" is every other full-screen takeover
+   * (the Options Menu, an item-selection screen, ...): both must hide this
+   * sidebar the same as "map" does, rather than paint the responsive status
+   * column over a screen that owns the whole terminal (neo-angband #234,
+   * #250). */
+  readonly mode: "play" | "map" | "store" | "modal";
   readonly grid: {
     readonly cols: number;
     readonly rows: number;
@@ -911,10 +913,11 @@ function createSidebar(rt: ZoomRuntime): SidebarRuntime | null {
   };
 }
 
-/** "map" and "store" both replace the play viewport this sidebar overlays;
- * neither leaves anywhere for the responsive status column to sit. */
+/** "map", "store" and "modal" all replace or cover the play viewport this
+ * sidebar overlays; none leaves anywhere for the responsive status column to
+ * sit. */
 export function hidesSidebar(mode: DisplaySnapshotLike["mode"]): boolean {
-  return mode === "map" || mode === "store";
+  return mode === "map" || mode === "store" || mode === "modal";
 }
 
 function syncSidebarVisibility(rt: ZoomRuntime): void {

@@ -1313,7 +1313,7 @@ function createSidebar(rt) {
   };
 }
 function hidesSidebar(mode) {
-  return mode === "map" || mode === "store";
+  return mode === "map" || mode === "store" || mode === "modal";
 }
 function syncSidebarVisibility(rt) {
   if (!rt.sidebar) return;

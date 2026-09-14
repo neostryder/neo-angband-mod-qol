@@ -397,14 +397,18 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
   });
 });
 
-describe("sidebar visibility by display mode (neo-angband #234)", () => {
-  it("hides for map and store, shows for ordinary play", () => {
+describe("sidebar visibility by display mode (neo-angband #234, #250)", () => {
+  it("hides for map, store and modal, shows for ordinary play", () => {
     expect(hidesSidebar("play")).toBe(false);
     expect(hidesSidebar("map")).toBe(true);
     /* A shop screen renders under the same viewport as "play" with no region
      * of its own left for this overlay - hiding it here is what keeps a shop's
      * own item listing from being painted over. */
     expect(hidesSidebar("store")).toBe(true);
+    /* "modal" covers everything else core's own modalDepth already tracks -
+     * the Options Menu chief among them, which used to render with this
+     * sidebar drawn right over its own text (#250). */
+    expect(hidesSidebar("modal")).toBe(true);
   });
 
   it("polls for a mode change once the grid activates, and stops polling on uninstall", () => {
