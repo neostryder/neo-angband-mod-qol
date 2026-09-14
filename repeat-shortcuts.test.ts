@@ -15,7 +15,7 @@ describe("repeated-action shortcuts", () => {
 
 describe("permanently hiding the card (#198)", () => {
   it("round-trips the hidden flag without disturbing sibling preferences", () => {
-    const withDisplay = { v: 2, display: { v: 1, zoomIndex: 2, interfaceZoomIndex: 1, mapDetail: 0 } };
+    const withDisplay = { v: 2, display: { v: 2, zoomIndex: 6, interfaceZoomIndex: 1, mapDetail: 0 } };
     expect(readHideRepeatShortcuts(withDisplay)).toBe(false);
     const hidden = withHideRepeatShortcuts(withDisplay, true);
     expect(readHideRepeatShortcuts(hidden)).toBe(true);

@@ -7,14 +7,17 @@ import {
 import { FONT_16X24 } from "./bitmap-font";
 import { paintBitmapButtonLabel, paintBitmapLine } from "./bitmap-text";
 
-export const PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48] as const;
+/* Deliberately finite: 8px still leaves a readable bitmap cell, while 72px is
+ * the largest practical manual rung and already within #240's fitted default
+ * range on a very roomy surface. */
+export const PLAY_ZOOM_CELL_HEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72] as const;
 /* Subwindows start at core's compact 16px default and need room to become
  * smaller without making a tiled panel's labels needlessly huge.  Their ladder
  * is deliberately independent from the play view's wider 16-48px range. */
 export const SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24] as const;
 export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
-export const ACCESSIBILITY_ZOOM_INDEX = 5;
+export const ACCESSIBILITY_ZOOM_INDEX = 9;
 
 /* Vanilla's fixed 80 by 24 terminal leaves 66 map columns after the classic
  * sidebar and the reserved rightmost column, and 22 map rows between its
@@ -192,6 +195,8 @@ interface ZoomRuntime {
   readonly touches: Map<number, TouchPoint>;
   gesture: TouchGesture | null;
   sidebar: SidebarRuntime | null;
+  /** The layout the latest HUD frame selected, including the no-sidebar mode. */
+  sidebarLayout: HudFrameLike["layout"];
   gridActive: boolean;
   bootPhase: "title" | "birth" | "name" | "game-pending";
   activationTimer: ReturnType<typeof setTimeout> | null;
@@ -409,11 +414,13 @@ function applyGridAndSidebar(rt: ZoomRuntime): void {
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
   const surface = rt.display.snapshot().surface;
   const sidebarColumns = responsiveSidebarColumns(scale);
+  const sidebarVisible = rt.sidebarLayout !== "none";
+  const sidebarColumnsReserved = rt.sidebarLayout === "left" ? sidebarColumns : 0;
   const narrow = surface?.width !== undefined
     ? surface.width < 480
     : typeof window !== "undefined" && window.innerWidth < 480;
   const defaultFill = !narrow && rt.useDefaultPlayFill && surface
-    ? defaultPlayFillCellHeight(surface, sidebarColumns)
+    ? defaultPlayFillCellHeight(surface, sidebarColumnsReserved)
     : requestedCellHeight;
   const cellHeight = narrow ? Math.min(21, defaultFill) : defaultFill;
   rt.display.setGrid({
@@ -424,10 +431,13 @@ function applyGridAndSidebar(rt: ZoomRuntime): void {
     minRows: 12,
     snapViewportToEven: true,
   });
-  rt.display.setSidebarExtent({
+  /* null is the display API's way to release this mod's override. Zero is not
+   * a valid extent - core clamps an explicit extent to at least six columns and
+   * one row - so use null when the HUD frame has no sidebar at all. */
+  rt.display.setSidebarExtent(sidebarVisible ? {
     columns: sidebarColumns,
     topRows: Math.max(1, Math.ceil(scale)),
-  });
+  } : null);
 }
 
 function activateGameplayGrid(rt: ZoomRuntime, action?: () => void): void {
@@ -949,12 +959,18 @@ function turnSidebarPage(rt: ZoomRuntime, direction: number): void {
 }
 
 function paintSidebar(rt: ZoomRuntime, section: HudSectionLike, frame: HudFrameLike): void {
+  const layoutChanged = rt.sidebarLayout !== frame.layout;
+  rt.sidebarLayout = frame.layout;
   if (!rt.gridActive) {
     /* Core paints gameplay HUD frames behind title and birth screens. The boot
      * key boundary marks when the player has asked to enter the actual game;
      * only a HUD presentation after that boundary may enable gameplay reflow. */
     if (rt.bootPhase === "game-pending") activateGameplayGrid(rt);
     return;
+  }
+  if (layoutChanged) {
+    applyGridAndSidebar(rt);
+    rt.display.repaint();
   }
   if (rt.screenFitActive) {
     rt.screenFitActive = false;
@@ -1137,6 +1153,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     touches: new Map(),
     gesture: null,
     sidebar: null,
+    sidebarLayout: "left",
     gridActive: false,
     bootPhase: initialBootPhase(),
     activationTimer: null,

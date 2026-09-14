@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   artifactCardContent,
   carriedKnownArtifacts,
@@ -25,6 +25,7 @@ import {
 
 afterEach(() => {
   uninstallFirstEncounter();
+  vi.useRealTimers();
 });
 
 function race(overrides: Partial<MonsterRaceLike> = {}): MonsterRaceLike {
@@ -101,6 +102,37 @@ describe("installFirstEncounter", () => {
     };
     expect(() => installFirstEncounter(ctx)).not.toThrow();
   });
+
+  it("stops polling before a departing plugin can open another card (neo-angband #251)", () => {
+    vi.useFakeTimers();
+    const openPanel = vi.fn();
+    installFirstEncounter({
+      core: {
+        monsterListCollect: () => ({ entries: [{ race: race() }] }),
+        liveObjectIsKnownArtifact: () => false,
+        fmtDepth: (depth: number) => `${depth}ft`,
+        colorToCss: () => "#fff",
+      },
+      state: {
+        chunk: { depth: 5 },
+        gear: { store: new Map() },
+        actor: {
+          player: {
+            fullName: "Frodo",
+            race: { name: "Hobbit" },
+            cls: { name: "Rogue" },
+            auBirth: 100,
+            htBirth: 40,
+            wtBirth: 60,
+          },
+        },
+      },
+      ui: { openPanel },
+    });
+    uninstallFirstEncounter();
+    vi.advanceTimersByTime(750);
+    expect(openPanel).not.toHaveBeenCalled();
+  });
 });
 
 describe("shared first-encounter preference envelope", () => {
@@ -118,7 +150,7 @@ describe("shared first-encounter preference envelope", () => {
       delayFactor: 3,
       lazymoveDelay: 0,
     };
-    const display = { v: 1 as const, zoomIndex: 4, interfaceZoomIndex: 2, mapDetail: 1 };
+    const display = { v: 2 as const, zoomIndex: 8, interfaceZoomIndex: 2, mapDetail: 1 };
     const existing = withHideRepeatShortcuts(withRememberedSettings({ v: 2, display }, options), true);
     const written = withFirstEncounterNotebook(existing, "frodo-key", {
       monsters: new Set([1, 2]),
@@ -145,7 +177,7 @@ describe("shared first-encounter preference envelope", () => {
       lazymoveDelay: 0,
     };
     const withDisplay = withDisplayPreference(written, {
-      v: 1,
+      v: 2,
       zoomIndex: 4,
       interfaceZoomIndex: 2,
       mapDetail: 1,
@@ -187,7 +219,7 @@ describe("shared first-encounter preference envelope", () => {
   it("reads a v2-only envelope as an empty notebook without disturbing it on save", () => {
     const v2Only = {
       v: 2,
-      display: { v: 1, zoomIndex: 2, interfaceZoomIndex: 1, mapDetail: 0 },
+      display: { v: 2, zoomIndex: 6, interfaceZoomIndex: 1, mapDetail: 0 },
       hideRepeatShortcuts: true,
     };
     expect(readFirstEncounterNotebook(v2Only, "frodo-key")).toEqual({

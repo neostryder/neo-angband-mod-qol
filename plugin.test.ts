@@ -53,6 +53,18 @@ import plugin, {
 const qolHooks = (flags: Readonly<Record<string, boolean>>): ModHooks =>
   plugin.hooks({ flags, core: neoCore });
 
+describe("plugin teardown", () => {
+  it("asks every QoL-owned panel feature to clean up (neo-angband #251)", () => {
+    const source = readFileSync(new URL("./plugin.ts", import.meta.url), "utf8");
+    const start = source.indexOf("  uninstall(): void {");
+    expect(start).toBeGreaterThan(-1);
+    const body = source.slice(start, source.indexOf("\n  },", start));
+    expect(body).toContain("uninstallFirstEncounter()");
+    expect(body).toContain("uninstallMacroWizard()");
+    expect(body).toContain("uninstallRepeatShortcuts()");
+  });
+});
+
 
 const pack: GamePack = {
   constants: loadJson("constants"),

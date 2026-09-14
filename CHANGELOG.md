@@ -20,6 +20,14 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [UI] **Quality of Life cards now clean themselves up when the plugin is unloaded.** First-sighting alerts and shortcut helpers no longer leave their timers, queues, or open cards behind during a mod teardown (#251).
+
+- [Visible] [UI] **Choosing no responsive status sidebar now gives its space back to the play view.** The grid releases the sidebar reservation and refits using the full available pane (#252).
+
+- [Visible] [UI] **Play-view zoom now has more useful steps at both extremes.** You can zoom out below 16-pixel cells and zoom in beyond 48 pixels, while existing saved zoom heights carry forward unchanged (#253).
+
 ## 1.8.2 - 2026-09-13
 
 ### Fixed

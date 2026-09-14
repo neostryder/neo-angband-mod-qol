@@ -55,6 +55,7 @@ export function bindAbilityMacro(
 
 let runtime: MacroWizardContext | null = null;
 let active = false;
+let activePanel: PanelLike | null = null;
 const pending: AbilityGainedLike[] = [];
 
 /** Install the live context after the game exists; hooks are composed before it does. */
@@ -94,10 +95,21 @@ function showNext(): void {
     showNext();
     return;
   }
+  activePanel = panel;
   drawPrompt(panel, ability, suggested, (): void => {
     active = false;
+    activePanel = null;
     showNext();
   });
+}
+
+/** Close the active helper and discard deferred offers when this plugin leaves. */
+export function uninstallMacroWizard(): void {
+  runtime = null;
+  pending.splice(0);
+  active = false;
+  activePanel?.close();
+  activePanel = null;
 }
 
 function drawPrompt(

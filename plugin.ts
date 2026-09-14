@@ -61,8 +61,13 @@ import {
 } from "./zoom-pan";
 import { installAccessibilityAccommodations } from "./accessibility";
 import { bitmapTextBlock, wrapBitmapParagraphs, wrapBitmapText } from "./bitmap-text";
-import { installMacroWizard, offerAbilityMacro, type AbilityGainedLike } from "./macro-wizard";
-import { installRepeatShortcuts } from "./repeat-shortcuts";
+import {
+  installMacroWizard,
+  offerAbilityMacro,
+  uninstallMacroWizard,
+  type AbilityGainedLike,
+} from "./macro-wizard";
+import { installRepeatShortcuts, uninstallRepeatShortcuts } from "./repeat-shortcuts";
 import {
   installFirstEncounter,
   uninstallFirstEncounter,
@@ -1248,5 +1253,7 @@ export default {
     uninstallZoomPan();
     uninstallMiscNiceties();
     uninstallFirstEncounter();
+    uninstallMacroWizard();
+    uninstallRepeatShortcuts();
   },
 };

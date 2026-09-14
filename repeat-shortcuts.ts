@@ -18,6 +18,8 @@ interface UiLike {
   openPanel(spec: { id: string; modal: boolean; label: string }): PanelLike;
 }
 
+let activePanel: PanelLike | null = null;
+
 interface PrefsLike {
   get(): unknown;
   set(value: unknown): void;
@@ -71,6 +73,7 @@ export function bindRepeatShortcut(keymaps: KeymapsLike, trigger: string, action
  * button and the corner close button below both are.
  */
 export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
+  uninstallRepeatShortcuts();
   if (!ctx.ui || !ctx.keymaps) {
     ctx.log?.("this game is too old for repeated-action shortcuts");
     return;
@@ -87,7 +90,17 @@ export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
     ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
+  activePanel = panel;
+  void panel.closed.then(() => {
+    if (activePanel === panel) activePanel = null;
+  });
   drawPrompt(panel, ctx.keymaps, defaultRepeatShortcuts(), ctx.prefs);
+}
+
+/** Close the optional setup card when the plugin is torn down. */
+export function uninstallRepeatShortcuts(): void {
+  activePanel?.close();
+  activePanel = null;
 }
 
 function drawPrompt(

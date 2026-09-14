@@ -185,7 +185,7 @@ describe("one install-wide preference value", () => {
 
   it("migrates the old direct options shape and preserves both preference groups", () => {
     const withDisplay = withDisplayPreference(options, {
-      v: 1,
+      v: 2,
       zoomIndex: 5,
       interfaceZoomIndex: 2,
       mapDetail: 1,
@@ -202,18 +202,31 @@ describe("one install-wide preference value", () => {
     expect(readDisplayPreference({
       v: 2,
       display: { v: 1, zoomIndex: 99, interfaceZoomIndex: -8, mapDetail: 2.5 },
-    })).toEqual({ ...DEFAULT_DISPLAY_PREFERENCE, zoomIndex: 7, interfaceZoomIndex: 0 });
+    })).toEqual({ ...DEFAULT_DISPLAY_PREFERENCE, zoomIndex: 11, interfaceZoomIndex: 0 });
+    expect(readDisplayPreference({
+      v: 2,
+      display: { v: 2, zoomIndex: 99, interfaceZoomIndex: -8, mapDetail: 2.5 },
+    })).toEqual({ ...DEFAULT_DISPLAY_PREFERENCE, zoomIndex: 14, interfaceZoomIndex: 0 });
     expect(readDisplayPreference({ v: 99 })).toEqual(DEFAULT_DISPLAY_PREFERENCE);
   });
 });
 
 describe("whole-cell zoom and pan arithmetic", () => {
   it("steps within a finite zoom ladder and snaps to even cells", () => {
-    expect(stepIndex(0, -1, 7)).toBe(0);
-    expect(stepIndex(3, 1, 7)).toBe(4);
-    expect(stepIndex(7, 1, 7)).toBe(7);
+    expect(stepIndex(0, -1, PLAY_ZOOM_CELL_HEIGHTS.length - 1)).toBe(0);
+    expect(stepIndex(3, 1, PLAY_ZOOM_CELL_HEIGHTS.length - 1)).toBe(4);
+    expect(stepIndex(PLAY_ZOOM_CELL_HEIGHTS.length - 1, 1, PLAY_ZOOM_CELL_HEIGHTS.length - 1))
+      .toBe(PLAY_ZOOM_CELL_HEIGHTS.length - 1);
     expect(snapEven(5)).toBe(6);
     expect(snapEven(-3)).toBe(-2);
+  });
+
+  it("extends the play ladder at both ends without changing legacy saved zoom heights", () => {
+    expect(PLAY_ZOOM_CELL_HEIGHTS).toEqual([8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72]);
+    expect(readDisplayPreference({
+      v: 2,
+      display: { v: 1, zoomIndex: 3, interfaceZoomIndex: 1, mapDetail: 0 },
+    }).zoomIndex).toBe(7);
   });
 
   it("makes bounded even map windows and camera origins", () => {
@@ -392,7 +405,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
 
     expect(event.preventDefault).toHaveBeenCalledOnce();
     expect(display.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({
-      cellHeight: PLAY_ZOOM_CELL_HEIGHTS[4],
+      cellHeight: PLAY_ZOOM_CELL_HEIGHTS[8],
     }));
   });
 });
@@ -481,6 +494,29 @@ describe("sidebar visibility by display mode (neo-angband #234, #250)", () => {
   });
 });
 
+describe("sidebar extent by HUD layout (neo-angband #252)", () => {
+  it("releases the responsive reservation and refills the play grid when the HUD has no sidebar", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const fake = fakeDisplay(snapshot({ surface: { x: 0, y: 0, width: 3840, height: 2160 } }));
+    const ctx = { flags: { "qol.zoomPan": true }, display: fake.display };
+    installZoomPan(ctx);
+    activateHud(ctx);
+    expect(fake.setSidebarExtent).toHaveBeenLastCalledWith({ columns: 12, topRows: 1 });
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 72 }));
+
+    zoomPanHud(ctx)?.sidebar?.present(
+      { entries: [], region: { pixels: { x: 0, y: 0, width: 320, height: 480 } } },
+      { layout: "none" },
+    );
+
+    /* The display facade uses null, not literal zeroes: core clamps an extent
+     * object to nonzero minima, while null releases this mod's reservation. */
+    expect(fake.setSidebarExtent).toHaveBeenLastCalledWith(null);
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 86 }));
+  });
+});
+
 describe("sidebar row gaps", () => {
   it("opens a blank line for each row core's side_handlers[] table skipped", () => {
     /* AU at row 6, then a gap for the equippy/blank rows before STR at row 9
@@ -551,7 +587,7 @@ describe("input integration", () => {
 
     fake.key(fakeKey("+"));
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
-    expect(readDisplayPreference(stored).zoomIndex).toBe(4);
+    expect(readDisplayPreference(stored).zoomIndex).toBe(8);
   });
 
   it("applies the first Ctrl-= and Ctrl-Arrow instead of spending them on activation", () => {
@@ -573,7 +609,7 @@ describe("input integration", () => {
     expect(zoomEvent.preventDefault).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(0);
     expect(zoom.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
-    expect(readDisplayPreference(stored).zoomIndex).toBe(4);
+    expect(readDisplayPreference(stored).zoomIndex).toBe(8);
 
     uninstallZoomPan();
     const pan = fakeDisplay();
@@ -619,7 +655,7 @@ describe("input integration", () => {
     vi.advanceTimersByTime(0);
 
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
-    expect(readDisplayPreference(stored).zoomIndex).toBe(2);
+    expect(readDisplayPreference(stored).zoomIndex).toBe(6);
   });
 
   it("no longer tracks the title/birth boundary on a raw window listener", () => {
@@ -705,7 +741,7 @@ describe("input integration", () => {
     fake.key(event);
     expect(fake.setCamera).toHaveBeenCalledWith(null);
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
-    expect(readDisplayPreference(stored).zoomIndex).toBe(4);
+    expect(readDisplayPreference(stored).zoomIndex).toBe(8);
     expect(event.preventDefault).toHaveBeenCalledOnce();
 
     fake.key(fakeKey("C", { ctrlKey: false }));

@@ -9,7 +9,7 @@ export interface RememberedSettings {
 
 /** One install-wide display preference for this device. */
 export interface DisplayPreference {
-  readonly v: 1;
+  readonly v: 2;
   readonly zoomIndex: number;
   readonly interfaceZoomIndex: number;
   readonly mapDetail: number;
@@ -39,8 +39,10 @@ export interface QolPreferences {
 }
 
 export const DEFAULT_DISPLAY_PREFERENCE: DisplayPreference = {
-  v: 1,
-  zoomIndex: 3,
+  v: 2,
+  /* 28px was rung 3 in the former 16-48px ladder.  Keep that familiar
+   * default after adding smaller and larger manual zoom steps. */
+  zoomIndex: 7,
   interfaceZoomIndex: 1,
   mapDetail: 0,
 };
@@ -55,12 +57,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object";
 }
 
+const LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT = [4, 5, 6, 7, 8, 9, 10, 11] as const;
+
 function storedDisplayPreference(raw: unknown): DisplayPreference | null {
-  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display) || raw.display.v !== 1) return null;
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display)) return null;
   const candidate = raw.display;
+  const legacy = candidate.v === 1;
+  if (!legacy && candidate.v !== 2) return null;
+  const legacyIndex = finiteInteger(candidate.zoomIndex, 3, 0, 7);
   return {
-    v: 1,
-    zoomIndex: finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 7),
+    v: 2,
+    zoomIndex: legacy
+      ? LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT[legacyIndex] ?? DEFAULT_DISPLAY_PREFERENCE.zoomIndex
+      : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 14),
     interfaceZoomIndex: finiteInteger(
       candidate.interfaceZoomIndex,
       DEFAULT_DISPLAY_PREFERENCE.interfaceZoomIndex,

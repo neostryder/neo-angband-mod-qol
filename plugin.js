@@ -3,8 +3,10 @@
 
 // preferences.ts
 var DEFAULT_DISPLAY_PREFERENCE = {
-  v: 1,
-  zoomIndex: 3,
+  v: 2,
+  /* 28px was rung 3 in the former 16-48px ladder.  Keep that familiar
+   * default after adding smaller and larger manual zoom steps. */
+  zoomIndex: 7,
   interfaceZoomIndex: 1,
   mapDetail: 0
 };
@@ -14,12 +16,16 @@ function finiteInteger(value, fallback, min, max) {
 function isRecord(value) {
   return !!value && typeof value === "object";
 }
+var LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT = [4, 5, 6, 7, 8, 9, 10, 11];
 function storedDisplayPreference(raw) {
-  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display) || raw.display.v !== 1) return null;
+  if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.display)) return null;
   const candidate = raw.display;
+  const legacy = candidate.v === 1;
+  if (!legacy && candidate.v !== 2) return null;
+  const legacyIndex = finiteInteger(candidate.zoomIndex, 3, 0, 7);
   return {
-    v: 1,
-    zoomIndex: finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 7),
+    v: 2,
+    zoomIndex: legacy ? LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT[legacyIndex] ?? DEFAULT_DISPLAY_PREFERENCE.zoomIndex : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 14),
     interfaceZoomIndex: finiteInteger(
       candidate.interfaceZoomIndex,
       DEFAULT_DISPLAY_PREFERENCE.interfaceZoomIndex,
@@ -754,11 +760,11 @@ function paintBitmapButtonLabel(button, text, css, cellWidth, cellHeight, dpr) {
 }
 
 // zoom-pan.ts
-var PLAY_ZOOM_CELL_HEIGHTS = [16, 20, 24, 28, 32, 36, 40, 48];
+var PLAY_ZOOM_CELL_HEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72];
 var SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
-var ACCESSIBILITY_ZOOM_INDEX = 5;
+var ACCESSIBILITY_ZOOM_INDEX = 9;
 var DEFAULT_PLAY_MAP_COLS = 66;
 var DEFAULT_PLAY_GRID_ROWS = 24;
 var RESERVED_RIGHT_COLUMN = 1;
@@ -881,8 +887,10 @@ function applyGridAndSidebar(rt) {
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
   const surface = rt.display.snapshot().surface;
   const sidebarColumns = responsiveSidebarColumns(scale);
+  const sidebarVisible = rt.sidebarLayout !== "none";
+  const sidebarColumnsReserved = rt.sidebarLayout === "left" ? sidebarColumns : 0;
   const narrow = surface?.width !== void 0 ? surface.width < 480 : typeof window !== "undefined" && window.innerWidth < 480;
-  const defaultFill = !narrow && rt.useDefaultPlayFill && surface ? defaultPlayFillCellHeight(surface, sidebarColumns) : requestedCellHeight;
+  const defaultFill = !narrow && rt.useDefaultPlayFill && surface ? defaultPlayFillCellHeight(surface, sidebarColumnsReserved) : requestedCellHeight;
   const cellHeight = narrow ? Math.min(21, defaultFill) : defaultFill;
   rt.display.setGrid({
     cellHeight,
@@ -892,10 +900,10 @@ function applyGridAndSidebar(rt) {
     minRows: 12,
     snapViewportToEven: true
   });
-  rt.display.setSidebarExtent({
+  rt.display.setSidebarExtent(sidebarVisible ? {
     columns: sidebarColumns,
     topRows: Math.max(1, Math.ceil(scale))
-  });
+  } : null);
 }
 function activateGameplayGrid(rt, action) {
   if (action) rt.activationActions.push(action);
@@ -1337,9 +1345,15 @@ function turnSidebarPage(rt, direction) {
   paintSidebar(rt, sidebar.section, sidebar.frame);
 }
 function paintSidebar(rt, section, frame) {
+  const layoutChanged = rt.sidebarLayout !== frame.layout;
+  rt.sidebarLayout = frame.layout;
   if (!rt.gridActive) {
     if (rt.bootPhase === "game-pending") activateGameplayGrid(rt);
     return;
+  }
+  if (layoutChanged) {
+    applyGridAndSidebar(rt);
+    rt.display.repaint();
   }
   if (rt.screenFitActive) {
     rt.screenFitActive = false;
@@ -1507,6 +1521,7 @@ function installZoomPan(ctx) {
     touches: /* @__PURE__ */ new Map(),
     gesture: null,
     sidebar: null,
+    sidebarLayout: "left",
     gridActive: false,
     bootPhase: initialBootPhase(),
     activationTimer: null,
@@ -1657,6 +1672,7 @@ function bindAbilityMacro(keymaps, ability, trigger) {
 }
 var runtime2 = null;
 var active = false;
+var activePanel = null;
 var pending = [];
 function installMacroWizard(ctx) {
   runtime2 = ctx.ui && ctx.keymaps ? ctx : null;
@@ -1691,10 +1707,19 @@ function showNext() {
     showNext();
     return;
   }
+  activePanel = panel;
   drawPrompt(panel, ability, suggested, () => {
     active = false;
+    activePanel = null;
     showNext();
   });
+}
+function uninstallMacroWizard() {
+  runtime2 = null;
+  pending.splice(0);
+  active = false;
+  activePanel?.close();
+  activePanel = null;
 }
 function drawPrompt(panel, ability, suggested, done) {
   const root = panel.root;
@@ -1775,6 +1800,7 @@ function drawPrompt(panel, ability, suggested, done) {
 }
 
 // repeat-shortcuts.ts
+var activePanel2 = null;
 function defaultRepeatShortcuts() {
   return [{ trigger: "F1", label: "Rest as needed", action: "R&[Enter]" }];
 }
@@ -1782,6 +1808,7 @@ function bindRepeatShortcut(keymaps, trigger, action) {
   return keymaps.isBindableTriggerKey(trigger) && keymaps.bind(trigger, action);
 }
 function installRepeatShortcuts(ctx) {
+  uninstallRepeatShortcuts();
   if (!ctx.ui || !ctx.keymaps) {
     ctx.log?.("this game is too old for repeated-action shortcuts");
     return;
@@ -1798,7 +1825,15 @@ function installRepeatShortcuts(ctx) {
     ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
+  activePanel2 = panel;
+  void panel.closed.then(() => {
+    if (activePanel2 === panel) activePanel2 = null;
+  });
   drawPrompt2(panel, ctx.keymaps, defaultRepeatShortcuts(), ctx.prefs);
+}
+function uninstallRepeatShortcuts() {
+  activePanel2?.close();
+  activePanel2 = null;
 }
 function drawPrompt2(panel, keymaps, shortcuts, prefs) {
   const root = panel.root;
@@ -1996,10 +2031,10 @@ var POLL_MS = 750;
 var AUTO_DISMISS_MS = 9e3;
 var timer = null;
 var queue = [];
-var activePanel = null;
+var activePanel3 = null;
 var activeTimeout = null;
 function showNext2(ui) {
-  if (activePanel) return;
+  if (activePanel3) return;
   const content = queue.shift();
   if (!content) return;
   let panel;
@@ -2008,10 +2043,10 @@ function showNext2(ui) {
   } catch {
     return;
   }
-  activePanel = panel;
+  activePanel3 = panel;
   drawCard(panel, content);
   const advance = () => {
-    activePanel = null;
+    activePanel3 = null;
     showNext2(ui);
   };
   void panel.closed.then(advance);
@@ -2149,8 +2184,8 @@ function uninstallFirstEncounter() {
     clearTimeout(activeTimeout);
     activeTimeout = null;
   }
-  activePanel?.close();
-  activePanel = null;
+  activePanel3?.close();
+  activePanel3 = null;
   queue = [];
 }
 
@@ -2776,6 +2811,8 @@ var plugin_default = {
     uninstallZoomPan();
     uninstallMiscNiceties();
     uninstallFirstEncounter();
+    uninstallMacroWizard();
+    uninstallRepeatShortcuts();
   }
 };
 export {
