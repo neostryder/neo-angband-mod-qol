@@ -22,6 +22,12 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] **The earlier play-view zoom ladder expansion now reaches 128-pixel cells.** Its saved-height migration, narrow-pane handling, and automatic fitted default stay aligned with the wider range (#253).
+
+- [Visible] [UI] **Returning to the game after an Alt-Tab no longer changes the play-view zoom.** A focus-time resize without a changed game surface now leaves the responsive grid alone (#264).
+
+- [Visible] [UI] **Ctrl-Wheel now works after resuming a character from the title screen.** Resume now crosses the same gameplay-grid activation boundary as loading or completing character birth (#183).
+
 - [Visible] [UI] **The responsive status sidebar now stays inside the tiled play view.** Its clipping layer follows the main display surface, so it cannot bleed into a neighbouring subwindow (#263).
 
 - [Visible] [UI] **Each tiled subwindow now keeps its own zoom after a reload.** Its per-panel level is saved with the Quality of Life preferences; pref-file export and import still need a core mod-contribution seam (#262).

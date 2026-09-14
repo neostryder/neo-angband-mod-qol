@@ -72,6 +72,7 @@ function fakeDisplay(initial = snapshot()): {
   setTileScaling: ReturnType<typeof vi.fn>;
   setFullMapOverview: ReturnType<typeof vi.fn>;
   setVisualFilter: ReturnType<typeof vi.fn>;
+  setSnapshot(next: DisplaySnapshotLike): void;
 } {
   let current = initial;
   /* An array, not a single slot: the real display (main.ts) broadcasts one
@@ -122,6 +123,7 @@ function fakeDisplay(initial = snapshot()): {
     setTileScaling,
     setFullMapOverview,
     setVisualFilter,
+    setSnapshot: (next) => { current = next; },
   };
 }
 
@@ -207,7 +209,7 @@ describe("one install-wide preference value", () => {
     expect(readDisplayPreference({
       v: 2,
       display: { v: 2, zoomIndex: 99, interfaceZoomIndex: -8, mapDetail: 2.5 },
-    })).toEqual({ ...DEFAULT_DISPLAY_PREFERENCE, zoomIndex: 14, interfaceZoomIndex: 0 });
+    })).toEqual({ ...DEFAULT_DISPLAY_PREFERENCE, zoomIndex: 18, interfaceZoomIndex: 0 });
     expect(readDisplayPreference({ v: 99 })).toEqual(DEFAULT_DISPLAY_PREFERENCE);
   });
 });
@@ -223,7 +225,9 @@ describe("whole-cell zoom and pan arithmetic", () => {
   });
 
   it("extends the play ladder at both ends without changing legacy saved zoom heights", () => {
-    expect(PLAY_ZOOM_CELL_HEIGHTS).toEqual([8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72]);
+    expect(PLAY_ZOOM_CELL_HEIGHTS).toEqual([
+      8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 112, 128,
+    ]);
     expect(readDisplayPreference({
       v: 2,
       display: { v: 1, zoomIndex: 3, interfaceZoomIndex: 1, mapDetail: 0 },
@@ -253,6 +257,7 @@ describe("responsive play layout defaults", () => {
     /* This pane is height-bound: the 24 terminal rows, rather than its width,
      * set the fitted default. */
     expect(defaultPlayFillCellHeight({ width: 4000, height: 960 }, 12)).toBe(40);
+    expect(defaultPlayFillCellHeight({ width: 20000, height: 10000 }, 12)).toBe(128);
   });
 
   it("keeps vanilla's one-column sidebar-to-map separation at every interface scale", () => {
@@ -768,6 +773,69 @@ describe("input integration", () => {
 
     expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 24 }));
     expect(readDisplayPreference(stored).zoomIndex).toBe(6);
+  });
+
+  it("activates the grid and Ctrl-Wheel after resuming from the title screen", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    const body = { style: {}, setAttribute: vi.fn() };
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", {
+      body,
+      documentElement: { style: {} },
+      querySelector: () => null,
+    });
+    let stored: unknown = null;
+    const fake = fakeDisplay();
+    const ctx = {
+      flags: { "qol.zoomPan": true },
+      prefs: { get: () => stored, set: (value: unknown) => { stored = value; } },
+      display: fake.display,
+    };
+    installZoomPan(ctx);
+
+    /* Resume is a title-screen route straight into play, just like Load. */
+    fake.key(fakeKey("r", { ctrlKey: false }));
+    expect(body.setAttribute).toHaveBeenLastCalledWith("data-qol-grid-state", "game-pending");
+    activateHud(ctx);
+
+    const event = new Event("wheel", { cancelable: true });
+    Object.defineProperties(event, {
+      ctrlKey: { value: true },
+      deltaY: { value: -120 },
+      clientX: { value: 800 },
+      clientY: { value: 500 },
+    });
+    fakeWindow.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(readDisplayPreference(stored).zoomIndex).toBe(8);
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
+  });
+
+  it("ignores a resize event while the core-measured play surface is unchanged", () => {
+    vi.useFakeTimers();
+    const fakeWindow = new EventTarget() as EventTarget & { innerWidth: number; innerHeight: number };
+    fakeWindow.innerWidth = 1200;
+    fakeWindow.innerHeight = 800;
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const fake = fakeDisplay(snapshot({ surface: { x: 0, y: 0, width: 1200, height: 800 } }));
+    installZoomPan({ flags: { "qol.zoomPan": true }, display: fake.display });
+    fake.key(fakeKey("="));
+    vi.advanceTimersByTime(0);
+    fake.setGrid.mockClear();
+
+    fakeWindow.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(0);
+    expect(fake.setGrid).not.toHaveBeenCalled();
+
+    fake.setSnapshot(snapshot({ surface: { x: 0, y: 0, width: 1000, height: 800 } }));
+    fakeWindow.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(0);
+    expect(fake.setGrid).toHaveBeenLastCalledWith(expect.objectContaining({ cellHeight: 32 }));
   });
 
   it("no longer tracks the title/birth boundary on a raw window listener", () => {

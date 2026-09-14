@@ -25,7 +25,7 @@ function storedDisplayPreference(raw) {
   const legacyIndex = finiteInteger(candidate.zoomIndex, 3, 0, 7);
   return {
     v: 2,
-    zoomIndex: legacy ? LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT[legacyIndex] ?? DEFAULT_DISPLAY_PREFERENCE.zoomIndex : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 14),
+    zoomIndex: legacy ? LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT[legacyIndex] ?? DEFAULT_DISPLAY_PREFERENCE.zoomIndex : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 18),
     interfaceZoomIndex: finiteInteger(
       candidate.interfaceZoomIndex,
       DEFAULT_DISPLAY_PREFERENCE.interfaceZoomIndex,
@@ -773,7 +773,27 @@ function paintBitmapButtonLabel(button, text, css, cellWidth, cellHeight, dpr) {
 }
 
 // zoom-pan.ts
-var PLAY_ZOOM_CELL_HEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72];
+var PLAY_ZOOM_CELL_HEIGHTS = [
+  8,
+  10,
+  12,
+  14,
+  16,
+  20,
+  24,
+  28,
+  32,
+  36,
+  40,
+  48,
+  56,
+  64,
+  72,
+  80,
+  96,
+  112,
+  128
+];
 var SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24];
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
@@ -890,7 +910,10 @@ function responsiveSidebarColumns(scale) {
   return Math.max(6, Math.round(13 * scale) - 1);
 }
 function defaultPlayFillCellHeight(surface, sidebarColumns) {
-  let cellHeight = Math.max(8, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS));
+  let cellHeight = Math.max(
+    8,
+    Math.min(PLAY_ZOOM_CELL_HEIGHTS.at(-1) ?? 128, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS))
+  );
   const requiredColumns = sidebarColumns + DEFAULT_PLAY_MAP_COLS + RESERVED_RIGHT_COLUMN;
   while (cellHeight > 8) {
     const cellWidth = Math.max(4, Math.round(FONT_16X24.w / FONT_16X24.h * cellHeight));
@@ -899,10 +922,18 @@ function defaultPlayFillCellHeight(surface, sidebarColumns) {
   }
   return 8;
 }
+function responsiveSurfaceFor(snapshot) {
+  return snapshot.surface ? { width: snapshot.surface.width, height: snapshot.surface.height } : typeof window !== "undefined" ? { width: window.innerWidth, height: window.innerHeight } : null;
+}
+function sameResponsiveSurface(left, right) {
+  return left !== null && right !== null && left.width === right.width && left.height === right.height;
+}
 function applyGridAndSidebar(rt) {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
-  const surface = rt.display.snapshot().surface;
+  const snapshot = rt.display.snapshot();
+  const surface = snapshot.surface;
+  rt.responsiveSurface = responsiveSurfaceFor(snapshot);
   const sidebarColumns = responsiveSidebarColumns(scale);
   const sidebarVisible = rt.sidebarLayout !== "none";
   const sidebarColumnsReserved = rt.sidebarLayout === "left" ? sidebarColumns : 0;
@@ -1175,7 +1206,7 @@ function installTitleBoundary(rt) {
     const key = event.key.toLowerCase();
     if (rt.bootPhase === "title") {
       if (key === "n") rt.bootPhase = "birth";
-      else if (key === "l") rt.bootPhase = "game-pending";
+      else if (key === "l" || key === "r") rt.bootPhase = "game-pending";
       markGridState(rt.bootPhase);
       return;
     }
@@ -1308,7 +1339,10 @@ function installResponsiveMap(rt) {
         return;
       }
       const snapshot = rt.display.snapshot();
+      const surface = responsiveSurfaceFor(snapshot);
+      if (sameResponsiveSurface(surface, rt.responsiveSurface)) return;
       if (snapshot.mode === "map") {
+        rt.responsiveSurface = surface;
         const center = {
           x: snapshot.viewport.origin.x + Math.floor(snapshot.viewport.size.width / 2),
           y: snapshot.viewport.origin.y + Math.floor(snapshot.viewport.size.height / 2)
@@ -1565,6 +1599,7 @@ function installZoomPan(ctx) {
     activationActions: [],
     screenFitActive: false,
     screenFitTimer: null,
+    responsiveSurface: null,
     sidebarVisibilityTimer: null,
     subwindowZoomSteps: new Map(
       Object.entries(readSubwindowZoomPreference(ctx.prefs?.get())).filter(([, step]) => step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length)

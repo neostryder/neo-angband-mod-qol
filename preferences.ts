@@ -74,7 +74,7 @@ function storedDisplayPreference(raw: unknown): DisplayPreference | null {
     v: 2,
     zoomIndex: legacy
       ? LEGACY_PLAY_ZOOM_INDEX_TO_CURRENT[legacyIndex] ?? DEFAULT_DISPLAY_PREFERENCE.zoomIndex
-      : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 14),
+      : finiteInteger(candidate.zoomIndex, DEFAULT_DISPLAY_PREFERENCE.zoomIndex, 0, 18),
     interfaceZoomIndex: finiteInteger(
       candidate.interfaceZoomIndex,
       DEFAULT_DISPLAY_PREFERENCE.interfaceZoomIndex,

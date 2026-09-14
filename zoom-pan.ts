@@ -9,10 +9,12 @@ import {
 import { FONT_16X24 } from "./bitmap-font";
 import { paintBitmapButtonLabel, paintBitmapLine } from "./bitmap-text";
 
-/* Deliberately finite: 8px still leaves a readable bitmap cell, while 72px is
- * the largest practical manual rung and already within #240's fitted default
- * range on a very roomy surface. */
-export const PLAY_ZOOM_CELL_HEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72] as const;
+/* Deliberately finite: 8px still leaves a readable bitmap cell, while 128px is
+ * double Shockbolt's native tile resolution.  The wider final steps keep the
+ * useful low-end precision without making the largest manual rungs fussy. */
+export const PLAY_ZOOM_CELL_HEIGHTS = [
+  8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 112, 128,
+] as const;
 /* Subwindows start at core's compact 16px default and need room to become
  * smaller without making a tiled panel's labels needlessly huge.  Their ladder
  * is deliberately independent from the play view's wider 16-48px range. */
@@ -205,6 +207,8 @@ interface ZoomRuntime {
   readonly activationActions: Array<() => void>;
   screenFitActive: boolean;
   screenFitTimer: ReturnType<typeof setTimeout> | null;
+  /** The core-measured play surface used for the last responsive layout. */
+  responsiveSurface: Pick<Pixels, "width" | "height"> | null;
   /** Polls the display's own mode so the sidebar hides for a shop screen the
    * same as it does for the map, even though nothing else in this file is
    * told when a store opens or closes: entering one is reachable by a raw
@@ -407,7 +411,10 @@ export function defaultPlayFillCellHeight(
   surface: Pick<Pixels, "width" | "height">,
   sidebarColumns: number,
 ): number {
-  let cellHeight = Math.max(8, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS));
+  let cellHeight = Math.max(
+    8,
+    Math.min(PLAY_ZOOM_CELL_HEIGHTS.at(-1) ?? 128, Math.floor(surface.height / DEFAULT_PLAY_GRID_ROWS)),
+  );
   const requiredColumns = sidebarColumns + DEFAULT_PLAY_MAP_COLS + RESERVED_RIGHT_COLUMN;
   while (cellHeight > 8) {
     const cellWidth = Math.max(4, Math.round((FONT_16X24.w / FONT_16X24.h) * cellHeight));
@@ -417,10 +424,27 @@ export function defaultPlayFillCellHeight(
   return 8;
 }
 
+function responsiveSurfaceFor(snapshot: DisplaySnapshotLike): Pick<Pixels, "width" | "height"> | null {
+  return snapshot.surface
+    ? { width: snapshot.surface.width, height: snapshot.surface.height }
+    : typeof window !== "undefined"
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : null;
+}
+
+function sameResponsiveSurface(
+  left: Pick<Pixels, "width" | "height"> | null,
+  right: Pick<Pixels, "width" | "height"> | null,
+): boolean {
+  return left !== null && right !== null && left.width === right.width && left.height === right.height;
+}
+
 function applyGridAndSidebar(rt: ZoomRuntime): void {
   const requestedCellHeight = PLAY_ZOOM_CELL_HEIGHTS[rt.preference.zoomIndex] ?? 28;
   const scale = INTERFACE_ZOOM_SCALES[rt.preference.interfaceZoomIndex] ?? 1;
-  const surface = rt.display.snapshot().surface;
+  const snapshot = rt.display.snapshot();
+  const surface = snapshot.surface;
+  rt.responsiveSurface = responsiveSurfaceFor(snapshot);
   const sidebarColumns = responsiveSidebarColumns(scale);
   const sidebarVisible = rt.sidebarLayout !== "none";
   const sidebarColumnsReserved = rt.sidebarLayout === "left" ? sidebarColumns : 0;
@@ -757,7 +781,7 @@ function installTitleBoundary(rt: ZoomRuntime): void {
     const key = event.key.toLowerCase();
     if (rt.bootPhase === "title") {
       if (key === "n") rt.bootPhase = "birth";
-      else if (key === "l") rt.bootPhase = "game-pending";
+      else if (key === "l" || key === "r") rt.bootPhase = "game-pending";
       markGridState(rt.bootPhase);
       return;
     }
@@ -905,7 +929,13 @@ function installResponsiveMap(rt: ZoomRuntime): void {
         return;
       }
       const snapshot = rt.display.snapshot();
+      const surface = responsiveSurfaceFor(snapshot);
+      /* Electron can emit resize while refocusing without changing the game
+       * surface.  Reapplying at that moment accepts a transient measurement as
+       * a new zoom, so only a changed core-measured surface gets a refit. */
+      if (sameResponsiveSurface(surface, rt.responsiveSurface)) return;
       if (snapshot.mode === "map") {
+        rt.responsiveSurface = surface;
         const center = {
           x: snapshot.viewport.origin.x + Math.floor(snapshot.viewport.size.width / 2),
           y: snapshot.viewport.origin.y + Math.floor(snapshot.viewport.size.height / 2),
@@ -1198,6 +1228,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     activationActions: [],
     screenFitActive: false,
     screenFitTimer: null,
+    responsiveSurface: null,
     sidebarVisibilityTimer: null,
     subwindowZoomSteps: new Map(
       Object.entries(readSubwindowZoomPreference(ctx.prefs?.get()))
