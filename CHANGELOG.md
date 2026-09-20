@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [UI] **The high-contrast and colourblind-correction accessibility filters no longer clash when both are enabled.** The colourblind correction now takes priority on its own instead of stacking a flat contrast and saturation boost on top of its already colour-shifted output, which had amplified the distortion into a broken-looking result (#209).
+
 ## 1.8.3 - 2026-09-13
 
 ### Fixed

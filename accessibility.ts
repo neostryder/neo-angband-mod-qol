@@ -15,14 +15,21 @@ export interface AccessibilityContext {
   readonly log?: ((message: string) => void) | undefined;
 }
 
-/** The one combined canvas and DOM filter requested by the selected accommodations. */
+/**
+ * The canvas and DOM filter requested by the selected accommodations.
+ *
+ * The two accommodations do not compose. Stacking the flat `contrast(1.55)
+ * saturate(1.2)` boost on top of the colourblind matrix's already
+ * colour-shifted output amplifies its distortion instead of correcting it,
+ * producing a broken-looking result (#209). When both are enabled, the
+ * colourblind correction takes priority on its own: it closes a functional
+ * information-access gap, where high contrast is a visual preference, so the
+ * accommodation that a player actually depends on to distinguish colours wins.
+ */
 export function accessibilityFilter(flags: Readonly<Record<string, boolean>>): string | null {
-  const parts: string[] = [];
-  if (flags["qol.accessibilityColorblind"] === true) {
-    parts.push(`url("#${COLORBLIND_FILTER_ID}")`);
-  }
-  if (flags["qol.accessibilityHighContrast"] === true) parts.push(HIGH_CONTRAST_FILTER);
-  return parts.length > 0 ? parts.join(" ") : null;
+  if (flags["qol.accessibilityColorblind"] === true) return `url("#${COLORBLIND_FILTER_ID}")`;
+  if (flags["qol.accessibilityHighContrast"] === true) return HIGH_CONTRAST_FILTER;
+  return null;
 }
 
 /**

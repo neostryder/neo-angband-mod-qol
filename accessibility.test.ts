@@ -6,11 +6,23 @@ import {
 } from "./accessibility";
 
 describe("visual accessibility accommodations", () => {
-  it("combines the SVG colourblind correction with high contrast when both are selected", () => {
+  it("applies only the high-contrast filter when high contrast alone is selected", () => {
+    expect(accessibilityFilter({
+      "qol.accessibilityHighContrast": true,
+    })).toBe("contrast(1.55) saturate(1.2)");
+  });
+
+  it("applies only the SVG colourblind correction when colourblind alone is selected", () => {
+    expect(accessibilityFilter({
+      "qol.accessibilityColorblind": true,
+    })).toBe(`url("#${COLORBLIND_FILTER_ID}")`);
+  });
+
+  it("prioritizes the colourblind correction over high contrast when both are selected (#209)", () => {
     expect(accessibilityFilter({
       "qol.accessibilityColorblind": true,
       "qol.accessibilityHighContrast": true,
-    })).toBe(`url("#${COLORBLIND_FILTER_ID}") contrast(1.55) saturate(1.2)`);
+    })).toBe(`url("#${COLORBLIND_FILTER_ID}")`);
   });
 
   it("applies and clears the final-frame filter through the display seam", () => {

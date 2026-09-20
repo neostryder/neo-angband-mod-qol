@@ -1710,12 +1710,9 @@ var COLORBLIND_FILTER_ID = "qol-accessibility-colorblind";
 var HIGH_CONTRAST_FILTER = "contrast(1.55) saturate(1.2)";
 var COLORBLIND_MATRIX = "0.812 0.199 -0.011 0 0 0 1 0 0 0 -0.188 0.199 0.989 0 0 0 0 0 1 0";
 function accessibilityFilter(flags) {
-  const parts = [];
-  if (flags["qol.accessibilityColorblind"] === true) {
-    parts.push(`url("#${COLORBLIND_FILTER_ID}")`);
-  }
-  if (flags["qol.accessibilityHighContrast"] === true) parts.push(HIGH_CONTRAST_FILTER);
-  return parts.length > 0 ? parts.join(" ") : null;
+  if (flags["qol.accessibilityColorblind"] === true) return `url("#${COLORBLIND_FILTER_ID}")`;
+  if (flags["qol.accessibilityHighContrast"] === true) return HIGH_CONTRAST_FILTER;
+  return null;
 }
 function ensureColorblindFilter() {
   if (typeof document === "undefined" || document.getElementById(COLORBLIND_FILTER_ID)) return;
