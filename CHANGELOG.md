@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.9.0 - 2026-09-20
+
 ### Added
 
 - [Visible] [UI] **New toggle: itemize the quiver in the Inventory subwindow.** With "Itemize the quiver in the Inventory subwindow" on, the passive Inventory subwindow lists each distinct stack of ammo or thrown items by name under a "--Quiver--" heading, the same way the dedicated quiver picker already does, instead of just a capacity count like "in Quiver: 7 missiles" (#254).
