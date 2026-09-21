@@ -2321,6 +2321,23 @@ function uninstallMiscNiceties() {
   display?.setStoreItemNameEllipsis?.(false);
   display?.setStoreSelectionDescription?.(false);
 }
+var quiverItemizationDisplay = null;
+function installQuiverItemization(ctx) {
+  uninstallQuiverItemization();
+  if (ctx.flags["qol.quiverItemization"] !== true) return;
+  const display = ctx.display;
+  if (!display) {
+    ctx.log?.("this game is too old to itemize the quiver");
+    return;
+  }
+  quiverItemizationDisplay = display;
+  display.setQuiverItemization?.(true);
+}
+function uninstallQuiverItemization() {
+  const display = quiverItemizationDisplay;
+  quiverItemizationDisplay = null;
+  display?.setQuiverItemization?.(false);
+}
 
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
@@ -2850,6 +2867,7 @@ var plugin_default = {
   register(host, ctx) {
     installZoomPan(ctx);
     installMiscNiceties(ctx);
+    installQuiverItemization(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
@@ -2922,6 +2940,7 @@ var plugin_default = {
   uninstall() {
     uninstallZoomPan();
     uninstallMiscNiceties();
+    uninstallQuiverItemization();
     uninstallFirstEncounter();
     uninstallMacroWizard();
     uninstallRepeatShortcuts();

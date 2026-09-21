@@ -73,7 +73,12 @@ import {
   uninstallFirstEncounter,
   type FirstEncounterContext,
 } from "./first-encounter";
-import { installMiscNiceties, uninstallMiscNiceties } from "./misc-niceties";
+import {
+  installMiscNiceties,
+  installQuiverItemization,
+  uninstallMiscNiceties,
+  uninstallQuiverItemization,
+} from "./misc-niceties";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -1146,6 +1151,7 @@ export default {
   register(host: MenuHost, ctx: HookCtx): void {
     installZoomPan(ctx);
     installMiscNiceties(ctx);
+    installQuiverItemization(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
@@ -1252,6 +1258,7 @@ export default {
   uninstall(): void {
     uninstallZoomPan();
     uninstallMiscNiceties();
+    uninstallQuiverItemization();
     uninstallFirstEncounter();
     uninstallMacroWizard();
     uninstallRepeatShortcuts();

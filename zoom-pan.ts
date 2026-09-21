@@ -91,6 +91,7 @@ export interface DisplayLike {
   setFullMapOverview?(enabled: boolean): void;
   setStoreItemNameEllipsis?(enabled: boolean): void;
   setStoreSelectionDescription?(enabled: boolean): void;
+  setQuiverItemization?(enabled: boolean): void;
   setVisualFilter(filter: string | null): void;
   repaint(): void;
 }

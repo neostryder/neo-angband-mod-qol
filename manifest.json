@@ -87,6 +87,13 @@
       "requiresReload": true
     },
     {
+      "flag": "qol.quiverItemization",
+      "title": "Itemize the quiver in the Inventory subwindow",
+      "description": "In the passive Inventory subwindow, list each distinct stack of ammo or thrown items in your quiver by name under a \"--Quiver--\" heading, the same way the dedicated quiver picker (the | command) already shows them - instead of just a capacity count like \"in Quiver: 7 missiles\".",
+      "default": false,
+      "requiresReload": true
+    },
+    {
       "flag": "qol.accessibilityZoom",
       "title": "Accessibility: enlarged display",
       "description": "Use the responsive display at a larger, more readable default cell size. It works even if the separate Zoom, pan, and responsive layout rule is off, and does not change your saved normal zoom setting.",
