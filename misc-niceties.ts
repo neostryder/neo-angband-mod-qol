@@ -20,6 +20,7 @@ export function installMiscNiceties(ctx: MiscNicetiesContext): void {
   configuredDisplay = display;
   display.setStoreItemNameEllipsis?.(true);
   display.setStoreSelectionDescription?.(true);
+  display.setMonsterListColorKey?.(true);
 }
 
 /** Clear the display choices this bundled toggle owns before the mod unloads. */
@@ -28,6 +29,7 @@ export function uninstallMiscNiceties(): void {
   configuredDisplay = null;
   display?.setStoreItemNameEllipsis?.(false);
   display?.setStoreSelectionDescription?.(false);
+  display?.setMonsterListColorKey?.(false);
 }
 
 let quiverItemizationDisplay: DisplayLike | null = null;

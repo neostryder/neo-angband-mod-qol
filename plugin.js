@@ -2381,12 +2381,14 @@ function installMiscNiceties(ctx) {
   configuredDisplay2 = display;
   display.setStoreItemNameEllipsis?.(true);
   display.setStoreSelectionDescription?.(true);
+  display.setMonsterListColorKey?.(true);
 }
 function uninstallMiscNiceties() {
   const display = configuredDisplay2;
   configuredDisplay2 = null;
   display?.setStoreItemNameEllipsis?.(false);
   display?.setStoreSelectionDescription?.(false);
+  display?.setMonsterListColorKey?.(false);
 }
 var quiverItemizationDisplay = null;
 function installQuiverItemization(ctx) {

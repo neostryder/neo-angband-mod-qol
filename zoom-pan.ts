@@ -97,6 +97,13 @@ export interface DisplayLike {
   setStoreItemNameEllipsis?(enabled: boolean): void;
   setStoreSelectionDescription?(enabled: boolean): void;
   setQuiverItemization?(enabled: boolean): void;
+  /**
+   * Add a one-line colour key to the visible-monster list ('[') explaining
+   * what each row's line colour means (violet for a unique, red for a
+   * monster whose native level is above the current dungeon depth, white
+   * otherwise). Optional because the seam was added with this mod.
+   */
+  setMonsterListColorKey?(enabled: boolean): void;
   setVisualFilter(filter: string | null): void;
   repaint(): void;
 }

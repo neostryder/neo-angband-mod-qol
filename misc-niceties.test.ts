@@ -11,13 +11,20 @@ function displayWithStoreNicetiesSetters(): {
   display: DisplayLike;
   setStoreItemNameEllipsis: ReturnType<typeof vi.fn>;
   setStoreSelectionDescription: ReturnType<typeof vi.fn>;
+  setMonsterListColorKey: ReturnType<typeof vi.fn>;
 } {
   const setStoreItemNameEllipsis = vi.fn();
   const setStoreSelectionDescription = vi.fn();
+  const setMonsterListColorKey = vi.fn();
   return {
-    display: { setStoreItemNameEllipsis, setStoreSelectionDescription } as unknown as DisplayLike,
+    display: {
+      setStoreItemNameEllipsis,
+      setStoreSelectionDescription,
+      setMonsterListColorKey,
+    } as unknown as DisplayLike,
     setStoreItemNameEllipsis,
     setStoreSelectionDescription,
+    setMonsterListColorKey,
   };
 }
 
@@ -38,26 +45,37 @@ afterEach(() => {
 });
 
 describe("misc. niceties", () => {
-  it("enables both store display niceties through their display seams", () => {
+  it("enables all three bundled display niceties through their display seams", () => {
     const fake = displayWithStoreNicetiesSetters();
     installMiscNiceties({ flags: { "qol.miscNiceties": true }, display: fake.display });
     expect(fake.setStoreItemNameEllipsis).toHaveBeenCalledWith(true);
     expect(fake.setStoreSelectionDescription).toHaveBeenCalledWith(true);
+    expect(fake.setMonsterListColorKey).toHaveBeenCalledWith(true);
   });
 
-  it("does not call either display seam when the bundled toggle is off", () => {
+  it("does not call any bundled display seam when the toggle is off", () => {
     const fake = displayWithStoreNicetiesSetters();
     installMiscNiceties({ flags: { "qol.miscNiceties": false }, display: fake.display });
     expect(fake.setStoreItemNameEllipsis).not.toHaveBeenCalled();
     expect(fake.setStoreSelectionDescription).not.toHaveBeenCalled();
+    expect(fake.setMonsterListColorKey).not.toHaveBeenCalled();
   });
 
-  it("clears both store display niceties when the mod unloads", () => {
+  it("clears all three bundled display niceties when the mod unloads", () => {
     const fake = displayWithStoreNicetiesSetters();
     installMiscNiceties({ flags: { "qol.miscNiceties": true }, display: fake.display });
     uninstallMiscNiceties();
     expect(fake.setStoreItemNameEllipsis).toHaveBeenLastCalledWith(false);
     expect(fake.setStoreSelectionDescription).toHaveBeenLastCalledWith(false);
+    expect(fake.setMonsterListColorKey).toHaveBeenLastCalledWith(false);
+  });
+
+  it("flips the monster list colour key to off and back on across two installs", () => {
+    const fake = displayWithStoreNicetiesSetters();
+    installMiscNiceties({ flags: { "qol.miscNiceties": true }, display: fake.display });
+    uninstallMiscNiceties();
+    installMiscNiceties({ flags: { "qol.miscNiceties": true }, display: fake.display });
+    expect(fake.setMonsterListColorKey.mock.calls).toEqual([[true], [false], [true]]);
   });
 });
 
