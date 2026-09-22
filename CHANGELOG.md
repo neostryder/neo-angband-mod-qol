@@ -26,6 +26,8 @@ were not retagged.
 
 - [Visible] [UI] **Misc. niceties now also shows a colour key on the visible-monster list ('[').** With the bundle on, the screen's footer carries a one-line key naming that violet marks a unique, red marks a monster whose native level is above the current dungeon depth, and white means an ordinary monster for the depth - the same convention the row colours already followed (#269).
 
+- [Visible] [UI] **Choosing a cloud-backup folder now also reports how many characters are already sitting in it.** The "Choose cloud-backup folder..." Game-menu row names the folder and, when the host build supports it, counts how many `.neochar` files it can already identify there - useful confirmation on a second machine, where the folder just picked is an existing Dropbox full of characters rather than an empty one. The actual "found a character not yet here, want to bring it in" offer is the host's own new checkpoint at the character-select screen, not something this mod adds a second copy of (#24).
+
 ## 1.9.0 - 2026-09-20
 
 ### Added

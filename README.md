@@ -43,10 +43,18 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pick a
 folder that a cloud-sync service watches. After a folder is chosen, every successful
-save updates that character's importable backup there. Choosing a different folder
-replaces the previous choice. Cancelling the picker changes nothing. The row is hidden
-when the current browser or desktop host cannot offer a folder picker, so it never
-leaves an action that cannot work.
+save updates that character's importable backup there, and the row reports the folder's
+name plus how many characters it can already identify sitting in it (a second machine's
+first setup often means picking an existing Dropbox full of them, not an empty folder).
+Choosing a different folder replaces the previous choice. Cancelling the picker changes
+nothing. The row is hidden when the current browser or desktop host cannot offer a
+folder picker, so it never leaves an action that cannot work.
+
+On a build that also watches for arrivals, opening the character-select screen offers
+any character it finds there that this machine does not have yet - a plain yes/no
+question, through the same import path Shift-M already uses, so a character that died
+here stays refused exactly as a manual import would refuse it. Saying no leaves the
+file alone; it is offered again the next time the screen opens.
 
 The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is
 the first engine version with the ability-gained notification and consented keymap

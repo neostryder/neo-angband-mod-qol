@@ -2948,7 +2948,13 @@ var plugin_default = {
         "Choose cloud-backup folder...",
         async () => {
           try {
-            await backupFolder.choose();
+            const name = await backupFolder.choose();
+            if (name === null) return;
+            const found = await backupFolder.list?.() ?? [];
+            const identified = found.filter((f) => f.lineage !== void 0).length;
+            ctx.log?.(
+              identified > 0 ? `Using backup folder "${name}" (${String(identified)} character${identified === 1 ? "" : "s"} already there).` : `Using backup folder "${name}".`
+            );
           } catch {
           }
         }

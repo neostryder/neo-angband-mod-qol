@@ -432,6 +432,87 @@ describe("cloud backup folder", () => {
 
     await expect(actions[0]!.handler()).resolves.toBeUndefined();
   });
+
+  /* neo-angband#24: after a successful choose(), the row also reports how
+   * many characters are already sitting in the folder just picked - useful
+   * confirmation on a second machine, where the folder is an existing
+   * Dropbox full of characters rather than an empty one. */
+  describe("reporting what list() finds after choosing (#24)", () => {
+    function register(
+      list: (() => Promise<
+        readonly { name: string; lineage?: string; characterName: string; level: number }[]
+      >) | undefined,
+    ): { actions: RegisteredMenuAction[]; logs: string[] } {
+      const { state } = startGame(pack, { seed: 168, depth: 2 });
+      const actions: RegisteredMenuAction[] = [];
+      const logs: string[] = [];
+      plugin.register(menuHost(actions), {
+        flags: {},
+        core: neoCore,
+        state,
+        log: (msg) => logs.push(msg),
+        backupFolder: {
+          choose: async () => "NeoAngband",
+          write: async () => true,
+          onSave: () => undefined,
+          ...(list ? { list } : {}),
+        },
+      });
+      return { actions, logs };
+    }
+
+    it("names the folder and counts the identified characters already there", async () => {
+      const { actions, logs } = register(async () => [
+        { name: "Bilbo-abcdef12.neochar", lineage: "lin-bilbo", characterName: "Bilbo", level: 12 },
+        { name: "Frodo-00112233.neochar", lineage: "lin-frodo", characterName: "Frodo", level: 5 },
+      ]);
+      await actions[0]!.handler();
+      expect(logs).toEqual(['Using backup folder "NeoAngband" (2 characters already there).']);
+    });
+
+    it("uses the singular for exactly one, and does not count an unreadable entry", async () => {
+      const { actions, logs } = register(async () => [
+        { name: "Bilbo-abcdef12.neochar", lineage: "lin-bilbo", characterName: "Bilbo", level: 12 },
+        { name: "garbage.neochar", characterName: "", level: 0 }, // no lineage: unreadable
+      ]);
+      await actions[0]!.handler();
+      expect(logs).toEqual(['Using backup folder "NeoAngband" (1 character already there).']);
+    });
+
+    it("names the folder alone when the folder is empty", async () => {
+      const { actions, logs } = register(async () => []);
+      await actions[0]!.handler();
+      expect(logs).toEqual(['Using backup folder "NeoAngband".']);
+    });
+
+    it("still names the folder when the host's backupFolder has no list() at all", async () => {
+      /* An older host: everything else on backupFolder works, this method
+       * does not exist. Guarded with `?.()`, never a crash. */
+      const { actions, logs } = register(undefined);
+      await actions[0]!.handler();
+      expect(logs).toEqual(['Using backup folder "NeoAngband".']);
+    });
+
+    it("logs nothing on a cancelled pick - there is nothing to report", async () => {
+      const { state } = startGame(pack, { seed: 169, depth: 2 });
+      const actions: RegisteredMenuAction[] = [];
+      const logs: string[] = [];
+      plugin.register(menuHost(actions), {
+        flags: {},
+        core: neoCore,
+        state,
+        log: (msg) => logs.push(msg),
+        backupFolder: {
+          choose: async () => null,
+          write: async () => true,
+          onSave: () => undefined,
+          list: async () => [],
+        },
+      });
+      await actions[0]!.handler();
+      expect(logs).toEqual([]);
+    });
+  });
 });
 
 /**

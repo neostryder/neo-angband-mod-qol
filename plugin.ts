@@ -137,11 +137,25 @@ interface HookCtx {
   /**
    * A player-chosen folder for automatic save backups. It is absent when the
    * host cannot offer a folder picker or the capability was not granted.
+   *
+   * `list()` (neo-angband#24) is the read side: every `.neochar` file
+   * currently in the chosen folder, identified cheaply (name, lineage,
+   * character name and level - never a full decode). Optional on this type
+   * only because an older host hands over the rest of `backupFolder` without
+   * it; called through `?.` for exactly that reason.
    */
   readonly backupFolder?: {
     choose(): Promise<string | null>;
     write(name: string, text: string): Promise<boolean>;
     onSave(fn: (file: { readonly name: string; readonly text: string }) => void): void;
+    list?(): Promise<
+      readonly {
+        readonly name: string;
+        readonly lineage?: string;
+        readonly characterName: string;
+        readonly level: number;
+      }[]
+    >;
   };
   /** Live web display geometry, absent during content composition or on old hosts. */
   readonly display?: ZoomPanContext["display"] | undefined;
@@ -1168,7 +1182,23 @@ export default {
         "Choose cloud-backup folder...",
         async () => {
           try {
-            await backupFolder.choose();
+            const name = await backupFolder.choose();
+            if (name === null) return; // cancelled: nothing to report
+            /*
+             * neo-angband#24: say how many characters are already sitting in
+             * the folder just picked - useful confirmation on a second
+             * machine's first setup, where the folder is an existing Dropbox
+             * full of characters rather than an empty one. `list?.()` rather
+             * than `list()`: an older host's backupFolder has everything else
+             * on this shape but not this method.
+             */
+            const found = (await backupFolder.list?.()) ?? [];
+            const identified = found.filter((f) => f.lineage !== undefined).length;
+            ctx.log?.(
+              identified > 0
+                ? `Using backup folder "${name}" (${String(identified)} character${identified === 1 ? "" : "s"} already there).`
+                : `Using backup folder "${name}".`,
+            );
           } catch {
             /* A rejected picker ends this one menu action cleanly, like a
              * cancelled picker that resolves null. */
