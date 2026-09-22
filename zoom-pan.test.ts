@@ -24,6 +24,7 @@ import {
   responsiveSidebarColumns,
   snapEven,
   stepIndex,
+  subwindowAutoFitIndex,
   uninstallZoomPan,
   zoomPanHud,
   type DisplayLike,
@@ -316,7 +317,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
     });
 
     firstPanels.controls.get("messages:zoom-in")?.onActivate();
-    expect(readSubwindowZoomPreference(stored)).toEqual({ messages: 4 });
+    expect(readSubwindowZoomPreference(stored)).toEqual({ messages: { step: 4, manual: true } });
     uninstallZoomPan();
 
     const secondDisplay = fakeDisplay();
@@ -365,7 +366,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
 
     sourcePanels.controls.get("messages:zoom-in")?.onActivate();
     const sourceBlock = sourcePanels.prefBlocks.get("qol-zoom");
-    expect(sourceBlock?.serialize()).toBe('{"v":1,"panels":{"messages":4}}');
+    expect(sourceBlock?.serialize()).toBe('{"v":2,"panels":{"messages":{"step":4,"manual":true}}}');
     const prefText = sourceBlock?.serialize();
     uninstallZoomPan();
     expect(sourcePanels.prefBlocks.has("qol-zoom")).toBe(false);
@@ -380,7 +381,7 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
 
     const restoredBlock = restoredPanels.prefBlocks.get("qol-zoom");
     const parsed = restoredBlock?.parse(prefText ?? "");
-    expect(parsed).toEqual({ panels: { messages: 4 } });
+    expect(parsed).toEqual({ panels: { messages: { step: 4, manual: true } } });
     if (parsed !== null && parsed !== undefined) restoredBlock?.apply(parsed);
     expect(restoredPanels.setGrid).toHaveBeenCalledWith("messages", {
       cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[4],
@@ -388,6 +389,23 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
       minRows: 3,
       snapViewportToEven: false,
     });
+  });
+
+  it("still reads a legacy v1 pref-file block as a rung the player already tuned by hand", () => {
+    const block: SubwindowPrefBlockLike<unknown> | undefined = (() => {
+      vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+      const display = fakeDisplay();
+      const panels = fakeSubwindows([subwindow()]);
+      installZoomPan({
+        flags: { "qol.zoomPan": true },
+        display: display.display,
+        subwindows: panels.subwindows,
+      });
+      return panels.prefBlocks.get("qol-zoom");
+    })();
+
+    const parsed = block?.parse('{"v":1,"panels":{"messages":4}}');
+    expect(parsed).toEqual({ panels: { messages: { step: 4, manual: true } } });
   });
 
   it("rejects malformed or foreign pref-file blocks without changing a panel zoom", () => {
@@ -405,7 +423,9 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
     const before = block?.serialize();
     expect(() => block?.parse("{not json")).not.toThrow();
     expect(block?.parse("{not json")).toBeNull();
+    expect(block?.parse('{"v":3,"panels":{"messages":{"step":4,"manual":true}}}')).toBeNull();
     expect(block?.parse('{"v":2,"enabled":{"messages":true}}')).toBeNull();
+    expect(block?.parse('{"v":2,"panels":{"messages":{"step":4}}}')).toBeNull();
     expect(block?.serialize()).toBe(before);
   });
 
@@ -533,6 +553,125 @@ describe("independent tiled subwindow zoom (neo-angband #241)", () => {
       cellHeight: PLAY_ZOOM_CELL_HEIGHTS[8],
     }));
     expect(panels.registerPrefBlock).not.toHaveBeenCalled();
+  });
+});
+
+describe("subwindow zoom auto-fit (neo-angband-mod-qol #276)", () => {
+  it("picks the largest fitting rung for a panel's pixel bounds", () => {
+    /* A cramped panel falls back to the smallest rung rather than one that
+     * would clip below the 20x3 minimum useful grid. */
+    expect(subwindowAutoFitIndex({ width: 120, height: 80 })).toBe(0);
+    /* 300x200 fits the default install's 16px rung (index 3) but has enough
+     * room to go a step further once nothing keeps it pinned there. */
+    expect(subwindowAutoFitIndex({ width: 300, height: 200 })).toBe(5);
+    /* A roomy panel reaches the ladder's largest rung. */
+    expect(subwindowAutoFitIndex({ width: 620, height: 400 })).toBe(6);
+  });
+
+  it("auto-refits a panel with no manual override when its computed size changes", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    /* Installing alone only records the panel's starting size - a fresh
+     * install must not fight core's own default rung on its own. */
+    expect(panels.setGrid).not.toHaveBeenCalled();
+
+    /* The panel grows (a tiling change or a window resize): more room opens
+     * up for a larger, still-fitting rung. */
+    panels.setPanels([subwindow({ bounds: { x: 600, y: 100, width: 620, height: 400 } })]);
+    vi.advanceTimersByTime(200);
+
+    expect(panels.setGrid).toHaveBeenLastCalledWith("messages", {
+      cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[6],
+      minCols: 20,
+      minRows: 3,
+      snapViewportToEven: false,
+    });
+  });
+
+  it("never touches a manually-zoomed panel across a later resize", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const display = fakeDisplay();
+    const panels = fakeSubwindows([subwindow()]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: display.display,
+      subwindows: panels.subwindows,
+    });
+
+    panels.controls.get("messages:zoom-in")?.onActivate();
+    panels.setGrid.mockClear();
+
+    panels.setPanels([subwindow({ bounds: { x: 600, y: 100, width: 620, height: 400 } })]);
+    vi.advanceTimersByTime(200);
+
+    expect(panels.setGrid).not.toHaveBeenCalled();
+  });
+
+  it("keeps a restored panel's auto or manual mode through the pref-file block", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("location", { href: "http://localhost/?agent=probe" });
+    const sourceDisplay = fakeDisplay();
+    const sourcePanels = fakeSubwindows([
+      subwindow({ id: "messages" }),
+      subwindow({ id: "monster" }),
+    ]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: sourceDisplay.display,
+      subwindows: sourcePanels.subwindows,
+    });
+
+    /* "messages" is tuned by hand; "monster" is left for auto-fit to grow
+     * once it gets more room. */
+    sourcePanels.controls.get("messages:zoom-in")?.onActivate();
+    sourcePanels.setPanels([
+      subwindow({ id: "messages" }),
+      subwindow({ id: "monster", bounds: { x: 0, y: 0, width: 620, height: 400 } }),
+    ]);
+    vi.advanceTimersByTime(200);
+
+    const block = sourcePanels.prefBlocks.get("qol-zoom");
+    const text = block?.serialize();
+    expect(text).toContain('"messages":{"step":4,"manual":true}');
+    expect(text).toContain('"monster":{"step":6,"manual":false}');
+    uninstallZoomPan();
+
+    const restoredDisplay = fakeDisplay();
+    const restoredPanels = fakeSubwindows([
+      subwindow({ id: "messages" }),
+      subwindow({ id: "monster", bounds: { x: 0, y: 0, width: 620, height: 400 } }),
+    ]);
+    installZoomPan({
+      flags: { "qol.zoomPan": true },
+      display: restoredDisplay.display,
+      subwindows: restoredPanels.subwindows,
+    });
+    const restoredBlock = restoredPanels.prefBlocks.get("qol-zoom");
+    const parsed = restoredBlock?.parse(text ?? "");
+    if (parsed !== null && parsed !== undefined) restoredBlock?.apply(parsed);
+    restoredPanels.setGrid.mockClear();
+
+    /* Resize both restored panels the same way: the still-auto "monster"
+     * refits, while the restored-manual "messages" is left exactly alone. */
+    restoredPanels.setPanels([
+      subwindow({ id: "messages", bounds: { x: 600, y: 100, width: 620, height: 400 } }),
+      subwindow({ id: "monster", bounds: { x: 0, y: 0, width: 300, height: 200 } }),
+    ]);
+    vi.advanceTimersByTime(200);
+
+    expect(restoredPanels.setGrid).toHaveBeenCalledWith("monster", expect.objectContaining({
+      cellHeight: SUBWINDOW_ZOOM_CELL_HEIGHTS[5],
+    }));
+    expect(restoredPanels.setGrid).not.toHaveBeenCalledWith("messages", expect.anything());
   });
 });
 

@@ -56,7 +56,13 @@ function readSubwindowZoomPreference(raw) {
   if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.subwindowZoom)) return {};
   const steps = {};
   for (const [id, value] of Object.entries(raw.subwindowZoom)) {
-    if (typeof value === "number" && Number.isInteger(value) && value >= 0) steps[id] = value;
+    if (typeof value === "number") {
+      if (Number.isInteger(value) && value >= 0) steps[id] = { step: value, manual: true };
+      continue;
+    }
+    if (isRecord(value) && typeof value.step === "number" && Number.isInteger(value.step) && value.step >= 0 && typeof value.manual === "boolean") {
+      steps[id] = { step: value.step, manual: value.manual };
+    }
   }
   return steps;
 }
@@ -795,6 +801,8 @@ var PLAY_ZOOM_CELL_HEIGHTS = [
   128
 ];
 var SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24];
+var SUBWINDOW_ZOOM_MIN_COLS = 20;
+var SUBWINDOW_ZOOM_MIN_ROWS = 3;
 var INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5];
 var MAP_DETAIL_FACTORS = [0, 4, 2, 1];
 var ACCESSIBILITY_ZOOM_INDEX = 9;
@@ -896,12 +904,19 @@ function playerCenter(rt, snapshot) {
     y: snapshot.viewport.origin.y + Math.floor(snapshot.viewport.size.height / 2)
   };
 }
+function subwindowZoomPreferenceEntries(rt) {
+  const panels = {};
+  for (const [id, step] of rt.subwindowZoomSteps) {
+    panels[id] = { step, manual: rt.subwindowZoomManual.has(id) };
+  }
+  return panels;
+}
 function writePreference(rt) {
   try {
     const preferences = withDisplayPreference(rt.ctx.prefs?.get(), rt.preference);
     rt.ctx.prefs?.set(withSubwindowZoomPreference(
       preferences,
-      Object.fromEntries(rt.subwindowZoomSteps)
+      subwindowZoomPreferenceEntries(rt)
     ));
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
@@ -912,27 +927,39 @@ function isRecord2(value) {
 }
 function serializeSubwindowZoomPrefBlock(rt) {
   if (rt.subwindowZoomSteps.size === 0) return null;
-  return JSON.stringify({ v: 1, panels: Object.fromEntries(rt.subwindowZoomSteps) });
+  return JSON.stringify({ v: 2, panels: subwindowZoomPreferenceEntries(rt) });
 }
 function parseSubwindowZoomPrefBlock(text) {
   try {
     const parsed = JSON.parse(text);
-    if (!isRecord2(parsed) || parsed.v !== 1 || !isRecord2(parsed.panels)) return null;
-    const panels = [];
-    for (const [id, step] of Object.entries(parsed.panels)) {
-      if (id.length === 0 || typeof step !== "number" || !Number.isInteger(step) || step < 0 || step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length) {
+    if (!isRecord2(parsed) || !isRecord2(parsed.panels)) return null;
+    const panels = {};
+    if (parsed.v === 1) {
+      for (const [id, step] of Object.entries(parsed.panels)) {
+        if (id.length === 0 || typeof step !== "number" || !Number.isInteger(step) || step < 0 || step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length) {
+          return null;
+        }
+        panels[id] = { step, manual: true };
+      }
+      return { panels };
+    }
+    if (parsed.v !== 2) return null;
+    for (const [id, value] of Object.entries(parsed.panels)) {
+      if (id.length === 0 || !isRecord2(value) || typeof value.step !== "number" || !Number.isInteger(value.step) || value.step < 0 || value.step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length || typeof value.manual !== "boolean") {
         return null;
       }
-      panels.push([id, step]);
+      panels[id] = { step: value.step, manual: value.manual };
     }
-    return { panels: Object.fromEntries(panels) };
+    return { panels };
   } catch {
     return null;
   }
 }
 function applySubwindowZoomPrefBlock(rt, value) {
-  for (const [id, step] of Object.entries(value.panels)) {
+  for (const [id, { step, manual }] of Object.entries(value.panels)) {
     rt.subwindowZoomSteps.set(id, step);
+    if (manual) rt.subwindowZoomManual.add(id);
+    else rt.subwindowZoomManual.delete(id);
     rt.restoredSubwindowZoomPanels.delete(id);
   }
   syncSubwindowControls(rt);
@@ -953,6 +980,17 @@ function defaultPlayFillCellHeight(surface, sidebarColumns) {
     cellHeight -= 1;
   }
   return 8;
+}
+function subwindowAutoFitIndex(bounds) {
+  for (let i = SUBWINDOW_ZOOM_CELL_HEIGHTS.length - 1; i >= 0; i--) {
+    const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[i];
+    if (cellHeight === void 0) continue;
+    const cellWidth = Math.max(4, Math.round(FONT_16X24.w / FONT_16X24.h * cellHeight));
+    const cols = Math.floor(bounds.width / cellWidth);
+    const rows = Math.floor(bounds.height / cellHeight);
+    if (cols >= SUBWINDOW_ZOOM_MIN_COLS && rows >= SUBWINDOW_ZOOM_MIN_ROWS) return i;
+  }
+  return 0;
 }
 function responsiveSurfaceFor(snapshot) {
   return snapshot.surface ? { width: snapshot.surface.width, height: snapshot.surface.height } : typeof window !== "undefined" ? { width: window.innerWidth, height: window.innerHeight } : null;
@@ -1066,11 +1104,12 @@ function zoomSubwindow(rt, id, direction) {
   const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
   if (cellHeight === void 0) return;
   rt.subwindowZoomSteps.set(id, next);
+  rt.subwindowZoomManual.add(id);
   rt.restoredSubwindowZoomPanels.add(id);
   subwindows.setGrid(id, {
     cellHeight,
-    minCols: 20,
-    minRows: 3,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
     snapViewportToEven: false
   });
   writePreference(rt);
@@ -1083,10 +1122,31 @@ function restoreSubwindowZoom(rt, panel) {
   rt.restoredSubwindowZoomPanels.add(panel.id);
   rt.ctx.subwindows?.setGrid(panel.id, {
     cellHeight,
-    minCols: 20,
-    minRows: 3,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
     snapViewportToEven: false
   });
+}
+function autoFitSubwindowZoom(rt, panel) {
+  const size = { width: panel.bounds.width, height: panel.bounds.height };
+  const previous = rt.subwindowPanelSizes.get(panel.id);
+  rt.subwindowPanelSizes.set(panel.id, size);
+  if (previous === void 0) return;
+  if (previous.width === size.width && previous.height === size.height) return;
+  if (rt.subwindowZoomManual.has(panel.id)) return;
+  const next = subwindowAutoFitIndex(size);
+  if (rt.subwindowZoomSteps.get(panel.id) === next) return;
+  const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
+  if (cellHeight === void 0) return;
+  rt.subwindowZoomSteps.set(panel.id, next);
+  rt.restoredSubwindowZoomPanels.add(panel.id);
+  rt.ctx.subwindows?.setGrid(panel.id, {
+    cellHeight,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
+    snapViewportToEven: false
+  });
+  writePreference(rt);
 }
 function focusedSubwindow(rt) {
   return rt.ctx.subwindows?.list().find((panel) => panel.focused);
@@ -1113,10 +1173,12 @@ function syncSubwindowControls(rt) {
       for (const cleanup of cleanups) cleanup();
       rt.subwindowControlCleanups.delete(id);
       rt.restoredSubwindowZoomPanels.delete(id);
+      rt.subwindowPanelSizes.delete(id);
     }
   }
   for (const panel of panels) {
     restoreSubwindowZoom(rt, panel);
+    autoFitSubwindowZoom(rt, panel);
     if (rt.subwindowControlCleanups.has(panel.id)) continue;
     const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
       glyph: "-",
@@ -1621,6 +1683,7 @@ function installZoomPan(ctx) {
   display.setFullMapOverview?.(sharpenZoomedTiles);
   configuredDisplay = display;
   if (!enabled) return;
+  const storedSubwindowZoom = readSubwindowZoomPreference(ctx.prefs?.get());
   const rt = {
     ctx,
     display,
@@ -1643,8 +1706,12 @@ function installZoomPan(ctx) {
     responsiveSurface: null,
     sidebarVisibilityTimer: null,
     subwindowZoomSteps: new Map(
-      Object.entries(readSubwindowZoomPreference(ctx.prefs?.get())).filter(([, step]) => step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length)
+      Object.entries(storedSubwindowZoom).filter(([, value]) => value.step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length).map(([id, value]) => [id, value.step])
     ),
+    subwindowZoomManual: new Set(
+      Object.entries(storedSubwindowZoom).filter(([, value]) => value.manual && value.step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length).map(([id]) => id)
+    ),
+    subwindowPanelSizes: /* @__PURE__ */ new Map(),
     restoredSubwindowZoomPanels: /* @__PURE__ */ new Set(),
     subwindowControlCleanups: /* @__PURE__ */ new Map(),
     subwindowControlsTimer: null

@@ -19,6 +19,11 @@ export const PLAY_ZOOM_CELL_HEIGHTS = [
  * smaller without making a tiled panel's labels needlessly huge.  Their ladder
  * is deliberately independent from the play view's wider 16-48px range. */
 export const SUBWINDOW_ZOOM_CELL_HEIGHTS = [10, 12, 14, 16, 18, 20, 24] as const;
+/* The tiled-panel host's own compact-panel floor. Every zoom mode - a manual
+ * +/-1 step or an auto-fit recompute - preserves this, so a zoom changes only
+ * cell size, never the panel's minimum useful text area. */
+const SUBWINDOW_ZOOM_MIN_COLS = 20;
+const SUBWINDOW_ZOOM_MIN_ROWS = 3;
 export const INTERFACE_ZOOM_SCALES = [0.8, 1, 1.25, 1.5] as const;
 export const MAP_DETAIL_FACTORS = [0, 4, 2, 1] as const;
 export const ACCESSIBILITY_ZOOM_INDEX = 9;
@@ -226,6 +231,16 @@ interface ZoomRuntime {
   sidebarVisibilityTimer: ReturnType<typeof setInterval> | null;
   /** Each tiled panel has an independent rung, retained while it is hidden. */
   readonly subwindowZoomSteps: Map<string, number>;
+  /** Panel ids whose current rung the player chose directly, via a manual
+   * +/-1 zoom. A panel absent here is in auto-fit mode: its rung is free to
+   * be recomputed whenever its own rendered size changes - the default for a
+   * fresh install or a panel just enabled for the first time
+   * (neo-angband-mod-qol #276). */
+  readonly subwindowZoomManual: Set<string>;
+  /** The last pixel bounds observed for each visible panel, kept only to
+   * detect a genuine resize worth recomputing an auto-fit rung for - not
+   * merely that the panel is still on screen. */
+  readonly subwindowPanelSizes: Map<string, Pick<Pixels, "width" | "height">>;
   /** Restored zoom needs applying once when a panel first becomes visible. */
   readonly restoredSubwindowZoomPanels: Set<string>;
   /** Title-bar control unregister functions for panels visible this instant. */
@@ -234,7 +249,7 @@ interface ZoomRuntime {
 }
 
 interface SubwindowZoomPrefBlockValue {
-  readonly panels: Readonly<Record<string, number>>;
+  readonly panels: Readonly<Record<string, { readonly step: number; readonly manual: boolean }>>;
 }
 
 const SUBWINDOW_ZOOM_PREF_BLOCK_NAME = "qol-zoom";
@@ -392,12 +407,20 @@ function playerCenter(rt: ZoomRuntime, snapshot: DisplaySnapshotLike): { x: numb
       };
 }
 
+function subwindowZoomPreferenceEntries(rt: ZoomRuntime): Record<string, { step: number; manual: boolean }> {
+  const panels: Record<string, { step: number; manual: boolean }> = {};
+  for (const [id, step] of rt.subwindowZoomSteps) {
+    panels[id] = { step, manual: rt.subwindowZoomManual.has(id) };
+  }
+  return panels;
+}
+
 function writePreference(rt: ZoomRuntime): void {
   try {
     const preferences = withDisplayPreference(rt.ctx.prefs?.get(), rt.preference);
     rt.ctx.prefs?.set(withSubwindowZoomPreference(
       preferences,
-      Object.fromEntries(rt.subwindowZoomSteps),
+      subwindowZoomPreferenceEntries(rt),
     ));
   } catch {
     rt.ctx.log?.("could not persist the zoom and layout preference");
@@ -409,38 +432,61 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** The mod-owned part of a subwindow pref file.  A versioned wrapper prevents
- * unrelated JSON from being mistaken for a map of panel ids to zoom rungs. */
+ * unrelated JSON from being mistaken for a map of panel ids to zoom rungs.
+ * v2 adds the manual/auto-fit flag (#276); v1 blocks (every one a pre-#276
+ * install could have written) parse as v1 always did, and always come back
+ * manual - a v1 writer only ever persisted a panel through a manual zoom. */
 function serializeSubwindowZoomPrefBlock(rt: ZoomRuntime): string | null {
   if (rt.subwindowZoomSteps.size === 0) return null;
-  return JSON.stringify({ v: 1, panels: Object.fromEntries(rt.subwindowZoomSteps) });
+  return JSON.stringify({ v: 2, panels: subwindowZoomPreferenceEntries(rt) });
 }
 
 function parseSubwindowZoomPrefBlock(text: string): SubwindowZoomPrefBlockValue | null {
   try {
     const parsed: unknown = JSON.parse(text);
-    if (!isRecord(parsed) || parsed.v !== 1 || !isRecord(parsed.panels)) return null;
-    const panels: Array<readonly [string, number]> = [];
-    for (const [id, step] of Object.entries(parsed.panels)) {
+    if (!isRecord(parsed) || !isRecord(parsed.panels)) return null;
+    const panels: Record<string, { step: number; manual: boolean }> = {};
+    if (parsed.v === 1) {
+      for (const [id, step] of Object.entries(parsed.panels)) {
+        if (
+          id.length === 0 ||
+          typeof step !== "number" ||
+          !Number.isInteger(step) ||
+          step < 0 ||
+          step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length
+        ) {
+          return null;
+        }
+        panels[id] = { step, manual: true };
+      }
+      return { panels };
+    }
+    if (parsed.v !== 2) return null;
+    for (const [id, value] of Object.entries(parsed.panels)) {
       if (
         id.length === 0 ||
-        typeof step !== "number" ||
-        !Number.isInteger(step) ||
-        step < 0 ||
-        step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length
+        !isRecord(value) ||
+        typeof value.step !== "number" ||
+        !Number.isInteger(value.step) ||
+        value.step < 0 ||
+        value.step >= SUBWINDOW_ZOOM_CELL_HEIGHTS.length ||
+        typeof value.manual !== "boolean"
       ) {
         return null;
       }
-      panels.push([id, step]);
+      panels[id] = { step: value.step, manual: value.manual };
     }
-    return { panels: Object.fromEntries(panels) };
+    return { panels };
   } catch {
     return null;
   }
 }
 
 function applySubwindowZoomPrefBlock(rt: ZoomRuntime, value: SubwindowZoomPrefBlockValue): void {
-  for (const [id, step] of Object.entries(value.panels)) {
+  for (const [id, { step, manual }] of Object.entries(value.panels)) {
     rt.subwindowZoomSteps.set(id, step);
+    if (manual) rt.subwindowZoomManual.add(id);
+    else rt.subwindowZoomManual.delete(id);
     /* A pref file may arrive after this panel was already restored from the
      * ordinary preference store, so let the shared restoration path apply its
      * newly loaded rung now. */
@@ -482,6 +528,26 @@ export function defaultPlayFillCellHeight(
     cellHeight -= 1;
   }
   return 8;
+}
+
+/**
+ * Largest `SUBWINDOW_ZOOM_CELL_HEIGHTS` rung whose grid still fits a tiled
+ * panel's current pixel bounds without needing to scroll or clip, keeping
+ * the same minimum useful area a manual zoom already enforces
+ * (`SUBWINDOW_ZOOM_MIN_COLS` columns, `SUBWINDOW_ZOOM_MIN_ROWS` rows). Falls
+ * back to the smallest rung when even that will not fit - a cramped panel is
+ * still more useful at some size than none (neo-angband-mod-qol #276).
+ */
+export function subwindowAutoFitIndex(bounds: Pick<Pixels, "width" | "height">): number {
+  for (let i = SUBWINDOW_ZOOM_CELL_HEIGHTS.length - 1; i >= 0; i--) {
+    const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[i];
+    if (cellHeight === undefined) continue;
+    const cellWidth = Math.max(4, Math.round((FONT_16X24.w / FONT_16X24.h) * cellHeight));
+    const cols = Math.floor(bounds.width / cellWidth);
+    const rows = Math.floor(bounds.height / cellHeight);
+    if (cols >= SUBWINDOW_ZOOM_MIN_COLS && rows >= SUBWINDOW_ZOOM_MIN_ROWS) return i;
+  }
+  return 0;
 }
 
 function responsiveSurfaceFor(snapshot: DisplaySnapshotLike): Pick<Pixels, "width" | "height"> | null {
@@ -623,13 +689,15 @@ function zoomSubwindow(rt: ZoomRuntime, id: string, direction: number): void {
   const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
   if (cellHeight === undefined) return;
   rt.subwindowZoomSteps.set(id, next);
+  /* A manual zoom must never be silently overridden by a later auto-fit
+   * recompute (#276) - only some future explicit reset would clear this,
+   * and no such action exists yet (out of scope for #276). */
+  rt.subwindowZoomManual.add(id);
   rt.restoredSubwindowZoomPanels.add(id);
-  /* These are the host's own compact-panel defaults: preserving them means a
-   * zoom changes only cell size, never the panel's minimum useful text area. */
   subwindows.setGrid(id, {
     cellHeight,
-    minCols: 20,
-    minRows: 3,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
     snapViewportToEven: false,
   });
   writePreference(rt);
@@ -643,10 +711,41 @@ function restoreSubwindowZoom(rt: ZoomRuntime, panel: SubwindowInfoLike): void {
   rt.restoredSubwindowZoomPanels.add(panel.id);
   rt.ctx.subwindows?.setGrid(panel.id, {
     cellHeight,
-    minCols: 20,
-    minRows: 3,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
     snapViewportToEven: false,
   });
+}
+
+/**
+ * #276's auto-fit: whenever a panel still in auto mode (never manually
+ * zoomed, or restored from a pref file as auto) is observed at a new size,
+ * recompute and apply the best-fitting rung for its new pixel bounds. The
+ * very first sighting of a panel only records its baseline size - a fresh
+ * install or a newly enabled panel keeps whatever cell height core itself
+ * assigned until a genuine resize gives a reason to refit it, so this never
+ * fights the panel's starting rung on its own.
+ */
+function autoFitSubwindowZoom(rt: ZoomRuntime, panel: SubwindowInfoLike): void {
+  const size = { width: panel.bounds.width, height: panel.bounds.height };
+  const previous = rt.subwindowPanelSizes.get(panel.id);
+  rt.subwindowPanelSizes.set(panel.id, size);
+  if (previous === undefined) return;
+  if (previous.width === size.width && previous.height === size.height) return;
+  if (rt.subwindowZoomManual.has(panel.id)) return;
+  const next = subwindowAutoFitIndex(size);
+  if (rt.subwindowZoomSteps.get(panel.id) === next) return;
+  const cellHeight = SUBWINDOW_ZOOM_CELL_HEIGHTS[next];
+  if (cellHeight === undefined) return;
+  rt.subwindowZoomSteps.set(panel.id, next);
+  rt.restoredSubwindowZoomPanels.add(panel.id);
+  rt.ctx.subwindows?.setGrid(panel.id, {
+    cellHeight,
+    minCols: SUBWINDOW_ZOOM_MIN_COLS,
+    minRows: SUBWINDOW_ZOOM_MIN_ROWS,
+    snapViewportToEven: false,
+  });
+  writePreference(rt);
 }
 
 function focusedSubwindow(rt: ZoomRuntime): SubwindowInfoLike | undefined {
@@ -677,10 +776,15 @@ function syncSubwindowControls(rt: ZoomRuntime): void {
       for (const cleanup of cleanups) cleanup();
       rt.subwindowControlCleanups.delete(id);
       rt.restoredSubwindowZoomPanels.delete(id);
+      /* A panel that disappears and later reappears (a tiling change can
+       * reuse the same id at a different size) should be treated as a fresh
+       * sighting, not compared against a stale baseline. */
+      rt.subwindowPanelSizes.delete(id);
     }
   }
   for (const panel of panels) {
     restoreSubwindowZoom(rt, panel);
+    autoFitSubwindowZoom(rt, panel);
     if (rt.subwindowControlCleanups.has(panel.id)) continue;
     const zoomOut = subwindows.addControl(panel.id, "zoom-out", {
       glyph: "-",
@@ -1276,6 +1380,7 @@ export function installZoomPan(ctx: ZoomPanContext): void {
   display.setFullMapOverview?.(sharpenZoomedTiles);
   configuredDisplay = display;
   if (!enabled) return;
+  const storedSubwindowZoom = readSubwindowZoomPreference(ctx.prefs?.get());
   const rt: ZoomRuntime = {
     ctx,
     display,
@@ -1301,9 +1406,16 @@ export function installZoomPan(ctx: ZoomPanContext): void {
     responsiveSurface: null,
     sidebarVisibilityTimer: null,
     subwindowZoomSteps: new Map(
-      Object.entries(readSubwindowZoomPreference(ctx.prefs?.get()))
-        .filter(([, step]) => step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length),
+      Object.entries(storedSubwindowZoom)
+        .filter(([, value]) => value.step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length)
+        .map(([id, value]) => [id, value.step] as const),
     ),
+    subwindowZoomManual: new Set(
+      Object.entries(storedSubwindowZoom)
+        .filter(([, value]) => value.manual && value.step < SUBWINDOW_ZOOM_CELL_HEIGHTS.length)
+        .map(([id]) => id),
+    ),
+    subwindowPanelSizes: new Map(),
     restoredSubwindowZoomPanels: new Set(),
     subwindowControlCleanups: new Map(),
     subwindowControlsTimer: null,

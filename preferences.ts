@@ -22,8 +22,19 @@ export interface FirstEncounterPreference {
   readonly artifacts: readonly number[];
 }
 
+/** One tiled subwindow panel's remembered zoom: which ladder rung, and
+ * whether the player chose it directly (a manual +/-1 zoom) or it was last
+ * computed to auto-fit the panel's own rendered size (neo-angband-mod-qol
+ * #276). A panel absent from this map entirely is also auto mode - the
+ * common case for a fresh install or a panel just enabled for the first
+ * time - it simply has no remembered rung yet. */
+export interface SubwindowZoomStep {
+  readonly step: number;
+  readonly manual: boolean;
+}
+
 /** Zoom-ladder rungs remembered by tiled subwindow panel id. */
-export type SubwindowZoomPreference = Readonly<Record<string, number>>;
+export type SubwindowZoomPreference = Readonly<Record<string, SubwindowZoomStep>>;
 
 /** The single value kept in ctx.prefs. */
 export interface QolPreferences {
@@ -113,12 +124,27 @@ export function readFirstEncounterPreference(raw: unknown): FirstEncounterPrefer
   };
 }
 
-/** Read valid non-negative zoom rungs keyed by a tiled panel's stable id. */
+/** Read valid non-negative zoom rungs keyed by a tiled panel's stable id.
+ * Accepts both this preference's current `{ step, manual }` shape and the
+ * bare-number shape every install wrote before #276 - every entry that
+ * shape could ever contain was written by a manual zoom action (the only
+ * code path that persisted one), so a legacy number migrates as `manual:
+ * true` rather than being silently reinterpreted as auto-fit. */
 export function readSubwindowZoomPreference(raw: unknown): SubwindowZoomPreference {
   if (!isRecord(raw) || raw.v !== 2 || !isRecord(raw.subwindowZoom)) return {};
-  const steps: Record<string, number> = {};
+  const steps: Record<string, SubwindowZoomStep> = {};
   for (const [id, value] of Object.entries(raw.subwindowZoom)) {
-    if (typeof value === "number" && Number.isInteger(value) && value >= 0) steps[id] = value;
+    if (typeof value === "number") {
+      if (Number.isInteger(value) && value >= 0) steps[id] = { step: value, manual: true };
+      continue;
+    }
+    if (
+      isRecord(value) &&
+      typeof value.step === "number" && Number.isInteger(value.step) && value.step >= 0 &&
+      typeof value.manual === "boolean"
+    ) {
+      steps[id] = { step: value.step, manual: value.manual };
+    }
   }
   return steps;
 }

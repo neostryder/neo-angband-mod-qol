@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [UI] **Subwindow zoom now auto-fits a panel's actual size instead of only remembering a fixed step.** A tiled panel that has never been zoomed by hand keeps picking the largest readable rung that still fits whenever it is resized, a tiling layout changes, or the window itself resizes, so the same layout travels across screen sizes without manual retuning. A panel already zoomed by hand with Ctrl-Wheel or the +/- controls is left alone (#276).
+
 ## 1.9.0 - 2026-09-20
 
 ### Added
