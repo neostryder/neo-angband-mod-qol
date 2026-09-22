@@ -17,3 +17,4 @@ Rules marked hooks side are rebuilt when changed. Rules marked register side nee
 | `qol.accessibilityColorblind` | off | Applies red green colour correction to rendered frames. | Yes, register side. |
 | `qol.accessibilityMacroWizard` | off | Offers shortcuts for newly learned spells and activations. | Yes, register side setup. |
 | `qol.accessibilityRepeatShortcuts` | off | Offers a shortcut for resting as needed. | Yes, register side. |
+| `qol.purgeQueuedInput` | off | Claims an unused key (F2) that sends Escape for you. | Yes, register side. |

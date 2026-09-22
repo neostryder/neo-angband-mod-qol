@@ -14,7 +14,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   loadPackFile as loadJson,
   loadPackRecords as loadRecords,
@@ -62,6 +62,69 @@ describe("plugin teardown", () => {
     expect(body).toContain("uninstallFirstEncounter()");
     expect(body).toContain("uninstallMacroWizard()");
     expect(body).toContain("uninstallRepeatShortcuts()");
+    expect(body).toContain("uninstallPurgeQueuedInput()");
+  });
+});
+
+describe("qol.purgeQueuedInput: gating (neo-angband #35)", () => {
+  type Ctx = Parameters<typeof plugin.register>[1];
+
+  /**
+   * A display fake complete enough that register()'s unconditional
+   * installZoomPan(ctx) does not throw - this suite is not about zoom/pan, but
+   * register() always wires it up regardless of which other rule is under
+   * test, the same reason the other register() tests in this file that pass a
+   * `state` already work around it by omitting `display` entirely. This test
+   * needs `display` present (to observe onKey), so it stubs the rest instead.
+   */
+  function fakeDisplay(onKey: NonNullable<Ctx["display"]>["onKey"]): Ctx["display"] {
+    return {
+      snapshot: () => ({
+        mode: "play",
+        grid: { cols: 80, rows: 24, cellWidth: 16, cellHeight: 24 },
+        viewport: { origin: { x: 0, y: 0 }, size: { width: 66, height: 24 }, screenOrigin: { x: 0, y: 0 } },
+        level: { width: 66, height: 24 },
+        layout: "left",
+        regions: {},
+      }),
+      onKey,
+      setGrid: vi.fn(),
+      setCamera: vi.fn(),
+      setMapView: vi.fn(),
+      setSidebarExtent: vi.fn(),
+      setTileScaling: vi.fn(),
+      setVisualFilter: vi.fn(),
+      repaint: vi.fn(),
+    } as unknown as Ctx["display"];
+  }
+
+  it("claims nothing when the rule is off, leaving existing behaviour unchanged", () => {
+    const isBindableTriggerKey = vi.fn(() => true);
+    plugin.register(menuHost([]), {
+      flags: {},
+      core: neoCore,
+      keymaps: { isBindableTriggerKey, bind: vi.fn(() => true) },
+      display: fakeDisplay(vi.fn(() => () => undefined)),
+    } as Ctx);
+    expect(isBindableTriggerKey).not.toHaveBeenCalled();
+  });
+
+  it("claims the trigger through ctx.display.onKey, never through ctx.keymaps.bind, when the rule is on", () => {
+    const isBindableTriggerKey = vi.fn(() => true);
+    const bind = vi.fn(() => true);
+    const onKey = vi.fn(() => () => undefined);
+    plugin.register(menuHost([]), {
+      flags: { "qol.purgeQueuedInput": true },
+      core: neoCore,
+      keymaps: { isBindableTriggerKey, bind },
+      display: fakeDisplay(onKey),
+    } as Ctx);
+    expect(isBindableTriggerKey).toHaveBeenCalledWith("F2");
+    expect(onKey).toHaveBeenCalledOnce();
+    /* Binding the trigger would make a held key's repeats unobservable to
+     * ctx.keyRepeat - see purge-queued-input.ts's own header - so this must
+     * never call bind() for its own trigger. */
+    expect(bind).not.toHaveBeenCalled();
   });
 });
 

@@ -127,6 +127,13 @@
       "description": "Offer unused one-key shortcuts for resting as needed and, in the original keyset, running in each cardinal direction. They start the game's ordinary rest or run command and never replace an existing shortcut.",
       "default": false,
       "requiresReload": true
+    },
+    {
+      "flag": "qol.purgeQueuedInput",
+      "title": "Purge queued input",
+      "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you - enough presses at once to back out of several stacked menus or prompts, instead of clearing a backlog of them one Escape at a time. Holding the key down does not repeat the purge: the host's own judgement on whether a keypress continues one you are still holding, versus a fresh distinct press, only lets a deliberate press through, so an accidental long hold sends Escape once instead of spamming it for as long as the key stays down. A genuine burst of separate presses purges again each time.",
+      "default": false,
+      "requiresReload": true
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-qol"

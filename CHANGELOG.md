@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] **New toggle: purge queued input.** With "Purge queued input" on, an unused key (F2, if nothing else already has it) sends Escape for you - enough presses at once to back out of several stacked menus or prompts, instead of clearing a backlog of them one Escape at a time. Holding the key down sends Escape only once: the host's own judgement on whether a keypress continues one you are still holding, versus a fresh distinct press, keeps an accidental long hold from spamming cancels, while a genuine burst of separate presses purges again each time (#35).
+
 - [Visible] [UI] **Subwindow zoom now auto-fits a panel's actual size instead of only remembering a fixed step.** A tiled panel that has never been zoomed by hand keeps picking the largest readable rung that still fits whenever it is resized, a tiling layout changes, or the window itself resizes, so the same layout travels across screen sizes without manual retuning. A panel already zoomed by hand with Ctrl-Wheel or the +/- controls is left alone (#276).
 
 - [Visible] [UI] **Misc. niceties now also shows a colour key on the visible-monster list ('[').** With the bundle on, the screen's footer carries a one-line key naming that violet marks a unique, red marks a monster whose native level is above the current dungeon depth, and white means an ordinary monster for the depth - the same convention the row colours already followed (#269).

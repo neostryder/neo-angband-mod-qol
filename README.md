@@ -34,6 +34,7 @@ See the [settings reference](SETTINGS.md) for every flag, its default, and when 
 | **Accessibility: high-contrast display** (`qol.accessibilityHighContrast`) | off | Opt in to high-contrast rendering independently. The visual behaviour arrives with the associated accommodation update. |
 | **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | When you gain a spell or known activation, offers an unused shortcut key for the casting or activation command. You may accept, choose another key, or decline. |
 | **Accessibility: repeated-action shortcuts** (`qol.accessibilityRepeatShortcuts`) | off | Offers an unused one-key shortcut for resting as needed. Existing shortcuts are never replaced. Reported by `misha_cilantro`. |
+| **Purge queued input** (`qol.purgeQueuedInput`) | off | Claims an unused key (F2, if nothing else already has it) that sends Escape for you - enough presses at once to back out of several stacked menus or prompts. Holding the key down sends it only once; a genuine burst of separate presses sends it again each time. |
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one

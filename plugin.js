@@ -1156,7 +1156,7 @@ function hoveredSubwindow(rt, x, y) {
 }
 function clearSubwindowControls(rt) {
   for (const cleanups of rt.subwindowControlCleanups.values()) {
-    for (const cleanup of cleanups) cleanup();
+    for (const cleanup2 of cleanups) cleanup2();
   }
   rt.subwindowControlCleanups.clear();
 }
@@ -1170,7 +1170,7 @@ function syncSubwindowControls(rt) {
   const visible = new Set(panels.map((panel) => panel.id));
   for (const [id, cleanups] of rt.subwindowControlCleanups) {
     if (!visible.has(id)) {
-      for (const cleanup of cleanups) cleanup();
+      for (const cleanup2 of cleanups) cleanup2();
       rt.subwindowControlCleanups.delete(id);
       rt.restoredSubwindowZoomPanels.delete(id);
       rt.subwindowPanelSizes.delete(id);
@@ -1764,7 +1764,7 @@ function uninstallZoomPan() {
   if (rt.sidebarVisibilityTimer !== null) clearInterval(rt.sidebarVisibilityTimer);
   if (rt.subwindowControlsTimer !== null) clearInterval(rt.subwindowControlsTimer);
   clearSubwindowControls(rt);
-  for (const cleanup of rt.cleanups.splice(0).reverse()) cleanup();
+  for (const cleanup2 of rt.cleanups.splice(0).reverse()) cleanup2();
   rt.display.setMapView(null);
   rt.display.setCamera(null);
   rt.display.setSidebarExtent(null);
@@ -2110,6 +2110,43 @@ function drawPrompt2(panel, keymaps, shortcuts, prefs) {
   card.append(done);
   wrap.append(card);
   root.append(style, wrap);
+}
+
+// purge-queued-input.ts
+function shouldPurgeOnTrigger(verdict) {
+  return !verdict?.isRepeat;
+}
+var PURGE_TRIGGER = "F2";
+var PURGE_ESCAPE_COUNT = 3;
+function realSendEscape() {
+  if (typeof window === "undefined") return;
+  for (let i = 0; i < PURGE_ESCAPE_COUNT; i++) {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  }
+}
+var cleanup = null;
+function installPurgeQueuedInput(ctx) {
+  uninstallPurgeQueuedInput();
+  if (!ctx.display || !ctx.keymaps) {
+    ctx.log?.("this game is too old for purging queued input");
+    return;
+  }
+  if (!ctx.keymaps.isBindableTriggerKey(PURGE_TRIGGER)) {
+    ctx.log?.(`purge queued input: ${PURGE_TRIGGER} is already bound to something else; no key claimed`);
+    return;
+  }
+  const sendEscape = ctx.sendEscape ?? realSendEscape;
+  cleanup = ctx.display.onKey((event) => {
+    if (event.key !== PURGE_TRIGGER || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!shouldPurgeOnTrigger(ctx.keyRepeat?.() ?? null)) return;
+    sendEscape();
+  });
+}
+function uninstallPurgeQueuedInput() {
+  cleanup?.();
+  cleanup = null;
 }
 
 // first-encounter.ts
@@ -2968,6 +3005,14 @@ var plugin_default = {
         ...ctx.log ? { log: ctx.log } : {}
       });
     }
+    if (ctx.flags["qol.purgeQueuedInput"] === true) {
+      installPurgeQueuedInput({
+        ...ctx.display ? { display: ctx.display } : {},
+        ...ctx.keymaps ? { keymaps: ctx.keymaps } : {},
+        ...ctx.keyRepeat ? { keyRepeat: ctx.keyRepeat } : {},
+        ...ctx.log ? { log: ctx.log } : {}
+      });
+    }
     if (ctx.flags["qol.firstEncounterAlerts"] === true) {
       if (ctx.state) {
         installFirstEncounter({
@@ -3019,6 +3064,7 @@ var plugin_default = {
     uninstallFirstEncounter();
     uninstallMacroWizard();
     uninstallRepeatShortcuts();
+    uninstallPurgeQueuedInput();
   }
 };
 export {

@@ -68,6 +68,7 @@ import {
   type AbilityGainedLike,
 } from "./macro-wizard";
 import { installRepeatShortcuts, uninstallRepeatShortcuts } from "./repeat-shortcuts";
+import { installPurgeQueuedInput, uninstallPurgeQueuedInput } from "./purge-queued-input";
 import {
   installFirstEncounter,
   uninstallFirstEncounter,
@@ -174,6 +175,14 @@ interface HookCtx {
     isBindableTriggerKey(trigger: string): boolean;
     bind(trigger: string, action: string): boolean;
   };
+  /**
+   * The host's live judgement on the most recent root-screen keydown - a
+   * genuine key-repeat (a held key auto-repeating) versus a fresh,
+   * deliberate press (neo-angband#35). Absent on a host older than the one
+   * that added it. Only `isRepeat` is named here, structurally: it is the
+   * only field purge-queued-input.ts reads.
+   */
+  readonly keyRepeat?: () => { readonly isRepeat: boolean } | null;
   readonly ui?: {
     openPanel(spec: { id: string; modal: boolean; label: string }): {
       readonly root: ShadowRoot;
@@ -1216,6 +1225,15 @@ export default {
       });
     }
 
+    if (ctx.flags["qol.purgeQueuedInput"] === true) {
+      installPurgeQueuedInput({
+        ...(ctx.display ? { display: ctx.display } : {}),
+        ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
+        ...(ctx.keyRepeat ? { keyRepeat: ctx.keyRepeat } : {}),
+        ...(ctx.log ? { log: ctx.log } : {}),
+      });
+    }
+
     /*
      * "First-encounter alerts" (qol.firstEncounterAlerts): see
      * first-encounter.ts's header for why this polls rather than hooking an
@@ -1292,5 +1310,6 @@ export default {
     uninstallFirstEncounter();
     uninstallMacroWizard();
     uninstallRepeatShortcuts();
+    uninstallPurgeQueuedInput();
   },
 };
