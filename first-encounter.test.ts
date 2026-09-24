@@ -14,6 +14,7 @@ import {
   type ArtifactLike,
   type GameObjectLike,
   type MonsterRaceLike,
+  type MonsterTilePainter,
 } from "./first-encounter";
 import {
   readHideRepeatShortcuts,
@@ -158,6 +159,43 @@ describe("installFirstEncounter", () => {
     uninstallFirstEncounter();
     vi.advanceTimersByTime(750);
     expect(openPanel).not.toHaveBeenCalled();
+  });
+
+  it("threads ctx.tiles through to the queued card's tile lookup (neo-angband#256)", () => {
+    /* openPanel throws, so the poll runs its full sighting pass - building the
+     * card content, which is what reads ctx.tiles - without ever reaching
+     * drawCard's real DOM writes (see showNext's own catch). */
+    vi.useFakeTimers();
+    const hasMonsterTile = vi.fn(() => true);
+    installFirstEncounter({
+      core: {
+        monsterListCollect: () => ({ entries: [{ race: race({ ridx: 7 }) }] }),
+        liveObjectIsKnownArtifact: () => false,
+        fmtDepth: (depth: number) => `${depth}ft`,
+        colorToCss: () => "#fff",
+      },
+      state: {
+        chunk: { depth: 5 },
+        gear: { store: new Map() },
+        actor: {
+          player: {
+            race: { name: "Hobbit" },
+            cls: { name: "Rogue" },
+            auBirth: 100,
+            htBirth: 40,
+            wtBirth: 60,
+          },
+        },
+      },
+      ui: {
+        openPanel: () => {
+          throw new Error("no real panel in this test");
+        },
+      },
+      tiles: { active: true, hasMonsterTile, drawMonster: () => true },
+    });
+    vi.advanceTimersByTime(750);
+    expect(hasMonsterTile).toHaveBeenCalledWith(7);
   });
 });
 
@@ -321,6 +359,58 @@ describe("monsterCardContent", () => {
     expect(content.kind).toBe("monster");
     expect(content.name).toBe("Grip, Farmer Maggot's Dog");
     expect(content.depthText).toBe("200' (L4)");
+    expect(content.glyphChar).toBe("d");
+    expect(content.glyphColor).toBe("#000005");
+  });
+
+  function tiles(overrides: Partial<MonsterTilePainter> = {}): MonsterTilePainter {
+    return {
+      active: true,
+      hasMonsterTile: () => true,
+      drawMonster: () => true,
+      ...overrides,
+    };
+  }
+
+  it("keeps drawing the ASCII glyph in ASCII mode, with no tile paint offered (regression guard, neo-angband#256)", () => {
+    /* No `tiles` argument at all - the shape every host older than
+     * neo-angband#256 hands this mod, and the shape ASCII mode itself hands
+     * it (ctx.tiles.active is false there). Either way the card must render
+     * exactly as it always has: glyph fields present, no tilePaint. */
+    const content = monsterCardContent(race({ dChar: "C", dAttr: 4 }), 1, fmtDepth, colorToCss);
+    expect(content.tilePaint).toBeUndefined();
+    expect(content.glyphChar).toBe("C");
+    expect(content.glyphColor).toBe("#000004");
+
+    const asciiMode = monsterCardContent(
+      race({ dChar: "C", dAttr: 4 }),
+      1,
+      fmtDepth,
+      colorToCss,
+      tiles({ active: false }),
+    );
+    expect(asciiMode.tilePaint).toBeUndefined();
+    expect(asciiMode.glyphChar).toBe("C");
+  });
+
+  it("offers a tile paint for a race the active pack draws, in graphics mode (#256)", () => {
+    const grip = race({ ridx: 42, dChar: "C", dAttr: 4 });
+    const hasMonsterTile = vi.fn((ridx: number) => ridx === 42);
+    const painter = tiles({ hasMonsterTile });
+    const content = monsterCardContent(grip, 1, fmtDepth, colorToCss, painter);
+    expect(hasMonsterTile).toHaveBeenCalledWith(42);
+    expect(content.tilePaint).toEqual({ ridx: 42, tiles: painter });
+    /* The glyph fields stay populated too - drawCard's own fallback if the
+     * pack's art fails to draw at paint time (not yet loaded, say). */
+    expect(content.glyphChar).toBe("C");
+    expect(content.glyphColor).toBe("#000004");
+  });
+
+  it("falls back to the glyph for a race the active pack has no art for (#256)", () => {
+    const fang = race({ ridx: 99, dChar: "d", dAttr: 5 });
+    const painter = tiles({ hasMonsterTile: () => false });
+    const content = monsterCardContent(fang, 1, fmtDepth, colorToCss, painter);
+    expect(content.tilePaint).toBeUndefined();
     expect(content.glyphChar).toBe("d");
     expect(content.glyphColor).toBe("#000005");
   });
