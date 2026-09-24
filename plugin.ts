@@ -80,6 +80,7 @@ import {
   uninstallMiscNiceties,
   uninstallQuiverItemization,
 } from "./misc-niceties";
+import { installLightIgnore, type LightObjectLike } from "./light-ignore";
 
 /**
  * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
@@ -168,6 +169,16 @@ interface HookCtx {
   readonly state?: {
     options?: OptionStateLike;
     actor?: { readonly grid?: { readonly x: number; readonly y: number } };
+    /**
+     * The one seam every ignore-aware read in core already goes through
+     * (game/context.ts's own doc comment on GameState.isIgnored: "so
+     * worldless code stays decoupled from flavor knowledge"), rather than a
+     * private path this mod invented. light-ignore.ts wraps it to add two
+     * independent torch/lantern auto-ignore toggles (#267) without touching
+     * state.ignore's own quality/kind/ego settings at all - not readonly,
+     * because that wrap is the whole mechanism.
+     */
+    isIgnored?(obj: LightObjectLike): boolean;
   };
   /** Emit a diagnostic line; the host decides where it goes. */
   readonly log?: (msg: string) => void;
@@ -1195,6 +1206,12 @@ export default {
     installQuiverItemization(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
+    installLightIgnore({
+      flags: ctx.flags,
+      core: ctx.core,
+      ...(ctx.state ? { state: ctx.state } : {}),
+      ...(ctx.log ? { log: ctx.log } : {}),
+    });
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
 
     const backupFolder = ctx.backupFolder;

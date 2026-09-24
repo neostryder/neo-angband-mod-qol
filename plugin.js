@@ -2467,6 +2467,53 @@ function uninstallQuiverItemization() {
   display?.setQuiverItemization?.(false);
 }
 
+// light-ignore.ts
+var TORCH_NAME_FRAGMENT = "Torch";
+var LANTERN_NAME_FRAGMENT = "Lantern";
+function isExemptFromAutoIgnore(obj) {
+  if (obj.artifact) return true;
+  const note = obj.note;
+  return note !== null && (note.includes("!k") || note.includes("!*"));
+}
+var installed = null;
+function installLightIgnore(ctx) {
+  uninstallLightIgnore();
+  const ignoreTorches = ctx.flags["qol.ignoreTorches"] === true;
+  const ignoreLanterns = ctx.flags["qol.ignoreLanterns"] === true;
+  if (!ignoreTorches && !ignoreLanterns) return;
+  const state = ctx.state;
+  if (!state) {
+    ctx.log?.("ignore torches/lanterns: no live game at register time");
+    return;
+  }
+  const lightTval = ctx.core.TV?.LIGHT;
+  if (typeof lightTval !== "number") {
+    ctx.log?.("ignore torches/lanterns: this game is too old to report TV.LIGHT");
+    return;
+  }
+  const original = state.isIgnored;
+  const wrapped = (obj) => {
+    if (obj.tval === lightTval && !isExemptFromAutoIgnore(obj)) {
+      const name = obj.kind.name;
+      if (ignoreTorches && name.includes(TORCH_NAME_FRAGMENT)) return true;
+      if (ignoreLanterns && name.includes(LANTERN_NAME_FRAGMENT)) return true;
+    }
+    return original?.(obj) ?? false;
+  };
+  state.isIgnored = wrapped;
+  installed = { state, original };
+}
+function uninstallLightIgnore() {
+  if (!installed) return;
+  const { state, original } = installed;
+  installed = null;
+  if (original) {
+    state.isIgnored = original;
+  } else {
+    delete state.isIgnored;
+  }
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
@@ -2998,6 +3045,12 @@ var plugin_default = {
     installQuiverItemization(ctx);
     installAccessibilityAccommodations(ctx);
     installMapHoverCards(ctx);
+    installLightIgnore({
+      flags: ctx.flags,
+      core: ctx.core,
+      ...ctx.state ? { state: ctx.state } : {},
+      ...ctx.log ? { log: ctx.log } : {}
+    });
     if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
     const backupFolder = ctx.backupFolder;
     if (backupFolder) {

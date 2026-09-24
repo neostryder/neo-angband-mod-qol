@@ -24,6 +24,8 @@ were not retagged.
 
 - [Visible] [UI] **The First Sightings card now shows a monster's actual tile art instead of its ASCII glyph whenever a graphics pack is active.** The badge draws the race's tile over a neutral floor background, matching how the dungeon view itself draws that monster; ASCII mode is unaffected, and a race the active pack has no art for still falls back to its glyph (#256).
 
+- [Visible] [UI] **Quality ignore can now treat torches and lanterns independently.** Two new toggles, "Quality ignore: always ignore torches" and "...always ignore lanterns", sit alongside the existing single light-source quality tier instead of replacing it, so a build that refuels a Lantern of Shadows from lanterns found on the floor can hide torches without losing sight of lanterns, or the other way around. A real light artifact, or one inscribed `!k` or `!*`, is never ignored by either toggle. Reported by `WikiWantsYourPics` on r/angband (#267).
+
 ## 1.10.0 - 2026-09-22
 
 ### Added

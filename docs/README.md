@@ -31,6 +31,8 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Accessibility: activation shortcut helper | `qol.accessibilityMacroWizard` | off | When you learn a spell or gain a known activatable item, offer to bind the casting or activation command to an unused shortcut key. |
 | Accessibility: repeated-action shortcuts | `qol.accessibilityRepeatShortcuts` | off | Offer an unused one-key shortcut for resting as needed. |
 | Purge queued input | `qol.purgeQueuedInput` | off | Claim an unused key (F2) that sends Escape for you, enough presses at once to back out of several stacked menus or prompts. |
+| Quality ignore: always ignore torches | `qol.ignoreTorches` | off | Treat every Wooden Torch as ignored, independently of the light-source quality tier and of the matching lantern toggle. |
+| Quality ignore: always ignore lanterns | `qol.ignoreLanterns` | off | Treat every Lantern as ignored, independently of the light-source quality tier and of the matching torch toggle. |
 
 ## What it needs
 

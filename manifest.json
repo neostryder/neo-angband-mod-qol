@@ -134,6 +134,20 @@
       "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you - enough presses at once to back out of several stacked menus or prompts, instead of clearing a backlog of them one Escape at a time. Holding the key down does not repeat the purge: the host's own judgement on whether a keypress continues one you are still holding, versus a fresh distinct press, only lets a deliberate press through, so an accidental long hold sends Escape once instead of spamming it for as long as the key stays down. A genuine burst of separate presses purges again each time.",
       "default": false,
       "requiresReload": true
+    },
+    {
+      "flag": "qol.ignoreTorches",
+      "title": "Quality ignore: always ignore torches",
+      "description": "Treat every Wooden Torch as ignored, independently of whatever quality tier you have set for light sources and independently of the matching toggle for lanterns below. A real torch artifact, or a torch inscribed !k or !*, is never ignored by this.",
+      "default": false,
+      "requiresReload": true
+    },
+    {
+      "flag": "qol.ignoreLanterns",
+      "title": "Quality ignore: always ignore lanterns",
+      "description": "Treat every Lantern as ignored, independently of whatever quality tier you have set for light sources and independently of the matching toggle for torches above - useful when only torches are floor noise, such as a build that refuels a Lantern of Shadows from lanterns found on the ground. A real lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
+      "default": false,
+      "requiresReload": true
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-qol"
