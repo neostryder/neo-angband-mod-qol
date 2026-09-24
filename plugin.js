@@ -2224,8 +2224,9 @@ var TIER_COLOR = {
   outOfDepth: "#e0954e",
   ordinary: "#7fd88f"
 };
-function monsterCardContent(race, currentDepth, fmtDepth, colorToCss) {
+function monsterCardContent(race, currentDepth, fmtDepth, colorToCss, tiles) {
   const tier = classifyMonsterThreat(race, currentDepth);
+  const useTile = tiles !== void 0 && tiles.active && tiles.hasMonsterTile(race.ridx);
   return {
     kind: "monster",
     title: TIER_LABEL[tier],
@@ -2233,7 +2234,8 @@ function monsterCardContent(race, currentDepth, fmtDepth, colorToCss) {
     depthText: fmtDepth(race.level),
     tier,
     glyphChar: race.dChar,
-    glyphColor: colorToCss(race.dAttr)
+    glyphColor: colorToCss(race.dAttr),
+    ...useTile ? { tilePaint: { ridx: race.ridx, tiles } } : {}
   };
 }
 function artifactCardContent(artifact, fmtDepth) {
@@ -2272,6 +2274,21 @@ function showNext2(ui) {
     panel.close();
   }, AUTO_DISMISS_MS);
 }
+var TILE_PORTRAIT_SIZE = 24;
+function paintTilePortrait(tilePaint, dpr) {
+  const canvas = document.createElement("canvas");
+  const device = Math.max(1, Math.round(TILE_PORTRAIT_SIZE * dpr));
+  canvas.width = device;
+  canvas.height = device;
+  canvas.style.width = `${String(TILE_PORTRAIT_SIZE)}px`;
+  canvas.style.height = `${String(TILE_PORTRAIT_SIZE)}px`;
+  canvas.setAttribute("aria-hidden", "true");
+  const ctx2d = canvas.getContext("2d");
+  if (!ctx2d) return null;
+  ctx2d.imageSmoothingEnabled = false;
+  const drew = tilePaint.tiles.drawMonster(ctx2d, tilePaint.ridx, 0, 0, device, device);
+  return drew ? canvas : null;
+}
 function drawCard(panel, content) {
   const root = panel.root;
   const style = document.createElement("style");
@@ -2298,17 +2315,22 @@ function drawCard(panel, content) {
   close.setAttribute("aria-label", "Dismiss");
   const head = document.createElement("div");
   head.className = "head";
-  if (content.glyphChar) {
+  if (content.tilePaint || content.glyphChar) {
     const glyph = document.createElement("span");
     glyph.className = "glyph";
-    glyph.appendChild(
-      bitmapTextBlock(
-        [[{ text: content.glyphChar, css: content.glyphColor ?? "#f2ead8" }]],
-        24,
-        24,
-        dpr
-      )
-    );
+    const portrait = content.tilePaint ? paintTilePortrait(content.tilePaint, dpr) : null;
+    if (portrait) {
+      glyph.appendChild(portrait);
+    } else if (content.glyphChar) {
+      glyph.appendChild(
+        bitmapTextBlock(
+          [[{ text: content.glyphChar, css: content.glyphColor ?? "#f2ead8" }]],
+          24,
+          24,
+          dpr
+        )
+      );
+    }
     head.append(glyph);
   }
   const titleBlock = document.createElement("div");
@@ -2383,7 +2405,7 @@ function installFirstEncounter(ctx) {
     save();
     const depth = ctx.state.chunk.depth;
     for (const race of newMonsters) {
-      queue.push(monsterCardContent(race, depth, core.fmtDepth, core.colorToCss));
+      queue.push(monsterCardContent(race, depth, core.fmtDepth, core.colorToCss, ctx.tiles));
     }
     for (const artifact of newArtifacts) {
       queue.push(artifactCardContent(artifact, core.fmtDepth));
@@ -3020,7 +3042,8 @@ var plugin_default = {
           state: ctx.state,
           ...ctx.ui ? { ui: ctx.ui } : {},
           ...ctx.prefs ? { prefs: ctx.prefs } : {},
-          ...ctx.log ? { log: ctx.log } : {}
+          ...ctx.log ? { log: ctx.log } : {},
+          ...ctx.tiles ? { tiles: ctx.tiles } : {}
         });
       } else {
         ctx.log?.("first-encounter alerts: no live game at register time");
