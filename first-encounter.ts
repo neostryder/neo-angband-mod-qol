@@ -173,6 +173,25 @@ export function carriedKnownArtifacts(
   return found;
 }
 
+/**
+ * The live tile-lookup/paint door this feature needs from ctx.tiles (host
+ * neo-angband#256), structurally. Absent on a host older than the one that
+ * added it, so this card falls back to the ASCII glyph exactly as it always
+ * has - see monsterCardContent and drawCard below.
+ */
+export interface MonsterTilePainter {
+  readonly active: boolean;
+  hasMonsterTile(ridx: number): boolean;
+  drawMonster(
+    ctx: CanvasRenderingContext2D,
+    ridx: number,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+  ): boolean;
+}
+
 /** What the card shows, independent of how it is drawn. */
 export interface EncounterCardContent {
   readonly kind: "monster" | "artifact";
@@ -182,6 +201,14 @@ export interface EncounterCardContent {
   readonly tier?: ThreatTier;
   readonly glyphChar?: string;
   readonly glyphColor?: string;
+  /**
+   * Present for a monster sighting only when the active graphics pack has
+   * tile art for this race (ctx.tiles.active && hasMonsterTile). drawCard
+   * tries painting this before falling back to the ASCII glyph above - which
+   * stays populated either way, so a pack whose art fails to load at paint
+   * time (not yet fetched, say) still has somewhere to fall back to.
+   */
+  readonly tilePaint?: { readonly ridx: number; readonly tiles: MonsterTilePainter };
 }
 
 const TIER_LABEL: Readonly<Record<ThreatTier, string>> = {
@@ -204,8 +231,10 @@ export function monsterCardContent(
   currentDepth: number,
   fmtDepth: (depth: number) => string,
   colorToCss: (attr: number) => string,
+  tiles?: MonsterTilePainter,
 ): EncounterCardContent {
   const tier = classifyMonsterThreat(race, currentDepth);
+  const useTile = tiles !== undefined && tiles.active && tiles.hasMonsterTile(race.ridx);
   return {
     kind: "monster",
     title: TIER_LABEL[tier],
@@ -214,6 +243,7 @@ export function monsterCardContent(
     tier,
     glyphChar: race.dChar,
     glyphColor: colorToCss(race.dAttr),
+    ...(useTile ? { tilePaint: { ridx: race.ridx, tiles: tiles! } } : {}),
   };
 }
 
@@ -278,6 +308,8 @@ export interface FirstEncounterContext {
   readonly ui?: UiLike;
   readonly prefs?: PrefsLike;
   readonly log?: (message: string) => void;
+  /** The host's monster-tile lookup/paint door (neo-angband#256), absent on an older host. */
+  readonly tiles?: MonsterTilePainter;
 }
 
 /** How often to look for something newly visible or newly carried. */
@@ -317,6 +349,32 @@ function showNext(ui: UiLike): void {
     activeTimeout = null;
     panel.close();
   }, AUTO_DISMISS_MS);
+}
+
+/** The glyph badge's own cell size (CSS px), matched to the bitmap glyph's own 24x24 call below. */
+const TILE_PORTRAIT_SIZE = 24;
+
+/**
+ * Paint a monster's tile art at the same size the ASCII glyph badge uses, or
+ * null when the active pack's art failed to draw (not yet loaded, most
+ * likely) so drawCard falls back to the bitmap glyph instead.
+ */
+function paintTilePortrait(
+  tilePaint: { readonly ridx: number; readonly tiles: MonsterTilePainter },
+  dpr: number,
+): HTMLCanvasElement | null {
+  const canvas = document.createElement("canvas");
+  const device = Math.max(1, Math.round(TILE_PORTRAIT_SIZE * dpr));
+  canvas.width = device;
+  canvas.height = device;
+  canvas.style.width = `${String(TILE_PORTRAIT_SIZE)}px`;
+  canvas.style.height = `${String(TILE_PORTRAIT_SIZE)}px`;
+  canvas.setAttribute("aria-hidden", "true");
+  const ctx2d = canvas.getContext("2d");
+  if (!ctx2d) return null;
+  ctx2d.imageSmoothingEnabled = false;
+  const drew = tilePaint.tiles.drawMonster(ctx2d, tilePaint.ridx, 0, 0, device, device);
+  return drew ? canvas : null;
 }
 
 function drawCard(panel: PanelLike, content: EncounterCardContent): void {
@@ -366,17 +424,22 @@ function drawCard(panel: PanelLike, content: EncounterCardContent): void {
 
   const head = document.createElement("div");
   head.className = "head";
-  if (content.glyphChar) {
+  if (content.tilePaint || content.glyphChar) {
     const glyph = document.createElement("span");
     glyph.className = "glyph";
-    glyph.appendChild(
-      bitmapTextBlock(
-        [[{ text: content.glyphChar, css: content.glyphColor ?? "#f2ead8" }]],
-        24,
-        24,
-        dpr,
-      ),
-    );
+    const portrait = content.tilePaint ? paintTilePortrait(content.tilePaint, dpr) : null;
+    if (portrait) {
+      glyph.appendChild(portrait);
+    } else if (content.glyphChar) {
+      glyph.appendChild(
+        bitmapTextBlock(
+          [[{ text: content.glyphChar, css: content.glyphColor ?? "#f2ead8" }]],
+          24,
+          24,
+          dpr,
+        ),
+      );
+    }
     head.append(glyph);
   }
   const titleBlock = document.createElement("div");
@@ -467,7 +530,7 @@ export function installFirstEncounter(ctx: FirstEncounterContext): void {
 
     const depth = ctx.state.chunk.depth;
     for (const race of newMonsters) {
-      queue.push(monsterCardContent(race, depth, core.fmtDepth, core.colorToCss));
+      queue.push(monsterCardContent(race, depth, core.fmtDepth, core.colorToCss, ctx.tiles));
     }
     for (const artifact of newArtifacts) {
       queue.push(artifactCardContent(artifact, core.fmtDepth));

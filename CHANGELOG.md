@@ -18,6 +18,12 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## [Unreleased]
+
+### Added
+
+- [Visible] [UI] **The First Sightings card now shows a monster's actual tile art instead of its ASCII glyph whenever a graphics pack is active.** The badge draws the race's tile over a neutral floor background, matching how the dungeon view itself draws that monster; ASCII mode is unaffected, and a race the active pack has no art for still falls back to its glyph (#256).
+
 ## 1.10.0 - 2026-09-22
 
 ### Added

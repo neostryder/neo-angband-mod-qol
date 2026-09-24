@@ -190,6 +190,24 @@ interface HookCtx {
       close(): void;
     };
   };
+  /**
+   * The host's live monster-tile lookup/paint door (neo-angband#256), absent
+   * on a host older than the one that added it. Consumed only by
+   * first-encounter.ts's First Sightings card, which falls back to its own
+   * ASCII glyph when this is absent or declines a race.
+   */
+  readonly tiles?: {
+    readonly active: boolean;
+    hasMonsterTile(ridx: number): boolean;
+    drawMonster(
+      ctx: CanvasRenderingContext2D,
+      ridx: number,
+      dx: number,
+      dy: number,
+      dw: number,
+      dh: number,
+    ): boolean;
+  };
 }
 
 /**
@@ -1252,6 +1270,7 @@ export default {
           ...(ctx.ui ? { ui: ctx.ui } : {}),
           ...(ctx.prefs ? { prefs: ctx.prefs } : {}),
           ...(ctx.log ? { log: ctx.log } : {}),
+          ...(ctx.tiles ? { tiles: ctx.tiles } : {}),
         });
       } else {
         ctx.log?.("first-encounter alerts: no live game at register time");
