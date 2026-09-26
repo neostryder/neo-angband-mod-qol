@@ -31,6 +31,7 @@ were not retagged.
 - [Visible] [UI] **Misc. niceties is now a content section, so it can carry text patches.** A choice you already made carries over.
 
 - [Visible] [UI] **Setting descriptions read more plainly.** The QoL rule descriptions in the mod manager are rewritten for clarity; every toggle works as before.
+- [Visible] [Docs] **The README's cloud-backup instructions are shorter and plainer.** The rest of the README, the terms and the AI usage policy are reworded too.
 
 ## 1.11.0 - 2026-09-24
 
