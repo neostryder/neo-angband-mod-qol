@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.12.0 - 2026-09-26
+
 ### Added
 
 - [Visible] [Content] **Misc. niceties also makes upstream's own text clearer.** It rewords 16 pieces of Angband 4.2.6's text, such as naming the stat each drain dart takes.
