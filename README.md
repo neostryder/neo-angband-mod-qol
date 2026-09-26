@@ -44,192 +44,61 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 ### Cloud backups
 
-Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pick a
-folder that a cloud-sync service watches. After a folder is chosen, every successful
-save updates that character's importable backup there, and the row reports the folder's
-name plus how many characters it can already identify sitting in it (a second machine's
-first setup often means picking an existing Dropbox full of them, not an empty folder).
-Choosing a different folder replaces the previous choice. Cancelling the picker changes
-nothing. The row is hidden when the current browser or desktop host cannot offer a
-folder picker, so it never leaves an action that cannot work.
+Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pick a folder that a cloud-sync service watches. Once a folder is chosen, every successful save updates that character's importable backup there. The row shows the folder's name and how many characters it already recognises in it, since setting up a second machine often means picking an existing Dropbox folder full of them. Choosing a different folder replaces the old choice, and cancelling the picker changes nothing. If your browser or the desktop app cannot offer a folder picker, the row is hidden.
 
-On a build that also watches for arrivals, opening the character-select screen offers
-any character it finds there that this machine does not have yet - a plain yes/no
-question, through the same import path Shift-M already uses, so a character that died
-here stays refused exactly as a manual import would refuse it. Saying no leaves the
-file alone; it is offered again the next time the screen opens.
+On a build that also watches for new arrivals, opening the character-select screen offers any character in that folder that this machine does not have yet. It is a plain yes/no question and goes through the same import as Shift-M, so a character that died on this machine is still refused, just as a manual import would refuse it. Saying no leaves the file alone, and it is offered again the next time the screen opens.
 
-The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is
-the first engine version with the ability-gained notification and consented keymap
-facade used by the activation shortcut helper, as well as the display and filter
-seams used by the visual accommodations.
-
+The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is the first engine version that tells mods when you gain a new ability, lets a mod add keymaps with your consent (both used by the activation shortcut helper), and has the display and filter hooks the visual accommodations use.
 ### Accessibility accommodations
 
-Accessibility accommodations are separate opt-in mod rules, so enabling one does
-not turn on the others. Choose them in **Mods -> Quality of Life** before
-starting a character, then apply the changes and reload. The mod API's `rules`
-surface is the player-configurable option mechanism available to mods; it does
-not add arbitrary entries to the core `=` birth-options editor. The three visual
-choices establish stable independent flags. Enlarged display starts the responsive
-grid at a 36-pixel cell height even when the separate zoom-and-pan rule is off;
-your saved normal zoom preference is not changed. High contrast applies a contrast
-and saturation boost to the rendered terminal frame. Colourblind correction applies
-a red-green daltonization colour matrix to that frame. Both filters work in ASCII
-and graphics modes, across dungeon play, the `M` map, menus, and other terminal-grid
-screens; the Quality of Life status sidebar and Map hover cards receive the same
-filter because they are separate DOM layers. The activation-shortcut helper opens a
-host-owned modal after you learn a spell or gain a known activatable item. It suggests
-an unused function key, lets you type another unused printable key, `Enter`, or an
-`F1` through `F12` key, and lets you decline. A bound shortcut opens the ordinary
-casting or activation command, so the game's normal item, spell, aiming, and safety
-choices still apply. The repeated-action helper offers `R&[Enter]` for conditional
-rest, the one command here that costs more than a key or two every time it is used.
-A cardinal run needs no shortcut of its own: it is already just `.` plus a direction
-in the original keyset, or one shifted direction key in roguelike, so a bound key
-would not save a keystroke. Resting keeps its existing interruption checks either
-way. Existing keymaps are never replaced.
+Each accessibility accommodation is its own opt-in rule, so turning one on does not turn on the others. Choose them in **Mods -> Quality of Life** before starting a character, then apply the changes and reload. They live in the mod's own settings because mods cannot add entries to the game's `=` birth-options screen.
 
+The three visual options are independent of each other. Enlarged display starts the responsive grid at a 36-pixel cell height even when the separate zoom-and-pan option is off, and it does not change your saved normal zoom. High contrast boosts the contrast and saturation of the rendered terminal. Colourblind correction applies a red-green daltonization colour matrix to the same picture. Both filters work in ASCII and graphics modes, in the dungeon, on the `M` map, in menus and on other terminal screens, and the Quality of Life status sidebar and Map hover cards get the same filter applied separately.
+
+The activation-shortcut helper opens a window after you learn a spell or gain a known activatable item. It suggests an unused function key, lets you type a different unused printable key, `Enter`, or any of `F1` through `F12`, and lets you decline. A bound shortcut opens the ordinary casting or activation command, so the game's normal item, spell, aiming and safety choices still apply.
+
+The repeated-action helper offers `R&[Enter]` for conditional rest, the one command here that costs more than a key or two every time you use it. A cardinal run gets no shortcut: it is already `.` plus a direction in the original keyset, or one shifted direction key in the roguelike keyset, so a bound key would not save anything. Resting keeps its usual interruption checks either way. Existing keymaps are never replaced.
 ### Zoom, pan, and responsive layout
 
-This is real grid reflow. A larger zoom step makes every glyph or tile larger
-and therefore shows fewer cave cells; a smaller step exposes more cave cells.
-The terminal, camera, full-level map, pointer conversion, and world frame all
-use the resulting whole-cell geometry. There is no CSS transform and no
-fractional cave offset.
+Zooming changes the actual grid instead of magnifying the picture. A larger zoom step makes every glyph or tile bigger and shows fewer cave cells; a smaller step shows more. The terminal, camera, full-level map, mouse position and world frame all work in whole cells, so nothing is ever drawn at a fractional offset.
 
-- `Ctrl-=` and `Ctrl--` zoom the play grid. Zoom resets a manually
-  panned play camera so the player returns to the natural view. On the `M` map,
-  the same keys step from whole-level fit through three detail levels.
-- `Ctrl-Arrow` pans play or the `M` map by two cave cells. Panning a fitted map
-  first enters its broadest detail level, because a full-level fit has no
-  off-screen cave cells to reveal.
-- Hold `Shift` with either keyboard zoom key to scale the interface instead
-  (`Ctrl-Shift-=` produces `Ctrl-+`). `Ctrl-Wheel` targets the sidebar when the
-  pointer is over it and the play or map view everywhere else.
-- A two-finger gesture is assigned by its starting midpoint. Pinch on the view
-  zooms it and a two-finger swipe pans it; on the sidebar, pinch scales the text
-  and a two-finger swipe changes the fitted status page.
+- `Ctrl-=` and `Ctrl--` zoom the play grid. Zooming also resets a camera you panned by hand, so the view returns to its normal position around you. On the `M` map, the same keys step from a whole-level fit through three detail levels.
+- `Ctrl-Arrow` pans play or the `M` map by two cave cells. Panning a fitted map first switches to its broadest detail level, since a whole-level fit has nothing off-screen to reveal.
+- Hold `Shift` with either keyboard zoom key to scale the interface instead (`Ctrl-Shift-=` produces `Ctrl-+`). `Ctrl-Wheel` scales the sidebar when the pointer is over it and zooms the play or map view everywhere else.
+- A two-finger gesture acts on whatever is under its starting midpoint. On the view, pinch zooms and a two-finger swipe pans; on the sidebar, pinch scales the text and a two-finger swipe turns the status page.
 
-The ordinary roomy layout keeps all status lines at the top-left when they fit.
-If its height is short, or if the grid falls below 48 columns and changes to a
-top strip, the sidebar shows as many complete entries as fit plus a page button.
-The button and a two-finger swipe reach the remaining pages. It never uses a
-horizontal or vertical scrollbar. Reflow normally honors the selected cell
-height, but can reduce it enough to preserve at least a 20 by 12 terminal on a
-very small display. Phone layouts reserve at least 24 columns so short footer
-prompts remain complete.
+In the normal roomy layout, all status lines sit at the top-left when they fit. If the screen is short, or the grid drops below 48 columns and the sidebar becomes a strip across the top, the sidebar shows as many complete entries as fit plus a page button, and the button or a two-finger swipe reaches the other pages. Reflow normally keeps your chosen cell height, but will shrink it enough to keep at least a 20 by 12 terminal on a very small display, and phone layouts reserve at least 24 columns so short prompts at the bottom stay whole.
 
-The responsive terminal is centered in both axes. Its outer margins absorb the
-few pixels left after fitting complete rows and columns, so an edge never shows
-part of a cell. Every resize or phone rotation refits the grid immediately. Map
-width, height, zoom windows, and pan origins finish on whole cells and are also
-rounded to even spans or offsets where the level bounds permit. The title stays
-in the engine's own centered 80 by 24 fit and ignores the saved gameplay zoom;
-gameplay reflow starts only when the character HUD appears. Footer prompts,
-character sheets, knowledge lists, and help remain terminal content. Those
-text-heavy screens temporarily use the centered fixed terminal fit so their
-80-column compositions stay complete, then restore gameplay reflow when the
-HUD returns. None of these layouts uses a browser scrollbar.
+The terminal is centred both ways, and the few pixels left over after fitting whole rows and columns go into the outer margins, so no edge ever shows part of a cell. Resizing the window or rotating a phone refits the grid immediately. Map width, height, zoom windows and pan positions land on whole cells and, where the level bounds allow, on even spans or offsets. The title screen uses the engine's own centred 80 by 24 layout and ignores your gameplay zoom; reflow starts once the character HUD appears. Footer prompts, character sheets, knowledge lists and help are text-heavy terminal screens, so they temporarily switch to the centred fixed layout to keep their 80-column pages intact, and reflow comes back when the HUD returns. None of these layouts ever shows a scrollbar.
+Zoom level, interface scale and map detail are saved once for the whole install and shared by every character and save. They are stored alongside the remembered options in the same versioned setting, and upgrading from the older format keeps your remembered options. Zooming and the sidebar use no transitions or animations, so reduced-motion settings need no special handling.
 
-The zoom level, interface scale, and map detail are one install-wide device
-preference in `ctx.prefs`, shared by every character and save. It lives beside
-the remembered-options data in the same versioned value, so upgrading from the
-old direct options shape retains those options rather than replacing them.
-Neither zoom nor sidebar rendering adds a transition or animation, so reduced
-motion preferences need no exception path.
-
-Graphics downscaling normally keeps the engine's high-quality interpolation.
-The separate sharpening toggle changes that sampler to nearest-neighbour. It is
-off by default because which version reads better depends on the tileset and
-zoom level, while the automatic mode is the less surprising general default.
-
+When graphics tiles are shrunk, the engine normally uses its high-quality smoothing. The separate sharpening toggle switches to nearest-neighbour sampling instead. It is off by default because which looks better depends on the tileset and zoom level, and smoothing is the less surprising default.
 ### Why remembering settings belongs in a mod
 
-Angband keeps a character's options inside that character's save and nowhere else, so
-they die with the character, and every new life starts by setting them all again.
-Upstream's answer is the pref file (`s` / `r` in the options menu), a file you have to
-know exists and remember to write. That is not a bug either, so core keeps it, and the
-convenience lives here.
+Angband keeps a character's options inside that character's save and nowhere else, so they die with the character and every new life starts by setting them all again. Upstream's answer is the pref file (`s` / `r` in the options menu), which you have to know about and remember to write. That is how Angband works rather than a bug, so the game keeps it and the convenience lives here.
 
-It needs three things from the engine, and all three are general seams rather than
-anything named after this mod: `ModHooks.optionsChanged` (the game says when you have
-finished changing settings), `ctx.prefs` (somewhere to keep data that outlives a
-character; the mod's save bag is *inside* the save and dies with it), and
-`ctx.newCharacter` (whether this character was just created, which a mod cannot work
-out for itself because the game autosaves the moment one is born).
+The mod uses three general engine features, none of them specific to this mod: a notice when you finish changing settings (`ModHooks.optionsChanged`), a place to keep data that outlives a character (`ctx.prefs`, since a mod's save bag is inside the save and dies with it), and a way to tell whether a character was just created (`ctx.newCharacter`, which a mod cannot work out for itself because the game autosaves the moment a character is born).
 
-Three deliberate exclusions. **Birth options** are frozen at creation and the engine
-refuses to change them afterwards, and they already carry forward by the game's own route,
-because the birth options editor is seeded from your last character. **Cheat and score
-options** are excluded unless you turn the second toggle on: switching a cheat option
-on forces its `score_` twin, which permanently bars that character from the high score
-list, and inheriting that without being asked is the one case where remembering a
-setting does real damage. The filter applies when settings are read back as well as
-when they are stored, so turning the toggle off takes effect against what is already
-saved.
-
+There are three exclusions. **Birth options** are fixed at creation and the engine will not change them later, and they already carry forward by the game's own route, because the birth options editor starts from your last character's choices. **Cheat and score options** are left out unless you turn on the second toggle: switching a cheat option on forces its `score_` twin, which permanently bars that character from the high score list, and inheriting that without being asked is the one case where remembering a setting does real damage. The filter applies when settings are read back as well as when they are stored, so turning the toggle off also affects what is already saved.
 ### Why pref-file error handling belongs in a mod
 
-Angband 4.2.6 stops dead at the first line of a pref file it cannot parse:
-`process_pref_file_named` prints one error and breaks out of the read loop
-(`ui-prefs.c`). One typo near the top of a converted graphics pack therefore
-costs you the whole rest of the pack, silently. That is a wart, not a bug, so
-core keeps it.
+Angband 4.2.6 stops at the first line of a pref file it cannot parse: it prints one error and stops reading. One typo near the top of a converted graphics pack costs you the whole rest of the pack, with only that one error to show for it. That is a wart rather than a bug, so the game keeps it.
 
-The engine used to be forgiving instead: it carried a twenty-error cap of its
-own, with an environment variable to change it. A citation sweep found no such
-thing anywhere in Angband 4.2.6, which made it an improvement the port had added
-rather than a behaviour it had reproduced, and the port adds nothing. So it was
-removed from the engine and rebuilt here, better than it was: the old cap still
-threw away everything below the twentieth error, and this one applies the entire
-file and only limits what you are **told**.
+The engine used to carry its own cap of twenty errors, with an environment variable to change it. Angband 4.2.6 has nothing like that, so the cap was something the port had added rather than reproduced, and the port adds nothing. It was removed from the engine and rebuilt here with one improvement: the old cap still threw away everything after the twentieth error, while this toggle applies the entire file and only limits how many mistakes you are **told** about.
 
-It needs one general seam, named after nothing in this mod:
-`setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks`
-member because the three readers it governs (the `=` menu's "Load a user pref
-file", a mod's own `prefs` resource and the graphics pack loader) have no game
-state to hang a hook on, and two of them run before there is a game at all.
-
+For mod authors: the mod uses one general engine setting, `setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks` member because the three readers it governs (the `=` menu's "Load a user pref file", a mod's own `prefs` resource and the graphics pack loader) have no game state to hang a hook on, and two of them run before there is a game at all.
 ### Why auto-dig belongs in a mod
 
-Faithful 4.2.6 spends no energy when you walk into diggable terrain: you bump it and
-nothing happens. That is not a bug, it is what the C does
-(`move_player`, `cmd-cave.c`), and Neo Angband's rule is that core keeps the warts. So
-the behaviour lives here, and it lives here *completely*: there is no `qol.autoDig`
-string and no dig-on-walk branch anywhere in the engine. Delete this mod and the code
-is gone, not merely switched off.
+In Angband 4.2.6, walking into diggable terrain spends no energy: you bump it and nothing happens. That is what the original C code does, and Neo Angband keeps behaviour like that in the base game, so auto-dig lives entirely in this mod. The engine has no auto-dig setting and no dig-on-walk code, so deleting this mod deletes the feature's code with it.
 
-It reaches two of the engine's own public functions rather than reimplementing them
-(`movementTunnelTest` for the decision, `tunnelAux` for the attempt), because a
-reimplemented dig roll would drift from the tunnel command's. The decision half draws
-no randomness, so a walk this mod declines to handle leaves the RNG stream exactly
-where faithful core would, which is what makes it safe to enable partway through a
-character.
-
+For mod authors: the mod calls two of the engine's public functions instead of reimplementing them, `movementTunnelTest` to decide and `tunnelAux` to make the attempt, so its dig roll cannot drift from the tunnel command's. The decision step uses no randomness, so when the mod declines a walk, the random number stream is exactly where the unmodded game would leave it, which makes the toggle safe to enable partway through a character.
 ### Why Map overview hover cards belong in a mod
 
-The `M` command already draws the whole level in miniature, scaled down, with
-the same knowledge gate the main screen uses - remembered terrain, remembered
-or sensed objects, visible or detected monsters. What it has never had is a
-way to inspect one cell of that miniature once it is small enough to need one.
+The `M` command already draws the whole level in miniature, with the same knowledge rules as the main screen: remembered terrain, remembered or sensed objects, and visible or detected monsters. It has never had a way to inspect a single cell once the map is that small.
 
-This toggle adds that inspection, and nothing the main screen would not
-already show: the card's text comes from the same look-command machinery that
-answers "what do I know about this grid" everywhere else in the game, so a
-card never reveals anything identify or memory has not already earned. The
-kind label (terrain, creature, item, trap, shop, character) is derived from
-that same look result plus the live feature/player grid, and the magnified
-tile is cropped from the graphics overview overlay when one is mounted,
-otherwise from the matching terminal cell on the game canvas.
+This toggle adds that, and shows nothing the main screen would not. A card's text comes from the same look command the rest of the game uses, so it never reveals anything that identification or memory has not already given you. The card's kind label (terrain, creature, item, trap, shop or character) comes from the same look result plus what is on that grid, and the magnified tile is taken from the graphics overview when one is showing, or from the matching cell of the game screen otherwise.
 
-Mouse and touch both work. A two-second mouse dwell opens a card that closes
-when the pointer leaves that grid; a one-second touch hold opens a card that
-stays until a tap elsewhere. While the pointer is over the map box, this mod
-stops the overview's ordinary click-to-dismiss so inspection is possible; any
-key still closes the map, matching the footer's "Hit any key to continue".
-Off by default, like any toggle here.
-
+Mouse and touch both work. Resting the mouse on a cell for two seconds opens a card that closes when the pointer leaves that cell; holding a finger on one for a second opens a card that stays until you tap elsewhere. While the pointer is over the map, clicking no longer closes the overview, so you can inspect; any key still closes the map, as the footer's "Hit any key to continue" says. Off by default, like any toggle here.
 ### Why first-encounter alerts belong in a mod
 
 Angband already remembers every monster type you have ever met (the `r`ecall
@@ -277,9 +146,7 @@ reading it to decide whether to trust it, that is exactly why it ships unminifie
 
 ## Building and testing the mod
 
-The source lives here now, and so do the tests. They boot a **real game** against the
-published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
-convenience proven against a hand-built cave is a convenience proven against a fixture.
+The source and the tests live in this repository. The tests boot a real game against the published engine (`@rpgm-tools/neo-angband-core`) instead of a hand-built test cave.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -289,41 +156,22 @@ pnpm install --frozen-lockfile
 pnpm verify
 ```
 
-That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source. An install fetches the committed `plugin.js` from a pinned tag
-and runs it as it is; nothing rebuilds it on the way in. A stale artefact can pass the
-other checks and still be the file players run, so `pnpm check` is the only check that
-examines it.
+That typechecks, runs the tests, and confirms the committed `plugin.js` is a current build of the source. An install fetches the committed `plugin.js` from a pinned tag and runs it as it is, without rebuilding it, so a stale build could pass the other checks and still be the file players run. `pnpm check` is the only check that examines it.
 
-No checkout of the game is needed. The engine, the content pack (Angband 4.2.6
-gamedata, which the tests generate levels from) and the plugin builder are all
-published packages, so `pnpm install --frozen-lockfile` is the whole setup. The suite
-proves this mod against exactly what a third-party author would install. A sibling checkout of
-[neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO`
-pointing at one, is an override for developing against an engine change that has not
-reached the registry yet.
+You do not need a checkout of the game. The engine, the content pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin builder are all published packages, so `pnpm install --frozen-lockfile` is the whole setup, and the tests run against exactly what a third-party author would install. A sibling checkout of [neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO` pointing at one, is only for developing against an engine change that has not reached the registry yet.
 
 ```bash
 pnpm build     # rebuild plugin.js after editing plugin.ts
 ```
-
 ### Testing against an unreleased engine
 
-By default the tests import the **published** engine from `node_modules` - the
-version a player runs, which is the right default and the reason the dependency
-is pinned rather than linked. When you need to run against an engine change that
-has not shipped yet:
+By default the tests import the published engine from `node_modules`, the same version a player runs, which is why the dependency is pinned rather than linked. To run against an engine change that has not shipped yet:
 
 ```bash
 NEO_ANGBAND_LOCAL_CORE=1 pnpm test
 ```
 
-That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling
-checkout (build it first). It is a separate variable from `NEO_ANGBAND_REPO` on
-purpose: nearly everyone here has the checkout already, so keying off its presence
-would silently swap the engine under every run. If `NEO_ANGBAND_REPO` is set it is
-authoritative - a wrong path fails rather than falling back to a checkout you did
-not name.
+That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling checkout (build it first). It is a separate variable from `NEO_ANGBAND_REPO` because most contributors already have the checkout, and switching engines just because it exists would change the engine under every run without anyone noticing. If `NEO_ANGBAND_REPO` is set, it takes precedence, and a wrong path fails instead of falling back to a checkout you did not name.
 
 ## Releasing
 
