@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:aimless-looking-merchant": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "The typical dandy around town, with purse jingling, and looking for more amulets of adornment to buy."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

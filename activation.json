@@ -1,0 +1,35 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:rage-bless-resist": [
+          {
+            "op": "set",
+            "path": "msg",
+            "value": [
+              "{name} glow{s} many colours..."
+            ]
+          }
+        ],
+        "core:shroom-emergency": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "grants temporary resistance to fire and cold, heals 200HP, but also makes you hallucinate wildly"
+            ]
+          }
+        ],
+        "core:staff-magi": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "restores both intelligence and mana points to maximum"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

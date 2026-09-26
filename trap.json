@@ -1,0 +1,44 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:dart-trap--constitution-loss-dart": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A trap which shoots constitution-draining darts."
+            ]
+          }
+        ],
+        "core:dart-trap--dexterity-loss-dart": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A trap which shoots dexterity-draining darts."
+            ]
+          }
+        ],
+        "core:dart-trap--strength-loss-dart": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A trap which shoots strength-draining darts."
+            ]
+          }
+        ],
+        "core:gas-trap--confusion-gas-trap": [
+          {
+            "op": "set",
+            "path": "msg",
+            "value": [
+              "You are surrounded by a gas of scintillating colours!"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

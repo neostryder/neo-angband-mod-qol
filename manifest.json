@@ -22,7 +22,7 @@
   ],
   "author": "neostryder",
   "license": "GPL-2.0-only",
-  "description": "Conveniences that faithful Angband does not have. Angband's own options are core and are not touched here.\n\nEnable it and you get the whole set; each tweak is a named toggle you can switch off on its own. Fully removable - turn it off and the base game is exactly as it was.",
+  "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nEnable it and you get the whole set, and each tweak has its own toggle you can switch off separately. Turn the mod off and the base game is exactly as it was.",
   "rules": [
     {
       "flag": "qol.autoDig",
@@ -33,28 +33,28 @@
     {
       "flag": "qol.rememberSettings",
       "title": "Remember my settings",
-      "description": "Changes you make in the '=' options menu are kept, and every new character starts with them. Angband normally forgets them the moment a character dies, so every new life begins by setting them all again. Your existing characters are never touched - a save keeps whatever it was saved with.",
+      "description": "Changes you make in the '=' options menu are kept, and every new character starts with them. Angband normally forgets them the moment a character dies, so every new life begins by setting them all again. Existing characters are never changed; each save keeps the options it was saved with.",
       "default": true,
       "requiresReload": true
     },
     {
       "flag": "qol.forgivingPrefFiles",
       "title": "Keep reading a pref file past a mistake",
-      "description": "Angband stops reading a pref file the moment it hits a line it cannot understand, so one typo near the top silently throws away everything below it - a whole graphics pack, or the rest of your keymaps. With this on, the file is read to the end and the bad lines are simply skipped. You are told about the first 20 mistakes; any more are applied-around in silence rather than filling the message line.",
+      "description": "Angband stops reading a pref file at the first line it cannot understand, so one typo near the top silently throws away everything below it, such as a whole graphics pack or the rest of your keymaps. With this on, the whole file is read and the bad lines are skipped. You are told about the first 20 mistakes; any after that are skipped without a message, so they don't fill the message line.",
       "default": true,
       "requiresReload": true
     },
     {
       "flag": "qol.rememberCheats",
       "title": "Remember cheat options too",
-      "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default because turning a cheat option on permanently bars that character from the high score list, and inheriting that without asking is not a surprise anyone wants. Needs \"Remember my settings\" to be on.",
+      "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default, because turning a cheat option on permanently bars that character from the high score list, and a new character should not inherit that unless you choose it. Needs \"Remember my settings\" to be on.",
       "default": false,
       "requiresReload": true
     },
     {
       "flag": "qol.mapHoverCards",
       "title": "Hover cards on the Map overview",
-      "description": "On the (M)ap overview screen, resting the mouse on a cell for two seconds (or holding for one second on touch) shows a card with a magnified tile and whatever you currently know about that cell - terrain, creature, item, trap, shop, or your own character. The same knowledge gate identify and memory already apply on the main screen; nothing is revealed early. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview (any key still closes it).",
+      "description": "On the (M)ap overview screen, resting the mouse on a cell for two seconds (or holding for one second on touch) shows a card with a magnified tile and whatever you currently know about that cell: terrain, creature, item, trap, shop, or your own character. The card follows the same identify and memory rules as the main screen, so it reveals nothing early. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicking inside the map box inspects a cell instead of closing the overview, and any key still closes it.",
       "default": false,
       "requiresReload": true
     },
@@ -68,7 +68,7 @@
     {
       "flag": "qol.zoomPan",
       "title": "Zoom, pan, and responsive layout",
-      "description": "Use a real responsive grid whose visible rows and columns change with zoom. Ctrl-= and Ctrl-- zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. Hold Shift with a zoom key, or point at the sidebar while wheeling, to scale the sidebar separately. Only the game canvas pans. Display choices are shared by every character on this device.",
+      "description": "Use a responsive grid whose visible rows and columns change with zoom. Ctrl-= and Ctrl-- zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. Hold Shift with a zoom key, or point at the sidebar while wheeling, to scale the sidebar separately. Only the game canvas pans. Display choices are shared by every character on this device.",
       "default": true,
       "requiresReload": true
     },
@@ -80,16 +80,9 @@
       "requiresReload": true
     },
     {
-      "flag": "qol.miscNiceties",
-      "title": "Misc. niceties",
-      "description": "Bundle small independent display conveniences that are not each worth a separate setting. It shows an ellipsis when a store item name is too long for its column, rather than silently cutting the name off, shows the selected store item's full description on the message line while browsing, and adds a one-line colour key to the visible-monster list ('[') explaining that violet marks a unique and red marks a monster whose native level is above the current dungeon depth. More independent niceties can join this switch later.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
       "flag": "qol.quiverItemization",
       "title": "Itemize the quiver in the Inventory subwindow",
-      "description": "In the passive Inventory subwindow, list each distinct stack of ammo or thrown items in your quiver by name under a \"--Quiver--\" heading, the same way the dedicated quiver picker (the | command) already shows them - instead of just a capacity count like \"in Quiver: 7 missiles\".",
+      "description": "In the passive Inventory subwindow, list each distinct stack of ammo or thrown items in your quiver by name under a \"--Quiver--\" heading, as the quiver picker (the | command) does, instead of only a capacity count like \"in Quiver: 7 missiles\".",
       "default": false,
       "requiresReload": true
     },
@@ -131,23 +124,35 @@
     {
       "flag": "qol.purgeQueuedInput",
       "title": "Purge queued input",
-      "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you - enough presses at once to back out of several stacked menus or prompts, instead of clearing a backlog of them one Escape at a time. Holding the key down does not repeat the purge: the host's own judgement on whether a keypress continues one you are still holding, versus a fresh distinct press, only lets a deliberate press through, so an accidental long hold sends Escape once instead of spamming it for as long as the key stays down. A genuine burst of separate presses purges again each time.",
+      "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you, enough presses at once to back out of several stacked menus or prompts instead of clearing them one Escape at a time. Holding the key down does not repeat the purge. The host decides whether a keypress is a new press or the key still being held, and only a new press purges, so an accidental long hold purges once rather than for as long as the key stays down. Separate presses in quick succession each purge again.",
       "default": false,
       "requiresReload": true
     },
     {
       "flag": "qol.ignoreTorches",
       "title": "Quality ignore: always ignore torches",
-      "description": "Treat every Wooden Torch as ignored, independently of whatever quality tier you have set for light sources and independently of the matching toggle for lanterns below. A real torch artifact, or a torch inscribed !k or !*, is never ignored by this.",
+      "description": "Treat every Wooden Torch as ignored, whatever quality tier you have set for light sources and whether or not the lantern toggle below is on. A torch artifact, or a torch inscribed !k or !*, is never ignored by this.",
       "default": false,
       "requiresReload": true
     },
     {
       "flag": "qol.ignoreLanterns",
       "title": "Quality ignore: always ignore lanterns",
-      "description": "Treat every Lantern as ignored, independently of whatever quality tier you have set for light sources and independently of the matching toggle for torches above - useful when only torches are floor noise, such as a build that refuels a Lantern of Shadows from lanterns found on the ground. A real lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
+      "description": "Treat every Lantern as ignored, whatever quality tier you have set for light sources and whether or not the torch toggle above is on. The two toggles are separate so you can ignore only torches, for example if you refuel a Lantern of Shadows from lanterns found on the ground. A lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
       "default": false,
       "requiresReload": true
+    }
+  ],
+  "sections": [
+    {
+      "id": "qol-misc-niceties",
+      "flag": "qol.miscNiceties",
+      "title": "Misc. niceties",
+      "description": "Bundle small independent conveniences that are not each worth a separate setting. It shows an ellipsis instead of silently cutting off a store item name that is too long for its column, shows the selected store item's full description on the message line while browsing, and adds a one-line colour key to the visible-monster list ('[') explaining that violet marks a unique and red marks a monster whose native level is above the current dungeon depth. It also makes clarity and wording improvements to upstream Angband's own text, in item and monster descriptions and in game messages. More independent niceties can join this switch later.",
+      "default": false,
+      "renamedSectionFlags": [
+        "qol.miscNiceties"
+      ]
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-qol"

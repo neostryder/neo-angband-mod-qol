@@ -60,3 +60,20 @@ export function uninstallQuiverItemization(): void {
   quiverItemizationDisplay = null;
   display?.setQuiverItemization?.(false);
 }
+
+/**
+ * Clearer wording for a few of upstream Angband 4.2.6's own messages, applied at
+ * the host's message sink when "Misc. niceties" is on. Keys are upstream's text
+ * verbatim, as the finished message reaches the sink; anything not listed passes
+ * through unchanged. Every row restates its message without changing what it
+ * means. TEXT_CHANGES.md lists every row with its upstream source line.
+ */
+export const UPSTREAM_MESSAGE_WORDING: Readonly<Record<string, string>> = {
+  /* cmd-cave.c, ordering an immobile monster to move (command monster). */
+  "The monster can not move.": "The monster cannot move.",
+};
+
+/** The messageText hook: upstream's text in, the reworded text out. */
+export function upstreamWordingFix(text: string): string {
+  return UPSTREAM_MESSAGE_WORDING[text] ?? text;
+}

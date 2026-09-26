@@ -2466,6 +2466,13 @@ function uninstallQuiverItemization() {
   quiverItemizationDisplay = null;
   display?.setQuiverItemization?.(false);
 }
+var UPSTREAM_MESSAGE_WORDING = {
+  /* cmd-cave.c, ordering an immobile monster to move (command monster). */
+  "The monster can not move.": "The monster cannot move."
+};
+function upstreamWordingFix(text) {
+  return UPSTREAM_MESSAGE_WORDING[text] ?? text;
+}
 
 // light-ignore.ts
 var TORCH_NAME_FRAGMENT = "Torch";
@@ -3013,6 +3020,7 @@ var plugin_default = {
         };
       }
     }
+    if (flags["qol.miscNiceties"] === true) hooks.messageText = upstreamWordingFix;
     return hooks;
   },
   /*

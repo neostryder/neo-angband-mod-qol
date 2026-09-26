@@ -20,6 +20,18 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [Content] **Misc. niceties also makes upstream's own text clearer.** It rewords 16 pieces of Angband 4.2.6's text, such as naming the stat each drain dart takes.
+
+- [Visible] [Docs] **TEXT_CHANGES.md lists every text change Misc. niceties makes.** Each entry gives the upstream file and line, the text before and after, and the reason; a test keeps the list and the shipped patches in step.
+
+### Changed
+
+- [Visible] [UI] **Misc. niceties is now a content section, so it can carry text patches.** A choice you already made carries over.
+
+- [Visible] [UI] **Setting descriptions read more plainly.** The QoL rule descriptions in the mod manager are rewritten for clarity; every toggle works as before.
+
 ## 1.11.0 - 2026-09-24
 
 ### Added

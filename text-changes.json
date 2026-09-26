@@ -1,0 +1,278 @@
+{
+  "switch": {
+    "flag": "qol.miscNiceties",
+    "section": "qol-misc-niceties",
+    "title": "Misc. niceties"
+  },
+  "changes": [
+    {
+      "kind": "gamedata",
+      "file": "activation",
+      "record": "RAGE_BLESS_RESIST",
+      "ref": "core:rage-bless-resist",
+      "path": "msg",
+      "how": "fieldPatch",
+      "before": [
+        "{name} glow{s} many colors..."
+      ],
+      "after": [
+        "{name} glow{s} many colours..."
+      ],
+      "upstream": "lib/gamedata/activation.txt:847",
+      "category": "consistency",
+      "why": "The sibling RESIST_ALL message (activation.txt:428) spells it \"colours\" in the same phrase. This matches it."
+    },
+    {
+      "kind": "gamedata",
+      "file": "activation",
+      "record": "SHROOM_EMERGENCY",
+      "ref": "core:shroom-emergency",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "grants temporary resistance to fire and cold, cures 200HP, but also makes you hallucinate wildly"
+      ],
+      "after": [
+        "grants temporary resistance to fire and cold, heals 200HP, but also makes you hallucinate wildly"
+      ],
+      "upstream": "lib/gamedata/activation.txt:1323",
+      "category": "awkward",
+      "why": "Hit points are healed rather than cured everywhere else in activation.txt. The verb now matches, with nothing else changed."
+    },
+    {
+      "kind": "gamedata",
+      "file": "activation",
+      "record": "STAFF_MAGI",
+      "ref": "core:staff-magi",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "restores both intelligence and manapoints to maximum"
+      ],
+      "after": [
+        "restores both intelligence and mana points to maximum"
+      ],
+      "upstream": "lib/gamedata/activation.txt:1263",
+      "category": "consistency",
+      "why": "\"manapoints\" appears only here, while RESTORE_MANA (activation.txt:215) says \"mana points\". This uses the spaced form."
+    },
+    {
+      "kind": "gamedata",
+      "file": "class",
+      "record": "Blackguard",
+      "ref": "core:blackguard",
+      "path": "book.0.spell.5.desc",
+      "how": "fieldPatch",
+      "before": [
+        "Your mind becomes too focused to be slowed, paralyzed or confused",
+        " for 12+d12 turns."
+      ],
+      "after": [
+        "Your mind becomes too focused to be slowed, paralyzed or confused for 12+1d12 turns."
+      ],
+      "upstream": "lib/gamedata/class.txt:1675-1676",
+      "category": "consistency",
+      "why": "Other class spell descriptions write their dice as 20+1d20, 24+1d24 and so on. This one writes 12+d12, the same value (class.txt 1671 dice:12+d12)."
+    },
+    {
+      "kind": "gamedata",
+      "file": "class",
+      "record": "Blackguard",
+      "ref": "core:blackguard",
+      "path": "book.1.spell.3.desc",
+      "how": "fieldPatch",
+      "before": [
+        "Coats all your melee weapons with poison for 18+d18 turns."
+      ],
+      "after": [
+        "Coats all your melee weapons with poison for 18+1d18 turns."
+      ],
+      "upstream": "lib/gamedata/class.txt:1705",
+      "category": "consistency",
+      "why": "Other class spell descriptions write their dice as 20+1d20, 24+1d24 and so on. This one writes 18+d18, the same value (class.txt 1704 dice:18+d18)."
+    },
+    {
+      "kind": "gamedata",
+      "file": "class",
+      "record": "Druid",
+      "ref": "core:druid",
+      "path": "book.0.spell.4.desc",
+      "how": "fieldPatch",
+      "before": [
+        "Confuse a single monster; more effective against animals."
+      ],
+      "after": [
+        "Confuses a single monster; more effective against animals."
+      ],
+      "upstream": "lib/gamedata/class.txt:513",
+      "category": "consistency",
+      "why": "Spell descriptions use the third person (\"Slows down a monster\" right below it). This one is an imperative."
+    },
+    {
+      "kind": "gamedata",
+      "file": "class",
+      "record": "Druid",
+      "ref": "core:druid",
+      "path": "book.3.spell.3.desc",
+      "how": "fieldPatch",
+      "before": [
+        "Speed up digestion to increase regeneration of hitpoints for",
+        " the next 5+1d3 turns (or until hungry)."
+      ],
+      "after": [
+        "Speeds up digestion to increase regeneration of hitpoints for the next 5+1d3 turns (or until hungry)."
+      ],
+      "upstream": "lib/gamedata/class.txt:627-628",
+      "category": "consistency",
+      "why": "Spell descriptions use the third person. This one is an imperative."
+    },
+    {
+      "kind": "gamedata",
+      "file": "class",
+      "record": "Necromancer",
+      "ref": "core:necromancer",
+      "path": "book.1.spell.1.desc",
+      "how": "fieldPatch",
+      "before": [
+        "Instantly kill any monster in line-of-sight with less than four times the",
+        " player's level in hitpoints, also hurting the player.  Other monsters are",
+        " unharmed."
+      ],
+      "after": [
+        "Instantly kills any monster in line of sight with less than four times the player's level in hitpoints, also hurting the player.  Other monsters are unharmed."
+      ],
+      "upstream": "lib/gamedata/class.txt:1045-1047",
+      "category": "consistency",
+      "why": "Spell descriptions use the third person and write the noun as \"line of sight\" (Mass Sleep, Dispel Life, Banish Spirits). This one has an imperative \"kill\" and a hyphenated \"line-of-sight\"."
+    },
+    {
+      "kind": "gamedata",
+      "file": "curse",
+      "record": "vulnerability",
+      "ref": "core:vulnerability",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "attracts opponents and weakens the defences"
+      ],
+      "after": [
+        "attracts opponents and weakens your defences"
+      ],
+      "upstream": "lib/gamedata/curse.txt:102",
+      "category": "clarity",
+      "why": "The curse gives -50 to AC (curse.txt:95), which is the wearer's defence, but \"the defences\" leaves the owner unclear in \"It attracts opponents and weakens the defences\". This names the wearer."
+    },
+    {
+      "kind": "gamedata",
+      "file": "monster",
+      "record": "aimless-looking merchant",
+      "ref": "core:aimless-looking-merchant",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "The typical ponce around town, with purse jingling, and looking for more",
+        " amulets of adornment to buy."
+      ],
+      "after": [
+        "The typical dandy around town, with purse jingling, and looking for more amulets of adornment to buy."
+      ],
+      "upstream": "lib/gamedata/monster.txt:449-450",
+      "category": "dated",
+      "why": "'Ponce' is a British slur for an effeminate man or a pimp and reads as an insult today. 'dandy' keeps the vain town-shopper joke."
+    },
+    {
+      "kind": "gamedata",
+      "file": "object",
+      "record": "Protection",
+      "ref": "core:ring--protection",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "It increases your armor class."
+      ],
+      "after": [
+        "It increases your armour class."
+      ],
+      "upstream": "lib/gamedata/object.txt:2214",
+      "category": "consistency",
+      "why": "This is the only \"armor\" in any gamedata desc or msg line against 38 uses of \"armour\". This matches the house spelling."
+    },
+    {
+      "kind": "gamedata",
+      "file": "trap",
+      "record": "dart trap:constitution loss dart",
+      "ref": "core:dart-trap--constitution-loss-dart",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "A trap which shoots damaging darts."
+      ],
+      "after": [
+        "A trap which shoots constitution-draining darts."
+      ],
+      "upstream": "lib/gamedata/trap.txt:280",
+      "category": "clarity",
+      "why": "The description hides what the trap does: besides 1d4 damage it drains constitution (trap.txt, effect:DRAIN_STAT), while the slow dart just above names its effect."
+    },
+    {
+      "kind": "gamedata",
+      "file": "trap",
+      "record": "dart trap:dexterity loss dart",
+      "ref": "core:dart-trap--dexterity-loss-dart",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "A trap which shoots damaging darts."
+      ],
+      "after": [
+        "A trap which shoots dexterity-draining darts."
+      ],
+      "upstream": "lib/gamedata/trap.txt:280",
+      "category": "clarity",
+      "why": "The description hides what the trap does: besides 1d4 damage it drains dexterity (trap.txt, effect:DRAIN_STAT), while the slow dart just above names its effect."
+    },
+    {
+      "kind": "gamedata",
+      "file": "trap",
+      "record": "dart trap:strength loss dart",
+      "ref": "core:dart-trap--strength-loss-dart",
+      "path": "desc",
+      "how": "fieldPatch",
+      "before": [
+        "A trap which shoots damaging darts."
+      ],
+      "after": [
+        "A trap which shoots strength-draining darts."
+      ],
+      "upstream": "lib/gamedata/trap.txt:280",
+      "category": "clarity",
+      "why": "The description hides what the trap does: besides 1d4 damage it drains strength (trap.txt, effect:DRAIN_STAT), while the slow dart just above names its effect."
+    },
+    {
+      "kind": "gamedata",
+      "file": "trap",
+      "record": "gas trap:confusion gas trap",
+      "ref": "core:gas-trap--confusion-gas-trap",
+      "path": "msg",
+      "how": "fieldPatch",
+      "before": [
+        "You are surrounded by a gas of scintillating colors!"
+      ],
+      "after": [
+        "You are surrounded by a gas of scintillating colours!"
+      ],
+      "upstream": "lib/gamedata/trap.txt:334",
+      "category": "consistency",
+      "why": "American \"colors\" in a trap message, where the fire and acid trap descriptions in the same file say \"coloured\" (trap.txt 239, 252). The game data mixes the two spellings, so this is offered as consistency rather than a fix."
+    },
+    {
+      "kind": "message",
+      "table": "UPSTREAM_MESSAGE_WORDING",
+      "before": "The monster can not move.",
+      "after": "The monster cannot move.",
+      "upstream": "src/cmd-cave.c:1887",
+      "category": "consistency",
+      "why": "\"can not\" is the only split spelling in the player-facing messages, which otherwise use \"cannot\" throughout. The change joins it."
+    }
+  ]
+}

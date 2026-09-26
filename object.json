@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:ring--protection": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "It increases your armour class."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

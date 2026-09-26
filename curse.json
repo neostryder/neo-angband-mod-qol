@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:vulnerability": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "attracts opponents and weakens your defences"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

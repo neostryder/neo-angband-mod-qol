@@ -79,6 +79,7 @@ import {
   installQuiverItemization,
   uninstallMiscNiceties,
   uninstallQuiverItemization,
+  upstreamWordingFix,
 } from "./misc-niceties";
 import { installLightIgnore, type LightObjectLike } from "./light-ignore";
 
@@ -1172,6 +1173,14 @@ export default {
         };
       }
     }
+
+    /*
+     * "Misc. niceties" (qol.miscNiceties) also rewords a few of upstream's own
+     * messages for clarity at the host's message sink. The gamedata half of the
+     * same switch ships as this mod's content files (activation.json, class.json
+     * and the rest), filed under the qol-misc-niceties section.
+     */
+    if (flags["qol.miscNiceties"] === true) hooks.messageText = upstreamWordingFix;
 
     return hooks;
   },

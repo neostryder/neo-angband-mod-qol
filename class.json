@@ -1,0 +1,49 @@
+{
+  "sections": {
+    "qol-misc-niceties": {
+      "fieldPatches": {
+        "core:blackguard": [
+          {
+            "op": "set",
+            "path": "book.0.spell.5.desc",
+            "value": [
+              "Your mind becomes too focused to be slowed, paralyzed or confused for 12+1d12 turns."
+            ]
+          },
+          {
+            "op": "set",
+            "path": "book.1.spell.3.desc",
+            "value": [
+              "Coats all your melee weapons with poison for 18+1d18 turns."
+            ]
+          }
+        ],
+        "core:druid": [
+          {
+            "op": "set",
+            "path": "book.0.spell.4.desc",
+            "value": [
+              "Confuses a single monster; more effective against animals."
+            ]
+          },
+          {
+            "op": "set",
+            "path": "book.3.spell.3.desc",
+            "value": [
+              "Speeds up digestion to increase regeneration of hitpoints for the next 5+1d3 turns (or until hungry)."
+            ]
+          }
+        ],
+        "core:necromancer": [
+          {
+            "op": "set",
+            "path": "book.1.spell.1.desc",
+            "value": [
+              "Instantly kills any monster in line of sight with less than four times the player's level in hitpoints, also hurting the player.  Other monsters are unharmed."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
