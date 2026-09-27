@@ -20,7 +20,7 @@
   ],
   "author": "neostryder",
   "license": "GPL-2.0-only",
-  "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nEnable it and you get the whole set, and each tweak has its own toggle you can switch off separately. Turn the mod off and the base game is exactly as it was.",
+  "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the whole set, and each tweak has its own toggle you can switch off separately. Turn the mod off and the base game is exactly as it was.",
   "rules": [
     {
       "flag": "qol.autoDig",

@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Changed
+
+- [Visible] [UI] **The mod's description points to AnybandUI for the display features.** Anyone looking for zoom, hover cards or the accessibility displays in the mod manager is told where they went.
+
 ### Removed
 
 - [Visible] [UI] **Zoom and pan, Map overview hover cards, first-encounter alerts, the itemized quiver, sharper shrunken tiles, and the enlarged, high-contrast and colourblind displays have moved to the AnybandUI mod.** Quality of Life no longer draws any of them. To keep using them, install AnybandUI and turn on the matching switches there. They all start off, zoom included, although zoom was on by default here. Your saved zoom level and each character's record of first encounters start fresh.
