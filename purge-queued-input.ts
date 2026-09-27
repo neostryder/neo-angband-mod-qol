@@ -19,9 +19,7 @@
  *
  * WHAT THIS DOES INSTEAD. It confirms the trigger is free with the same
  * isBindableTriggerKey query repeat-shortcuts.ts's own binding already uses,
- * then listens for it raw through ctx.display.onKey - the same seam
- * zoom-pan.ts already relies on to claim Ctrl-+ / Ctrl-- / Ctrl-Arrow ahead
- * of the shell. On a qualifying press it sends Escape itself: the same key
+ * then listens for it raw through ctx.display.onKey - the display key-listener seam. On a qualifying press it sends Escape itself: the same key
  * already available to a player, offered on its own dedicated trigger so one
  * action can back out of several stacked menus or prompts, instead of
  * clearing a backlog of them one Escape at a time.

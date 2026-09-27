@@ -14,8 +14,6 @@
   },
   "capabilities": [
     "backup:folder",
-    "ui:sidebar.replace",
-    "display:filter",
     "ui:panel.mount",
     "keymap:write",
     "registry:menu"
@@ -48,62 +46,6 @@
       "flag": "qol.rememberCheats",
       "title": "Remember cheat options too",
       "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default, because turning a cheat option on permanently bars that character from the high score list, and a new character should not inherit that unless you choose it. Needs \"Remember my settings\" to be on.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.mapHoverCards",
-      "title": "Hover cards on the Map overview",
-      "description": "On the (M)ap overview screen, resting the mouse on a cell for two seconds (or holding for one second on touch) shows a card with a magnified tile and whatever you currently know about that cell: terrain, creature, item, trap, shop, or your own character. The card follows the same identify and memory rules as the main screen, so it reveals nothing early. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicking inside the map box inspects a cell instead of closing the overview, and any key still closes it.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.firstEncounterAlerts",
-      "title": "First-encounter alerts",
-      "description": "The first time this character meets a monster type, or picks up an artifact, a small card appears in the corner of the screen with its name and native depth. A monster's card also carries a threat badge - Unique, Deadly (well out of depth), Out of depth, or First sighting - so a dangerous or unusual monster stands out instead of scrolling past unnoticed. The card never takes the keyboard or blocks a click on the game underneath, and clears itself after a few seconds or on a click of its own close button. Tracked per character: a new character sees every card again.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.zoomPan",
-      "title": "Zoom, pan, and responsive layout",
-      "description": "Use a responsive grid whose visible rows and columns change with zoom. Ctrl-= and Ctrl-- zoom, Ctrl-Arrows pan, Ctrl-Wheel zooms the area under the pointer, and two-finger pinch or swipe controls the map or play area. Hold Shift with a zoom key, or point at the sidebar while wheeling, to scale the sidebar separately. Only the game canvas pans. Display choices are shared by every character on this device.",
-      "default": true,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.sharpenZoomedTiles",
-      "title": "Sharpen zoomed graphics and Map overview",
-      "description": "Use crisp nearest-neighbour sampling for graphics tiles even when they are being reduced. This can make pixel-art edges clearer at zoom levels where the default high-quality downscale looks soft. It also shows every known dungeon grid on the (M)ap overview, smoothly reduced to fit in ASCII and graphics modes instead of using the classic compressed miniature.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.quiverItemization",
-      "title": "Itemize the quiver in the Inventory subwindow",
-      "description": "In the passive Inventory subwindow, list each distinct stack of ammo or thrown items in your quiver by name under a \"--Quiver--\" heading, as the quiver picker (the | command) does, instead of only a capacity count like \"in Quiver: 7 missiles\".",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.accessibilityZoom",
-      "title": "Accessibility: enlarged display",
-      "description": "Use the responsive display at a larger, more readable default cell size. It works even if the separate Zoom, pan, and responsive layout rule is off, and does not change your saved normal zoom setting.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.accessibilityHighContrast",
-      "title": "Accessibility: high-contrast display",
-      "description": "Boost contrast and colour separation after the game has rendered each frame. It affects ASCII and graphics alike, including dungeon play, maps, menus, the Quality of Life status sidebar, and Map hover cards.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.accessibilityColorblind",
-      "title": "Accessibility: colourblind correction",
-      "description": "Apply a red-green daltonization correction after the game has rendered each frame. It affects ASCII and graphics alike, including dungeon play, maps, menus, the Quality of Life status sidebar, and Map hover cards.",
       "default": false,
       "requiresReload": true
     },

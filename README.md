@@ -26,17 +26,13 @@ See the [settings reference](SETTINGS.md) for every flag, its default, and when 
 | **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |
 | **Keep reading a pref file past a mistake** (`qol.forgivingPrefFiles`) | on | Angband stops reading a pref file at the first line it cannot understand, throwing away everything below it. With this on the file is read to the end and the bad lines are skipped. You are told about the first 20 mistakes. |
-| **Hover cards on the Map overview** (`qol.mapHoverCards`) | off | On the `M` overview, resting the mouse on a cell for 2 seconds (or holding for 1 second on touch) shows a card with a magnified tile and knowledge-gated info for that cell - terrain, creature, item, trap, shop, or your character. Mouse cards close when the pointer leaves the grid; touch cards stay until you tap elsewhere. Clicks on the map box inspect instead of dismissing the overview. |
-| **First-encounter alerts** (`qol.firstEncounterAlerts`) | off | The first time this character meets a monster type, or picks up an artifact, a small card appears in the corner with its name and native depth. A monster's card also shows a threat badge - Unique, Deadly, Out of depth, or First sighting. The card takes no keypress and no click meant for the game, and clears itself after a few seconds or its own close button. Reported by `Wozar` on r/angband (#56). |
-| **Zoom, pan, and responsive layout** (`qol.zoomPan`) | on | Changes the real terminal grid instead of magnifying a fixed canvas. Keyboard, mouse wheel, and two-finger gestures zoom or pan play and the `M` map; the sidebar scales separately and uses fitted pages on narrow screens. |
-| **Sharpen zoomed graphics and Map overview** (`qol.sharpenZoomedTiles`) | off | Uses nearest-neighbour sampling when a graphics tile is reduced, making pixel-art edges crisper. It also keeps every known dungeon grid on the `M` overview and smoothly reduces the completed picture to fit in ASCII and graphics modes. |
-| **Accessibility: enlarged display** (`qol.accessibilityZoom`) | off | Opt in to the enlarged-display accommodation independently. The visual behaviour arrives with the associated accommodation update. |
-| **Accessibility: high-contrast display** (`qol.accessibilityHighContrast`) | off | Opt in to high-contrast rendering independently. The visual behaviour arrives with the associated accommodation update. |
 | **Accessibility: activation shortcut helper** (`qol.accessibilityMacroWizard`) | off | When you gain a spell or known activation, offers an unused shortcut key for the casting or activation command. You may accept, choose another key, or decline. |
 | **Accessibility: repeated-action shortcuts** (`qol.accessibilityRepeatShortcuts`) | off | Offers an unused one-key shortcut for resting as needed. Existing shortcuts are never replaced. Reported by `misha_cilantro`. |
 | **Purge queued input** (`qol.purgeQueuedInput`) | off | Claims an unused key (F2, if nothing else already has it) that sends Escape for you - enough presses at once to back out of several stacked menus or prompts. Holding the key down sends it only once; a genuine burst of separate presses sends it again each time. |
 | **Quality ignore: always ignore torches** (`qol.ignoreTorches`) | off | Treats every Wooden Torch as ignored, independent of whatever quality tier you have set for light sources and of the matching lantern toggle below. A real torch artifact, or one inscribed `!k` or `!*`, is never ignored by this. |
 | **Quality ignore: always ignore lanterns** (`qol.ignoreLanterns`) | off | Treats every Lantern as ignored, independent of whatever quality tier you have set for light sources and of the matching torch toggle above - useful when only torches are floor noise, such as a build that refuels a Lantern of Shadows from lanterns found on the ground. A real lantern artifact, or one inscribed `!k` or `!*`, is never ignored by this. Reported by `WikiWantsYourPics` on r/angband (#267). |
+
+Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemized quiver, sharper shrunken tiles, and the enlarged, high-contrast and colourblind displays are now part of the [AnybandUI](https://github.com/neostryder/neo-angband-mod-anybandui) mod, where each has its own switch.
 
 The mod exists as its own repository because a mod that is going to grow should not
 need a game release to do it, and because a third-party mod and a first-party one
@@ -48,31 +44,16 @@ Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pi
 
 On a build that also watches for new arrivals, opening the character-select screen offers any character in that folder that this machine does not have yet. It is a plain yes/no question and goes through the same import as Shift-M, so a character that died on this machine is still refused, just as a manual import would refuse it. Saying no leaves the file alone, and it is offered again the next time the screen opens.
 
-The current mod needs engine 1.6.0 or later (`"engine": ">=1.6.0"`). That is the first engine version that tells mods when you gain a new ability, lets a mod add keymaps with your consent (both used by the activation shortcut helper), and has the display and filter hooks the visual accommodations use.
+The mod needs engine 1.8.0 or later (`"engine": ">=1.8.0"`). The activation shortcut helper relies on two things older engines lack: a notice when you gain a new ability, and a way for a mod to add keymaps with your consent.
+
 ### Accessibility accommodations
 
 Each accessibility accommodation is its own opt-in rule, so turning one on does not turn on the others. Choose them in **Mods -> Quality of Life** before starting a character, then apply the changes and reload. They live in the mod's own settings because mods cannot add entries to the game's `=` birth-options screen.
 
-The three visual options are independent of each other. Enlarged display starts the responsive grid at a 36-pixel cell height even when the separate zoom-and-pan option is off, and it does not change your saved normal zoom. High contrast boosts the contrast and saturation of the rendered terminal. Colourblind correction applies a red-green daltonization colour matrix to the same picture. Both filters work in ASCII and graphics modes, in the dungeon, on the `M` map, in menus and on other terminal screens, and the Quality of Life status sidebar and Map hover cards get the same filter applied separately.
-
 The activation-shortcut helper opens a window after you learn a spell or gain a known activatable item. It suggests an unused function key, lets you type a different unused printable key, `Enter`, or any of `F1` through `F12`, and lets you decline. A bound shortcut opens the ordinary casting or activation command, so the game's normal item, spell, aiming and safety choices still apply.
 
 The repeated-action helper offers `R&[Enter]` for conditional rest, the one command here that costs more than a key or two every time you use it. A cardinal run gets no shortcut: it is already `.` plus a direction in the original keyset, or one shifted direction key in the roguelike keyset, so a bound key would not save anything. Resting keeps its usual interruption checks either way. Existing keymaps are never replaced.
-### Zoom, pan, and responsive layout
 
-Zooming changes the actual grid instead of magnifying the picture. A larger zoom step makes every glyph or tile bigger and shows fewer cave cells; a smaller step shows more. The terminal, camera, full-level map, mouse position and world frame all work in whole cells, so nothing is ever drawn at a fractional offset.
-
-- `Ctrl-=` and `Ctrl--` zoom the play grid. Zooming also resets a camera you panned by hand, so the view returns to its normal position around you. On the `M` map, the same keys step from a whole-level fit through three detail levels.
-- `Ctrl-Arrow` pans play or the `M` map by two cave cells. Panning a fitted map first switches to its broadest detail level, since a whole-level fit has nothing off-screen to reveal.
-- Hold `Shift` with either keyboard zoom key to scale the interface instead (`Ctrl-Shift-=` produces `Ctrl-+`). `Ctrl-Wheel` scales the sidebar when the pointer is over it and zooms the play or map view everywhere else.
-- A two-finger gesture acts on whatever is under its starting midpoint. On the view, pinch zooms and a two-finger swipe pans; on the sidebar, pinch scales the text and a two-finger swipe turns the status page.
-
-In the normal roomy layout, all status lines sit at the top-left when they fit. If the screen is short, or the grid drops below 48 columns and the sidebar becomes a strip across the top, the sidebar shows as many complete entries as fit plus a page button, and the button or a two-finger swipe reaches the other pages. Reflow normally keeps your chosen cell height, but will shrink it enough to keep at least a 20 by 12 terminal on a very small display, and phone layouts reserve at least 24 columns so short prompts at the bottom stay whole.
-
-The terminal is centred both ways, and the few pixels left over after fitting whole rows and columns go into the outer margins, so no edge ever shows part of a cell. Resizing the window or rotating a phone refits the grid immediately. Map width, height, zoom windows and pan positions land on whole cells and, where the level bounds allow, on even spans or offsets. The title screen uses the engine's own centred 80 by 24 layout and ignores your gameplay zoom; reflow starts once the character HUD appears. Footer prompts, character sheets, knowledge lists and help are text-heavy terminal screens, so they temporarily switch to the centred fixed layout to keep their 80-column pages intact, and reflow comes back when the HUD returns. None of these layouts ever shows a scrollbar.
-Zoom level, interface scale and map detail are saved once for the whole install and shared by every character and save. They are stored alongside the remembered options in the same versioned setting, and upgrading from the older format keeps your remembered options. Zooming and the sidebar use no transitions or animations, so reduced-motion settings need no special handling.
-
-When graphics tiles are shrunk, the engine normally uses its high-quality smoothing. The separate sharpening toggle switches to nearest-neighbour sampling instead. It is off by default because which looks better depends on the tileset and zoom level, and smoothing is the less surprising default.
 ### Why remembering settings belongs in a mod
 
 Angband keeps a character's options inside that character's save and nowhere else, so they die with the character and every new life starts by setting them all again. Upstream's answer is the pref file (`s` / `r` in the options menu), which you have to know about and remember to write. That is how Angband works rather than a bug, so the game keeps it and the convenience lives here.
@@ -92,40 +73,6 @@ For mod authors: the mod uses one general engine setting, `setPrefErrorPolicy`. 
 In Angband 4.2.6, walking into diggable terrain spends no energy: you bump it and nothing happens. That is what the original C code does, and Neo Angband keeps behaviour like that in the base game, so auto-dig lives entirely in this mod. The engine has no auto-dig setting and no dig-on-walk code, so deleting this mod deletes the feature's code with it.
 
 For mod authors: the mod calls two of the engine's public functions instead of reimplementing them, `movementTunnelTest` to decide and `tunnelAux` to make the attempt, so its dig roll cannot drift from the tunnel command's. The decision step uses no randomness, so when the mod declines a walk, the random number stream is exactly where the unmodded game would leave it, which makes the toggle safe to enable partway through a character.
-### Why Map overview hover cards belong in a mod
-
-The `M` command already draws the whole level in miniature, with the same knowledge rules as the main screen: remembered terrain, remembered or sensed objects, and visible or detected monsters. It has never had a way to inspect a single cell once the map is that small.
-
-This toggle adds that, and shows nothing the main screen would not. A card's text comes from the same look command the rest of the game uses, so it never reveals anything that identification or memory has not already given you. The card's kind label (terrain, creature, item, trap, shop or character) comes from the same look result plus what is on that grid, and the magnified tile is taken from the graphics overview when one is showing, or from the matching cell of the game screen otherwise.
-
-Mouse and touch both work. Resting the mouse on a cell for two seconds opens a card that closes when the pointer leaves that cell; holding a finger on one for a second opens a card that stays until you tap elsewhere. While the pointer is over the map, clicking no longer closes the overview, so you can inspect; any key still closes the map, as the footer's "Hit any key to continue" says. Off by default, like any toggle here.
-### Why first-encounter alerts belong in a mod
-
-Angband already remembers every monster type you have ever met (the `r`ecall
-screen) and every artifact you have ever identified, but nothing puts either
-fact in front of you at the moment it happens. A mid-to-late-game run spends
-most of its time walking past monsters the player already knows, so the one
-that is genuinely new - an out-of-depth wanderer, or a unique - reads as just
-another glyph on the map unless something calls it out.
-
-This toggle calls it out. The first time this character's line of sight or
-telepathy includes a monster race, or the first time an artifact in their
-gear is assessed, a card appears with the monster or artifact's name and
-native depth. A monster's card also carries a threat badge: `Unique!` for any
-unique regardless of depth, `Deadly` for one five or more levels out of
-depth, `Out of depth` for one merely below the current depth, and
-`First sighting` for everything else, so the same glance that says "new"
-also says "should I be worried". The card is a non-modal panel: it takes no
-keypress, and only the card itself (not the transparent layer behind it)
-takes a pointer event, so it never costs a turn or blocks a click meant for
-the dungeon underneath. It clears itself after a few seconds, or immediately
-on its own close button.
-
-Tracked per character rather than per install: starting a new character sees
-every card again, because a fresh run is exactly when noticing an
-out-of-depth monster matters most. Reported by `Wozar` on r/angband, who also
-proposed extending the same notice to a first artifact find (#56).
-
 ## Installing
 
 Two files: `manifest.json` and `plugin.js`. Any of:

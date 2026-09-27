@@ -14,12 +14,11 @@ describe("repeated-action shortcuts", () => {
 });
 
 describe("permanently hiding the card (#198)", () => {
-  it("round-trips the hidden flag without disturbing sibling preferences", () => {
-    const withDisplay = { v: 2, display: { v: 2, zoomIndex: 6, interfaceZoomIndex: 1, mapDetail: 0 } };
-    expect(readHideRepeatShortcuts(withDisplay)).toBe(false);
-    const hidden = withHideRepeatShortcuts(withDisplay, true);
+  it("round-trips the hidden flag without disturbing remembered settings", () => {
+    const options = { v: 1 as const, values: { auto_more: true }, hitpointWarn: 3, delayFactor: 2, lazymoveDelay: 1 };
+    const hidden = withHideRepeatShortcuts({ v: 2, options }, true);
     expect(readHideRepeatShortcuts(hidden)).toBe(true);
-    expect(hidden.display).toEqual(withDisplay.display);
+    expect(hidden.options).toEqual(options);
   });
 
   it("defaults to false for anything not a v2 envelope", () => {
@@ -40,9 +39,7 @@ describe("permanently hiding the card (#198)", () => {
   it("still asks the host for a panel when nothing has hidden it yet", () => {
     /* Only the gate is asserted here, not the drawn card itself: drawPrompt
      * needs a real DOM (document.createElement, a shadow root), which this
-     * test environment does not have - see zoom-pan.ts's own
-     * typeof document === "undefined" guard for the same constraint. The
-     * drawn card is covered by live verification instead. */
+     * test environment does not have. The drawn card is covered by live verification. */
     const openPanel = vi.fn(() => {
       throw new Error("stop before drawPrompt touches document");
     });

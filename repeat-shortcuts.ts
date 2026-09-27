@@ -65,7 +65,7 @@ export function bindRepeatShortcut(keymaps: KeymapsLike, trigger: string, action
  * Show the consented setup once per game boot when the accommodation is
  * enabled, unless the player has permanently dismissed it (#198).
  *
- * NON-MODAL, deliberately, on the same grounds first-encounter.ts's card
+ * NON-MODAL, deliberately, so it leaves the game reachable
  * gives for its own non-modal choice: this is an optional offer the player
  * can act on or ignore, not a question blocking the way back to the game, so
  * it must not take the whole screen. It also has to draw its own dismiss
@@ -112,7 +112,7 @@ function drawPrompt(
   const root = panel.root;
   const style = document.createElement("style");
   /* `.wrap` takes no pointer events and tucks into a corner, same shape as
-   * first-encounter.ts's card; `.card` opts back in so its own controls are
+   * the panel host; `.card` opts back in so its own controls are
    * still clickable. Small and out of the way rather than centered over the
    * screen - see installRepeatShortcuts's comment for why.
    *

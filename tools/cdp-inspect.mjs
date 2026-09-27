@@ -77,12 +77,8 @@ if (setupQol) {
   await command("Runtime.evaluate", {
     expression: `(() => {
       localStorage.setItem("neo:enabledMods", JSON.stringify(["qol"]));
-      localStorage.setItem("neo:modConsents", JSON.stringify({ qol: ["ui:sidebar.replace"] }));
+      localStorage.setItem("neo:modConsents", JSON.stringify({ qol: ["backup:folder", "ui:panel.mount", "keymap:write", "registry:menu"] }));
       localStorage.setItem("neo-angband:allow-third-party-mods", "yes");
-      localStorage.setItem("neo:modPrefs:qol", JSON.stringify({
-        v: 2,
-        display: { v: 1, zoomIndex: 7, interfaceZoomIndex: 3, mapDetail: 0 },
-      }));
       location.reload();
     })()`,
   });
@@ -126,7 +122,6 @@ if (wheelDelta !== 0) {
       const x = ${String(clientX)};
       const y = ${String(clientY)};
       const target = document.elementFromPoint(x, y) ?? document.querySelector("#game");
-      const sidebar = target?.closest?.("[data-qol-responsive-sidebar]");
       const event = new WheelEvent("wheel", {
         deltaY: ${String(wheelDelta)}, clientX: x, clientY: y,
         ctrlKey: ${String(ctrlKey)}, shiftKey: ${String(shiftKey)},
@@ -137,7 +132,7 @@ if (wheelDelta !== 0) {
         kind: "wheel", deltaY: event.deltaY,
         clientX: event.clientX, clientY: event.clientY,
         ctrlKey: event.ctrlKey, shiftKey: event.shiftKey,
-        target: target?.id || (sidebar ? "sidebar" : target?.tagName ?? null),
+        target: target?.id || target?.tagName || null,
         delivered, defaultPrevented: event.defaultPrevented,
       };
     })()`,
@@ -154,8 +149,6 @@ if (clickSelector) {
 
 const measured = await command("Runtime.evaluate", {
   expression: `(() => {
-    const sidebar = document.querySelector("[data-qol-responsive-sidebar]");
-    const body = sidebar?.firstElementChild ?? null;
     const canvas = document.querySelector("#game");
     const rect = (element) => element ? Object.fromEntries(
       ["x", "y", "width", "height"].map((key) => [key, Number(element.getBoundingClientRect()[key].toFixed(2))])
@@ -164,7 +157,7 @@ const measured = await command("Runtime.evaluate", {
       location: location.href,
       viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
       localStorage: Object.fromEntries(
-        (${String(allStorage)} ? Object.keys(localStorage).sort() : ["neo:enabledMods", "neo:modConsents", "neo:modPrefs:qol"])
+        (${String(allStorage)} ? Object.keys(localStorage).sort() : ["neo:enabledMods", "neo:modConsents"])
           .filter((storageKey) => localStorage.getItem(storageKey) !== null)
           .map((storageKey) => [storageKey, localStorage.getItem(storageKey)]),
       ),
@@ -187,27 +180,6 @@ const measured = await command("Runtime.evaluate", {
         body: Object.fromEntries([...document.body.attributes].map((item) => [item.name, item.value])),
         canvas: canvas ? Object.fromEntries([...canvas.attributes].map((item) => [item.name, item.value])) : {},
       },
-      sidebar: sidebar ? {
-        rect: rect(sidebar),
-        clientWidth: sidebar.clientWidth,
-        clientHeight: sidebar.clientHeight,
-        scrollWidth: sidebar.scrollWidth,
-        scrollHeight: sidebar.scrollHeight,
-        overflow: getComputedStyle(sidebar).overflow,
-        pageText: sidebar.querySelector("[data-qol-sidebar-page]")?.textContent ?? null,
-        body: body ? {
-          rect: rect(body),
-          display: getComputedStyle(body).display,
-          scrollWidth: body.scrollWidth,
-          scrollHeight: body.scrollHeight,
-          children: body.children.length,
-          samples: [...body.children].slice(0, 3).map((child) => ({
-            text: child.textContent,
-            rect: rect(child),
-            runs: [...child.children].map((run) => ({ text: run.textContent, color: getComputedStyle(run).color })),
-          })),
-        } : null,
-      } : null,
     };
   })()`,
   returnByValue: true,
