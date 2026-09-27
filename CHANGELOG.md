@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.13.0 - 2026-09-27
+
 ### Changed
 
 - [Visible] [UI] **The mod's description points to AnybandUI for the display features.** Anyone looking for zoom, hover cards or the accessibility displays in the mod manager is told where they went.
