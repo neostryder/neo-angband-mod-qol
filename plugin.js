@@ -1,4 +1,4 @@
-// qol - generated from plugin.ts by neo-angband-mod-build
+// neo-angband-mod-qol - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
 // preferences.ts
