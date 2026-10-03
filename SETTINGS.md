@@ -13,4 +13,5 @@ Rules marked hooks side are rebuilt when changed. Rules marked register side nee
 | `qol.purgeQueuedInput` | off | Claims an unused key (F2) that sends Escape for you. | Yes, register side. |
 | `qol.ignoreTorches` | off | Always treats Wooden Torches as ignored, independently of the quality-ignore tier and of `qol.ignoreLanterns`. | Yes, register side. |
 | `qol.ignoreLanterns` | off | Always treats Lanterns as ignored, independently of the quality-ignore tier and of `qol.ignoreTorches`. | Yes, register side. |
+| `qol.miscNiceties` | off | Shows an ellipsis for an overlong store item name, the selected store item's description while browsing, a colour key on the visible-monster list, and clearer wording in upstream text. | Yes, register side and content section. |
 
