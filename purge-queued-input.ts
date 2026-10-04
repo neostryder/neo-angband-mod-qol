@@ -106,25 +106,25 @@ let cleanup: (() => void) | null = null;
  * claims nothing - on a host too old for `ctx.display`/`ctx.keymaps`, or when
  * the player or another mod already owns the trigger key.
  */
-export function installPurgeQueuedInput(ctx: PurgeQueuedInputContext): void {
+export function installPurgeQueuedInput(deps: PurgeQueuedInputContext): void {
   uninstallPurgeQueuedInput();
-  if (!ctx.display || !ctx.keymaps) {
-    ctx.log?.("this game is too old for purging queued input");
+  if (!deps.display || !deps.keymaps) {
+    deps.log?.("this game is too old for purging queued input");
     return;
   }
-  if (!ctx.keymaps.isBindableTriggerKey(PURGE_TRIGGER)) {
-    ctx.log?.(`purge queued input: ${PURGE_TRIGGER} is already bound to something else; no key claimed`);
+  if (!deps.keymaps.isBindableTriggerKey(PURGE_TRIGGER)) {
+    deps.log?.(`purge queued input: ${PURGE_TRIGGER} is already bound to something else; no key claimed`);
     return;
   }
-  const sendEscape = ctx.sendEscape ?? realSendEscape;
-  cleanup = ctx.display.onKey((event) => {
+  const sendEscape = deps.sendEscape ?? realSendEscape;
+  cleanup = deps.display.onKey((event) => {
     if (event.key !== PURGE_TRIGGER || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
     /* Claimed outright either way: F2 has no vanilla meaning, so letting an
      * unwanted repeat fall through to the shell would only risk some
      * "unhandled key" fallback rather than doing anything useful. */
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (!shouldPurgeOnTrigger(ctx.keyRepeat?.() ?? null)) return;
+    if (!shouldPurgeOnTrigger(deps.keyRepeat?.() ?? null)) return;
     sendEscape();
   });
 }

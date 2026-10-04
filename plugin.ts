@@ -20,13 +20,15 @@
  * ONCE per enabled mod, in load order, and folds the results with composeModHooks
  * (core/mod/hooks.ts) into the single ModHooks core holds.
  *
- * `ctx.core` is the ENGINE, handed in. This file imports @rpgm-tools/neo-angband-core for
- * TYPES ONLY, and that is not a style choice. The same source is built to the
- * `plugin.js` that ships in this mod's own repository, and a module fetched from a
- * folder cannot resolve a bare specifier - nor should it, because a bundled copy of
- * core would give the plugin its own registries and singletons while the game ran
- * on another set, which is a failure with no error message anywhere. See
- * src/mod-plugin.ts's header for the full argument.
+ * `ctx.core` is the ENGINE, handed in, and core-adapter.ts is the only module
+ * that reads it or any other part of the context. This file imports
+ * @rpgm-tools/neo-angband-core for TYPES ONLY, and that is not a style choice.
+ * The same source is built to the `plugin.js` that ships in this mod's own
+ * repository, and a module fetched from a folder cannot resolve a bare
+ * specifier - nor should it, because a bundled copy of core would give the
+ * plugin its own registries and singletons while the game ran on another set,
+ * which is a failure with no error message anywhere. See src/mod-plugin.ts's
+ * header for the full argument.
  *
  * Three rules make the shape work:
  *
@@ -46,7 +48,13 @@
  * no private path and no test hook.
  */
 
-import type { CaveCmdDeps, ModHooks } from "@rpgm-tools/neo-angband-core";
+import type { ModHooks } from "@rpgm-tools/neo-angband-core";
+import {
+  createAdapter,
+  type MenuHost,
+  type OptionStateLike,
+  type PluginContext,
+} from "./core-adapter";
 import {
   readRememberedSettings,
   withRememberedSettings,
@@ -64,154 +72,7 @@ import {
   installMiscNiceties,
   uninstallMiscNiceties,
   upstreamWordingFix,
-  type DisplayLike,
 } from "./misc-niceties";
-import { installLightIgnore, type LightObjectLike } from "./light-ignore";
-
-/**
- * The engine, as a type. `typeof import(...)` is type-only syntax, so this pulls
- * in no runtime dependency and the built plugin.js contains no import at all.
- */
-type CoreApi = typeof import("@rpgm-tools/neo-angband-core");
-
-/**
- * What this plugin needs from the host's context, structurally.
- *
- * Declared here rather than imported from src/mod-plugin.ts on purpose: this file
- * has to compile in a standalone mod repository that has no copy of the host. A
- * structural subset also states exactly what the mod touches, which is the honest
- * form of "the mod uses no private path".
- */
-/**
- * `PrefErrorPolicy` (core, visuals/prefs.ts), structurally.
- *
- * Two axes rather than one number, because one number could not say both
- * things: whether the REST of a pref file is applied after a bad line, and how
- * many errors the player is told about.
- */
-interface PrefErrorPolicyLike {
-  continueAfterError: boolean;
-  reportLimit: number;
-}
-
-/**
- * The engine, plus the one seam this mod needs that an older engine may not
- * have.
- *
- * `setPrefErrorPolicy` arrived with the engine that removed core's own error cap
- * (#272). Declared OPTIONAL for exactly the reason `ctx.prefs` is: manifest.json's
- * `engine` range is the gate, and this is the seatbelt for the day the two
- * disagree. On an engine that has it, `CoreApi` already declares it and this
- * intersection changes nothing.
- */
-type CoreWithPrefPolicy = CoreApi & {
-  readonly setPrefErrorPolicy?: (policy: PrefErrorPolicyLike | null) => void;
-};
-
-interface HookCtx {
-  readonly flags: Readonly<Record<string, boolean>>;
-  readonly core: CoreWithPrefPolicy;
-  /**
-   * This mod's own storage, kept OUTSIDE the character's save - the host's
-   * `ctx.prefs`. Optional here because a host older than the one that added it
-   * hands over nothing, and a mod that assumed otherwise would throw at boot on
-   * a game the manifest's `engine` range should simply have refused. Belt and
-   * braces: the range is the gate, this is the seatbelt.
-   */
-  readonly prefs?: {
-    get(): unknown;
-    set(value: unknown): void;
-  };
-  /**
-   * A player-chosen folder for automatic save backups. It is absent when the
-   * host cannot offer a folder picker or the capability was not granted.
-   *
-   * `list()` (neo-angband#24) is the read side: every `.neochar` file
-   * currently in the chosen folder, identified cheaply (name, lineage,
-   * character name and level - never a full decode). Optional on this type
-   * only because an older host hands over the rest of `backupFolder` without
-   * it; called through `?.` for exactly that reason.
-   */
-  readonly backupFolder?: {
-    choose(): Promise<string | null>;
-    write(name: string, text: string): Promise<boolean>;
-    onSave(fn: (file: { readonly name: string; readonly text: string }) => void): void;
-    list?(): Promise<
-      readonly {
-        readonly name: string;
-        readonly lineage?: string;
-        readonly characterName: string;
-        readonly level: number;
-      }[]
-    >;
-  };
-  /** Live web display geometry, absent during content composition or on old hosts. */
-  readonly display?: (DisplayLike & { onKey(listener: (event: KeyboardEvent) => void): () => void }) | undefined;
-  /** Whether this character was created this session rather than loaded. */
-  readonly newCharacter?: boolean;
-  /** The live game, when there is one. Absent during content composition. */
-  readonly state?: {
-    options?: OptionStateLike;
-    /**
-     * The one seam every ignore-aware read in core already goes through
-     * (game/context.ts's own doc comment on GameState.isIgnored: "so
-     * worldless code stays decoupled from flavor knowledge"), rather than a
-     * private path this mod invented. light-ignore.ts wraps it to add two
-     * independent torch/lantern auto-ignore toggles (#267) without touching
-     * state.ignore's own quality/kind/ego settings at all - not readonly,
-     * because that wrap is the whole mechanism.
-     */
-    isIgnored?(obj: LightObjectLike): boolean;
-  };
-  /** Emit a diagnostic line; the host decides where it goes. */
-  readonly log?: (msg: string) => void;
-  readonly keymaps?: {
-    isBindableTriggerKey(trigger: string): boolean;
-    bind(trigger: string, action: string): boolean;
-  };
-  /**
-   * The host's live judgement on the most recent root-screen keydown - a
-   * genuine key-repeat (a held key auto-repeating) versus a fresh,
-   * deliberate press (neo-angband#35). Absent on a host older than the one
-   * that added it. Only `isRepeat` is named here, structurally: it is the
-   * only field purge-queued-input.ts reads.
-   */
-  readonly keyRepeat?: () => { readonly isRepeat: boolean } | null;
-  readonly ui?: {
-    openPanel(spec: { id: string; modal: boolean; label: string }): {
-      readonly root: ShadowRoot;
-      readonly closed: Promise<void>;
-      close(): void;
-    };
-  };
-}
-
-/**
- * The part of core's OptionState this mod uses, structurally - same reason as
- * HookCtx: the mod names what it touches instead of importing a host type.
- */
-interface OptionStateLike {
-  get(name: string): boolean;
-  set(name: string, value: boolean): boolean;
-  isBirth(name: string): boolean;
-  isCheat(name: string): boolean;
-  isScore(name: string): boolean;
-  hitpointWarn: number;
-  delayFactor: number;
-  lazymoveDelay: number;
-}
-
-/** The registry-host subset this mod uses for its Game-menu action. */
-interface MenuHost {
-  readonly menus: {
-    addAction(
-      id: "core:game-menu",
-      action: string,
-      label: string,
-      handler: () => void | Promise<void>,
-    ): void;
-  };
-}
 
 /**
  * The option snapshot core hands to `optionsChanged`, structurally.
@@ -264,11 +125,13 @@ function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): bool
 export default {
   api: 1,
 
-  hooks(ctx: HookCtx): ModHooks {
-    const { flags, core } = ctx;
+  hooks(ctx: PluginContext): ModHooks {
+    const adapter = createAdapter(ctx);
+    const { flags } = adapter.meta;
+    const { engine } = adapter;
     const hooks: ModHooks = {};
 
-    ctx.backupFolder?.onSave((file) => void ctx.backupFolder?.write(file.name, file.text));
+    adapter.host.backupFolder?.onSave((file) => void adapter.host.backupFolder?.write(file.name, file.text));
 
     /*
      * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork
@@ -297,11 +160,9 @@ export default {
      */
     if (flags["qol.autoDig"] === true) {
       hooks.walkBlockedByDiggable = (state, grid, deps): number | null => {
-        if (!core.movementTunnelTest(state, grid)) return null;
-        /* deps is the live CaveCmdDeps the session built; core types it as unknown
-         * so ModHooks does not drag the cave-command types into every consumer. */
-        core.tunnelAux(state, grid, deps as CaveCmdDeps);
-        return state.z.moveEnergy;
+        if (!engine.movementTunnelTest(state, grid)) return null;
+        engine.tunnelAux(state, grid, deps);
+        return engine.moveEnergy(state);
       };
     }
 
@@ -343,7 +204,7 @@ export default {
      * nothing installs a policy and core is back on 4.2.6's.
      */
     if (flags["qol.forgivingPrefFiles"] === true) {
-      const setPolicy = core.setPrefErrorPolicy;
+      const setPolicy = engine.setPrefErrorPolicy;
       if (typeof setPolicy !== "function") {
         /* DELIBERATE, not a should-never-happen. `engine` stays ">=0.18.0"
          * because the other three toggles work perfectly on 0.18.0, and
@@ -354,7 +215,7 @@ export default {
          * It SAYS SO rather than going quietly inert, which is the failure
          * this project keeps finding: a switch that is on in the manager and
          * does nothing in the game is worse than one that refuses. */
-        ctx.log?.("this game is too old to keep reading a pref file past a mistake");
+        adapter.meta.log("this game is too old to keep reading a pref file past a mistake");
       } else {
         setPolicy({
           continueAfterError: true,
@@ -384,12 +245,12 @@ export default {
      * they want and overwriting that would be absurd.
      */
     if (flags["qol.rememberSettings"] === true) {
-      const prefs = ctx.prefs;
+      const prefs = adapter.store.prefs;
       if (!prefs) {
         /* The engine range in manifest.json should have refused this pairing.
          * If it somehow did not, say so - a silently inert mod is the failure
          * this project keeps finding. */
-        ctx.log?.("this game is too old to remember settings (no ctx.prefs)");
+        adapter.meta.log("this game is too old to remember settings (no ctx.prefs)");
       } else {
         /*
          * A THROWAWAY OptionState, used only to CLASSIFY names.
@@ -401,11 +262,11 @@ export default {
          * which names are birth / cheat / score options, which is a property of
          * the option TABLE, identical in every instance.
          *
-         * Built from ctx.core rather than from a list kept here, so a name that
+         * Built from the engine rather than from a list kept here, so a name that
          * changes category in a future engine changes category for this mod on
          * the same day.
          */
-        const classifier = new core.OptionState();
+        const classifier = engine.newOptionState();
         const cheats = flags["qol.rememberCheats"] === true;
         hooks.optionsChanged = (snapshot: OptionSnapshot): void => {
           const values: Record<string, boolean> = {};
@@ -452,24 +313,27 @@ export default {
    * and neither is an empty save bag (a mod enabled mid-game has one too).
    *
    */
-  register(host: MenuHost, ctx: HookCtx): void {
-    installMiscNiceties(ctx);
-    installLightIgnore({
-      flags: ctx.flags,
-      core: ctx.core,
-      ...(ctx.state ? { state: ctx.state } : {}),
-      ...(ctx.log ? { log: ctx.log } : {}),
-    });
-    if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
+  register(host: MenuHost, ctx: PluginContext): void {
+    const adapter = createAdapter(ctx, host);
+    const { flags, log } = adapter.meta;
+    const { keys, panels } = adapter.ui;
+    installMiscNiceties({ flags, display: adapter.host.display, log });
+    adapter.engine.installLightIgnore();
+    if (flags["qol.accessibilityMacroWizard"] === true) {
+      installMacroWizard({
+        ...(panels ? { ui: panels } : {}),
+        ...(keys ? { keymaps: keys } : {}),
+        log,
+      });
+    }
 
-    const backupFolder = ctx.backupFolder;
+    const backupFolder = adapter.host.backupFolder;
     if (backupFolder) {
       /* No unsupported-platform dead row: the host omits backupFolder when it
        * cannot present a picker, so there is nothing useful for a player to
        * select there. A cancelled pick resolves null; a rejected pick is
        * contained by this menu action. */
-      host.menus.addAction(
-        "core:game-menu",
+      adapter.host.addGameMenuAction(
         "choose-backup-folder",
         "Choose cloud-backup folder...",
         async () => {
@@ -486,7 +350,7 @@ export default {
              */
             const found = (await backupFolder.list?.()) ?? [];
             const identified = found.filter((f) => f.lineage !== undefined).length;
-            ctx.log?.(
+            log(
               identified > 0
                 ? `Using backup folder "${name}" (${String(identified)} character${identified === 1 ? "" : "s"} already there).`
                 : `Using backup folder "${name}".`,
@@ -499,28 +363,30 @@ export default {
       );
     }
 
-    if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
+    if (flags["qol.accessibilityRepeatShortcuts"] === true) {
+      const prefs = adapter.store.prefs;
       installRepeatShortcuts({
-        ...(ctx.ui ? { ui: ctx.ui } : {}),
-        ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
-        ...(ctx.prefs ? { prefs: ctx.prefs } : {}),
-        ...(ctx.log ? { log: ctx.log } : {}),
+        ...(panels ? { ui: panels } : {}),
+        ...(keys ? { keymaps: keys } : {}),
+        ...(prefs ? { prefs } : {}),
+        log,
       });
     }
 
-    if (ctx.flags["qol.purgeQueuedInput"] === true) {
+    if (flags["qol.purgeQueuedInput"] === true) {
+      const { display, keyRepeat } = adapter.host;
       installPurgeQueuedInput({
-        ...(ctx.display ? { display: ctx.display } : {}),
-        ...(ctx.keymaps ? { keymaps: ctx.keymaps } : {}),
-        ...(ctx.keyRepeat ? { keyRepeat: ctx.keyRepeat } : {}),
-        ...(ctx.log ? { log: ctx.log } : {}),
+        ...(display ? { display } : {}),
+        ...(keys ? { keymaps: keys } : {}),
+        ...(keyRepeat ? { keyRepeat } : {}),
+        log,
       });
     }
 
-    if (ctx.flags["qol.rememberSettings"] !== true) return;
-    if (ctx.newCharacter !== true) return;
-    const opts = ctx.state?.options;
-    const stored = ctx.prefs?.get();
+    if (flags["qol.rememberSettings"] !== true) return;
+    if (!adapter.meta.newCharacter) return;
+    const opts = adapter.engine.liveOptions;
+    const stored = adapter.store.prefs?.get();
     if (!opts || !stored || typeof stored !== "object") return;
 
     const remembered = readRememberedSettings(stored);
@@ -529,11 +395,11 @@ export default {
      * one, the first does not get read as if it were. */
     if (!remembered) {
       const version = (stored as { v?: unknown }).v;
-      ctx.log?.(`stored settings are version ${String(version)}; ignoring them`);
+      log(`stored settings are version ${String(version)}; ignoring them`);
       return;
     }
 
-    const cheats = ctx.flags["qol.rememberCheats"] === true;
+    const cheats = flags["qol.rememberCheats"] === true;
     let applied = 0;
     for (const [name, value] of Object.entries(remembered.values ?? {})) {
       /* Filtered on the way IN as well as on the way out. The two toggles can
@@ -555,7 +421,7 @@ export default {
     if (typeof remembered.lazymoveDelay === "number") {
       opts.lazymoveDelay = remembered.lazymoveDelay;
     }
-    ctx.log?.(`restored ${String(applied)} remembered option(s) onto the new character`);
+    log(`restored ${String(applied)} remembered option(s) onto the new character`);
   },
 
 

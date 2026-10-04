@@ -72,29 +72,29 @@ export function bindRepeatShortcut(keymaps: KeymapsLike, trigger: string, action
  * control - a non-modal panel gets none from the host - which the "Done"
  * button and the corner close button below both are.
  */
-export function installRepeatShortcuts(ctx: RepeatShortcutsContext): void {
+export function installRepeatShortcuts(deps: RepeatShortcutsContext): void {
   uninstallRepeatShortcuts();
-  if (!ctx.ui || !ctx.keymaps) {
-    ctx.log?.("this game is too old for repeated-action shortcuts");
+  if (!deps.ui || !deps.keymaps) {
+    deps.log?.("this game is too old for repeated-action shortcuts");
     return;
   }
-  if (readHideRepeatShortcuts(ctx.prefs?.get())) return;
+  if (readHideRepeatShortcuts(deps.prefs?.get())) return;
   let panel: PanelLike;
   try {
-    panel = ctx.ui.openPanel({
+    panel = deps.ui.openPanel({
       id: "repeated-action-shortcuts",
       modal: false,
       label: "Repeated-action shortcuts",
     });
   } catch (error) {
-    ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
+    deps.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
   activePanel = panel;
   void panel.closed.then(() => {
     if (activePanel === panel) activePanel = null;
   });
-  drawPrompt(panel, ctx.keymaps, defaultRepeatShortcuts(), ctx.prefs);
+  drawPrompt(panel, deps.keymaps, defaultRepeatShortcuts(), deps.prefs);
 }
 
 /** Close the optional setup card when the plugin is torn down. */

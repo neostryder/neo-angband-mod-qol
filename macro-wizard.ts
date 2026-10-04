@@ -59,9 +59,9 @@ let activePanel: PanelLike | null = null;
 const pending: AbilityGainedLike[] = [];
 
 /** Install the live context after the game exists; hooks are composed before it does. */
-export function installMacroWizard(ctx: MacroWizardContext): void {
-  runtime = ctx.ui && ctx.keymaps ? ctx : null;
-  if (!runtime) ctx.log?.("this game is too old for the activation shortcut helper");
+export function installMacroWizard(deps: MacroWizardContext): void {
+  runtime = deps.ui && deps.keymaps ? deps : null;
+  if (!runtime) deps.log?.("this game is too old for the activation shortcut helper");
 }
 
 /** Called by the synchronous core notification. The modal itself owns the later choice. */

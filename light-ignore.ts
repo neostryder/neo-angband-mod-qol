@@ -36,12 +36,15 @@
  * never read, written or clobbered. A save from before this feature existed
  * needs no migration for exactly that reason: nothing here alters state.ignore,
  * so its stored quality tier for lights keeps meaning whatever it already meant.
+ *
+ * This file decides what the wrap answers. installLightIgnore in core-adapter.ts
+ * reads TV.LIGHT and puts the wrap on the live game.
  */
 
 /**
  * The minimal object shape this feature reads, matching GameObject (core
  * obj/object.ts) structurally rather than importing it for types only, the same
- * convention plugin.ts's own HookCtx uses throughout. `artifact` and `note` are
+ * convention core-adapter.ts's PluginContext uses throughout. `artifact` and `note` are
  * read only to keep the same two "never auto-ignore this" exemptions core's own
  * objectIsIgnored (obj/ignore.ts) already grants: a real artifact, or an item
  * inscribed !k or !*, is untouched by this feature no matter which toggle is on.
@@ -51,30 +54,6 @@ export interface LightObjectLike {
   readonly artifact: unknown;
   readonly note: string | null;
   readonly kind: { readonly name: string };
-}
-
-/**
- * The one field of the live game this feature reads and replaces.
- *
- * Method-shorthand syntax on purpose, matching plugin.ts's own HookCtx
- * convention for every structural host callback: TypeScript checks a method
- * signature's parameter bivariantly, so a real host state (whose isIgnored
- * takes the full GameObject) can be assigned into this narrower structural
- * slot. A property typed as an arrow-function LITERAL is checked
- * contravariantly instead and would refuse that assignment outright, since
- * LightObjectLike is not assignable to the real, much wider GameObject.
- */
-export interface LightIgnoreGameLike {
-  isIgnored?(obj: LightObjectLike): boolean;
-}
-
-export interface LightIgnoreContext {
-  readonly flags: Readonly<Record<string, boolean>>;
-  /** Only TV.LIGHT is read; structural rather than the whole TV table. */
-  readonly core: { readonly TV: { readonly LIGHT: number } };
-  /** The live game, absent during content composition (mirrors HookCtx.state). */
-  readonly state?: LightIgnoreGameLike | undefined;
-  readonly log?: ((message: string) => void) | undefined;
 }
 
 /** "& Wooden Torch~" (content pack/object.json): the raw, un-pluralised kind
@@ -94,64 +73,36 @@ function isExemptFromAutoIgnore(obj: LightObjectLike): boolean {
   return note !== null && (note.includes("!k") || note.includes("!*"));
 }
 
-/** The previously-installed wrap, so a second install (a reload, or a test
- * re-registering) can cleanly restore what it replaced before deciding whether
- * to wrap again - the same reset-then-maybe-install shape misc-niceties.ts uses
- * for its own display seam. */
-let installed: { readonly state: LightIgnoreGameLike; readonly original: LightIgnoreGameLike["isIgnored"] } | null = null;
+/** Which of the two toggles are on, or null when neither is. */
+export interface LightIgnoreToggles {
+  readonly torches: boolean;
+  readonly lanterns: boolean;
+}
+
+/** Read the two toggles from the mod's flags. */
+export function lightIgnoreToggles(flags: Readonly<Record<string, boolean>>): LightIgnoreToggles | null {
+  const torches = flags["qol.ignoreTorches"] === true;
+  const lanterns = flags["qol.ignoreLanterns"] === true;
+  if (!torches && !lanterns) return null;
+  return { torches, lanterns };
+}
 
 /**
- * Install (or reinstall) the torch/lantern auto-ignore wrap for the current
- * game. Safe to call every register(), including across a reload: it always
- * un-wraps its own previous installation first, then re-wraps only if the live
- * game is present and at least one of the two toggles is on. With both off, this
- * is a total no-op - state.isIgnored is left exactly as it already was, which is
- * the regression guard for every other ignore choice the player has made.
+ * Build the replacement ignore check. A light whose kind name matches an
+ * enabled toggle is ignored unless it is exempt; everything else gets the
+ * answer `original` gives, or false when there is none.
  */
-export function installLightIgnore(ctx: LightIgnoreContext): void {
-  uninstallLightIgnore();
-
-  const ignoreTorches = ctx.flags["qol.ignoreTorches"] === true;
-  const ignoreLanterns = ctx.flags["qol.ignoreLanterns"] === true;
-  if (!ignoreTorches && !ignoreLanterns) return;
-
-  const state = ctx.state;
-  if (!state) {
-    ctx.log?.("ignore torches/lanterns: no live game at register time");
-    return;
-  }
-
-  const lightTval = ctx.core.TV?.LIGHT;
-  if (typeof lightTval !== "number") {
-    ctx.log?.("ignore torches/lanterns: this game is too old to report TV.LIGHT");
-    return;
-  }
-
-  const original = state.isIgnored;
-  const wrapped = (obj: LightObjectLike): boolean => {
+export function lightIgnoreWrap(
+  toggles: LightIgnoreToggles,
+  lightTval: number,
+  original: ((obj: LightObjectLike) => boolean) | undefined,
+): (obj: LightObjectLike) => boolean {
+  return (obj: LightObjectLike): boolean => {
     if (obj.tval === lightTval && !isExemptFromAutoIgnore(obj)) {
       const name = obj.kind.name;
-      if (ignoreTorches && name.includes(TORCH_NAME_FRAGMENT)) return true;
-      if (ignoreLanterns && name.includes(LANTERN_NAME_FRAGMENT)) return true;
+      if (toggles.torches && name.includes(TORCH_NAME_FRAGMENT)) return true;
+      if (toggles.lanterns && name.includes(LANTERN_NAME_FRAGMENT)) return true;
     }
     return original?.(obj) ?? false;
   };
-
-  state.isIgnored = wrapped;
-  installed = { state, original };
-}
-
-/** Restore whatever state.isIgnored was before installLightIgnore wrapped it. */
-export function uninstallLightIgnore(): void {
-  if (!installed) return;
-  const { state, original } = installed;
-  installed = null;
-  /* exactOptionalPropertyTypes: assigning `undefined` to an optional property
-   * is a type error distinct from the property being ABSENT, so an absent
-   * original is restored by deleting the wrap rather than writing it. */
-  if (original) {
-    state.isIgnored = original;
-  } else {
-    delete state.isIgnored;
-  }
 }
