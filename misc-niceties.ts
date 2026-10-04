@@ -13,12 +13,12 @@ export interface MiscNicetiesContext {
 let configuredDisplay: DisplayLike | null = null;
 
 /** Install the small independent display conveniences collected by one toggle. */
-export function installMiscNiceties(ctx: MiscNicetiesContext): void {
+export function installMiscNiceties(deps: MiscNicetiesContext): void {
   uninstallMiscNiceties();
-  if (ctx.flags["qol.miscNiceties"] !== true) return;
-  const display = ctx.display;
+  if (deps.flags["qol.miscNiceties"] !== true) return;
+  const display = deps.display;
   if (!display) {
-    ctx.log?.("this game is too old for misc. niceties");
+    deps.log?.("this game is too old for misc. niceties");
     return;
   }
   configuredDisplay = display;

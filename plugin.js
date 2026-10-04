@@ -1,6 +1,119 @@
 // neo-angband-mod-qol - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
+// light-ignore.ts
+var TORCH_NAME_FRAGMENT = "Torch";
+var LANTERN_NAME_FRAGMENT = "Lantern";
+function isExemptFromAutoIgnore(obj) {
+  if (obj.artifact) return true;
+  const note = obj.note;
+  return note !== null && (note.includes("!k") || note.includes("!*"));
+}
+function lightIgnoreToggles(flags) {
+  const torches = flags["qol.ignoreTorches"] === true;
+  const lanterns = flags["qol.ignoreLanterns"] === true;
+  if (!torches && !lanterns) return null;
+  return { torches, lanterns };
+}
+function lightIgnoreWrap(toggles, lightTval, original) {
+  return (obj) => {
+    if (obj.tval === lightTval && !isExemptFromAutoIgnore(obj)) {
+      const name = obj.kind.name;
+      if (toggles.torches && name.includes(TORCH_NAME_FRAGMENT)) return true;
+      if (toggles.lanterns && name.includes(LANTERN_NAME_FRAGMENT)) return true;
+    }
+    return original?.(obj) ?? false;
+  };
+}
+
+// core-adapter.ts
+var installedLightIgnore = null;
+function installLightIgnore(ctx) {
+  uninstallLightIgnore();
+  const toggles = lightIgnoreToggles(ctx.flags);
+  if (!toggles) return;
+  const state = ctx.state;
+  if (!state) {
+    ctx.log?.("ignore torches/lanterns: no live game at register time");
+    return;
+  }
+  const lightTval = ctx.core.TV?.LIGHT;
+  if (typeof lightTval !== "number") {
+    ctx.log?.("ignore torches/lanterns: this game is too old to report TV.LIGHT");
+    return;
+  }
+  const original = state.isIgnored;
+  state.isIgnored = lightIgnoreWrap(toggles, lightTval, original);
+  installedLightIgnore = { state, original };
+}
+function uninstallLightIgnore() {
+  if (!installedLightIgnore) return;
+  const { state, original } = installedLightIgnore;
+  installedLightIgnore = null;
+  if (original) {
+    state.isIgnored = original;
+  } else {
+    delete state.isIgnored;
+  }
+}
+function createAdapter(ctx, menuHost = null) {
+  const core = ctx.core;
+  return {
+    meta: {
+      flags: ctx.flags,
+      get newCharacter() {
+        return ctx.newCharacter === true;
+      },
+      log: (message) => ctx.log?.(message)
+    },
+    store: {
+      get prefs() {
+        return ctx.prefs;
+      }
+    },
+    ui: {
+      get keys() {
+        return ctx.keymaps;
+      },
+      get panels() {
+        return ctx.ui;
+      }
+    },
+    engine: {
+      movementTunnelTest: (state, grid) => core.movementTunnelTest(state, grid),
+      tunnelAux: (state, grid, deps) => {
+        core.tunnelAux(state, grid, deps);
+      },
+      moveEnergy: (state) => state.z.moveEnergy,
+      get setPrefErrorPolicy() {
+        return core.setPrefErrorPolicy;
+      },
+      newOptionState: () => new core.OptionState(),
+      get liveOptions() {
+        return ctx.state?.options;
+      },
+      installLightIgnore: () => installLightIgnore({
+        flags: ctx.flags,
+        core,
+        ...ctx.state ? { state: ctx.state } : {},
+        ...ctx.log ? { log: ctx.log } : {}
+      })
+    },
+    host: {
+      get display() {
+        return ctx.display;
+      },
+      get keyRepeat() {
+        return ctx.keyRepeat;
+      },
+      get backupFolder() {
+        return ctx.backupFolder;
+      },
+      addGameMenuAction: (action, label, handler) => menuHost?.menus.addAction("core:game-menu", action, label, handler)
+    }
+  };
+}
+
 // preferences.ts
 function isRecord(value) {
   return !!value && typeof value === "object";
@@ -728,9 +841,9 @@ var runtime = null;
 var active = false;
 var activePanel = null;
 var pending = [];
-function installMacroWizard(ctx) {
-  runtime = ctx.ui && ctx.keymaps ? ctx : null;
-  if (!runtime) ctx.log?.("this game is too old for the activation shortcut helper");
+function installMacroWizard(deps) {
+  runtime = deps.ui && deps.keymaps ? deps : null;
+  if (!runtime) deps.log?.("this game is too old for the activation shortcut helper");
 }
 function offerAbilityMacro(ability) {
   if (!runtime) return;
@@ -861,29 +974,29 @@ function defaultRepeatShortcuts() {
 function bindRepeatShortcut(keymaps, trigger, action) {
   return keymaps.isBindableTriggerKey(trigger) && keymaps.bind(trigger, action);
 }
-function installRepeatShortcuts(ctx) {
+function installRepeatShortcuts(deps) {
   uninstallRepeatShortcuts();
-  if (!ctx.ui || !ctx.keymaps) {
-    ctx.log?.("this game is too old for repeated-action shortcuts");
+  if (!deps.ui || !deps.keymaps) {
+    deps.log?.("this game is too old for repeated-action shortcuts");
     return;
   }
-  if (readHideRepeatShortcuts(ctx.prefs?.get())) return;
+  if (readHideRepeatShortcuts(deps.prefs?.get())) return;
   let panel;
   try {
-    panel = ctx.ui.openPanel({
+    panel = deps.ui.openPanel({
       id: "repeated-action-shortcuts",
       modal: false,
       label: "Repeated-action shortcuts"
     });
   } catch (error) {
-    ctx.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
+    deps.log?.(`could not open repeated-action shortcuts: ${String(error)}`);
     return;
   }
   activePanel2 = panel;
   void panel.closed.then(() => {
     if (activePanel2 === panel) activePanel2 = null;
   });
-  drawPrompt2(panel, ctx.keymaps, defaultRepeatShortcuts(), ctx.prefs);
+  drawPrompt2(panel, deps.keymaps, defaultRepeatShortcuts(), deps.prefs);
 }
 function uninstallRepeatShortcuts() {
   activePanel2?.close();
@@ -998,22 +1111,22 @@ function realSendEscape() {
   }
 }
 var cleanup = null;
-function installPurgeQueuedInput(ctx) {
+function installPurgeQueuedInput(deps) {
   uninstallPurgeQueuedInput();
-  if (!ctx.display || !ctx.keymaps) {
-    ctx.log?.("this game is too old for purging queued input");
+  if (!deps.display || !deps.keymaps) {
+    deps.log?.("this game is too old for purging queued input");
     return;
   }
-  if (!ctx.keymaps.isBindableTriggerKey(PURGE_TRIGGER)) {
-    ctx.log?.(`purge queued input: ${PURGE_TRIGGER} is already bound to something else; no key claimed`);
+  if (!deps.keymaps.isBindableTriggerKey(PURGE_TRIGGER)) {
+    deps.log?.(`purge queued input: ${PURGE_TRIGGER} is already bound to something else; no key claimed`);
     return;
   }
-  const sendEscape = ctx.sendEscape ?? realSendEscape;
-  cleanup = ctx.display.onKey((event) => {
+  const sendEscape = deps.sendEscape ?? realSendEscape;
+  cleanup = deps.display.onKey((event) => {
     if (event.key !== PURGE_TRIGGER || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (!shouldPurgeOnTrigger(ctx.keyRepeat?.() ?? null)) return;
+    if (!shouldPurgeOnTrigger(deps.keyRepeat?.() ?? null)) return;
     sendEscape();
   });
 }
@@ -1024,12 +1137,12 @@ function uninstallPurgeQueuedInput() {
 
 // misc-niceties.ts
 var configuredDisplay = null;
-function installMiscNiceties(ctx) {
+function installMiscNiceties(deps) {
   uninstallMiscNiceties();
-  if (ctx.flags["qol.miscNiceties"] !== true) return;
-  const display = ctx.display;
+  if (deps.flags["qol.miscNiceties"] !== true) return;
+  const display = deps.display;
   if (!display) {
-    ctx.log?.("this game is too old for misc. niceties");
+    deps.log?.("this game is too old for misc. niceties");
     return;
   }
   configuredDisplay = display;
@@ -1052,53 +1165,6 @@ function upstreamWordingFix(text) {
   return UPSTREAM_MESSAGE_WORDING[text] ?? text;
 }
 
-// light-ignore.ts
-var TORCH_NAME_FRAGMENT = "Torch";
-var LANTERN_NAME_FRAGMENT = "Lantern";
-function isExemptFromAutoIgnore(obj) {
-  if (obj.artifact) return true;
-  const note = obj.note;
-  return note !== null && (note.includes("!k") || note.includes("!*"));
-}
-var installed = null;
-function installLightIgnore(ctx) {
-  uninstallLightIgnore();
-  const ignoreTorches = ctx.flags["qol.ignoreTorches"] === true;
-  const ignoreLanterns = ctx.flags["qol.ignoreLanterns"] === true;
-  if (!ignoreTorches && !ignoreLanterns) return;
-  const state = ctx.state;
-  if (!state) {
-    ctx.log?.("ignore torches/lanterns: no live game at register time");
-    return;
-  }
-  const lightTval = ctx.core.TV?.LIGHT;
-  if (typeof lightTval !== "number") {
-    ctx.log?.("ignore torches/lanterns: this game is too old to report TV.LIGHT");
-    return;
-  }
-  const original = state.isIgnored;
-  const wrapped = (obj) => {
-    if (obj.tval === lightTval && !isExemptFromAutoIgnore(obj)) {
-      const name = obj.kind.name;
-      if (ignoreTorches && name.includes(TORCH_NAME_FRAGMENT)) return true;
-      if (ignoreLanterns && name.includes(LANTERN_NAME_FRAGMENT)) return true;
-    }
-    return original?.(obj) ?? false;
-  };
-  state.isIgnored = wrapped;
-  installed = { state, original };
-}
-function uninstallLightIgnore() {
-  if (!installed) return;
-  const { state, original } = installed;
-  installed = null;
-  if (original) {
-    state.isIgnored = original;
-  } else {
-    delete state.isIgnored;
-  }
-}
-
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 function mayRemember(opts, name, cheats) {
@@ -1109,20 +1175,22 @@ function mayRemember(opts, name, cheats) {
 var plugin_default = {
   api: 1,
   hooks(ctx) {
-    const { flags, core } = ctx;
+    const adapter = createAdapter(ctx);
+    const { flags } = adapter.meta;
+    const { engine } = adapter;
     const hooks = {};
-    ctx.backupFolder?.onSave((file) => void ctx.backupFolder?.write(file.name, file.text));
+    adapter.host.backupFolder?.onSave((file) => void adapter.host.backupFolder?.write(file.name, file.text));
     if (flags["qol.autoDig"] === true) {
       hooks.walkBlockedByDiggable = (state, grid, deps) => {
-        if (!core.movementTunnelTest(state, grid)) return null;
-        core.tunnelAux(state, grid, deps);
-        return state.z.moveEnergy;
+        if (!engine.movementTunnelTest(state, grid)) return null;
+        engine.tunnelAux(state, grid, deps);
+        return engine.moveEnergy(state);
       };
     }
     if (flags["qol.forgivingPrefFiles"] === true) {
-      const setPolicy = core.setPrefErrorPolicy;
+      const setPolicy = engine.setPrefErrorPolicy;
       if (typeof setPolicy !== "function") {
-        ctx.log?.("this game is too old to keep reading a pref file past a mistake");
+        adapter.meta.log("this game is too old to keep reading a pref file past a mistake");
       } else {
         setPolicy({
           continueAfterError: true,
@@ -1134,11 +1202,11 @@ var plugin_default = {
       hooks.abilityGained = offerAbilityMacro;
     }
     if (flags["qol.rememberSettings"] === true) {
-      const prefs = ctx.prefs;
+      const prefs = adapter.store.prefs;
       if (!prefs) {
-        ctx.log?.("this game is too old to remember settings (no ctx.prefs)");
+        adapter.meta.log("this game is too old to remember settings (no ctx.prefs)");
       } else {
-        const classifier = new core.OptionState();
+        const classifier = engine.newOptionState();
         const cheats = flags["qol.rememberCheats"] === true;
         hooks.optionsChanged = (snapshot) => {
           const values = {};
@@ -1177,18 +1245,21 @@ var plugin_default = {
    *
    */
   register(host, ctx) {
-    installMiscNiceties(ctx);
-    installLightIgnore({
-      flags: ctx.flags,
-      core: ctx.core,
-      ...ctx.state ? { state: ctx.state } : {},
-      ...ctx.log ? { log: ctx.log } : {}
-    });
-    if (ctx.flags["qol.accessibilityMacroWizard"] === true) installMacroWizard(ctx);
-    const backupFolder = ctx.backupFolder;
+    const adapter = createAdapter(ctx, host);
+    const { flags, log } = adapter.meta;
+    const { keys, panels } = adapter.ui;
+    installMiscNiceties({ flags, display: adapter.host.display, log });
+    adapter.engine.installLightIgnore();
+    if (flags["qol.accessibilityMacroWizard"] === true) {
+      installMacroWizard({
+        ...panels ? { ui: panels } : {},
+        ...keys ? { keymaps: keys } : {},
+        log
+      });
+    }
+    const backupFolder = adapter.host.backupFolder;
     if (backupFolder) {
-      host.menus.addAction(
-        "core:game-menu",
+      adapter.host.addGameMenuAction(
         "choose-backup-folder",
         "Choose cloud-backup folder...",
         async () => {
@@ -1197,7 +1268,7 @@ var plugin_default = {
             if (name === null) return;
             const found = await backupFolder.list?.() ?? [];
             const identified = found.filter((f) => f.lineage !== void 0).length;
-            ctx.log?.(
+            log(
               identified > 0 ? `Using backup folder "${name}" (${String(identified)} character${identified === 1 ? "" : "s"} already there).` : `Using backup folder "${name}".`
             );
           } catch {
@@ -1205,34 +1276,36 @@ var plugin_default = {
         }
       );
     }
-    if (ctx.flags["qol.accessibilityRepeatShortcuts"] === true) {
+    if (flags["qol.accessibilityRepeatShortcuts"] === true) {
+      const prefs = adapter.store.prefs;
       installRepeatShortcuts({
-        ...ctx.ui ? { ui: ctx.ui } : {},
-        ...ctx.keymaps ? { keymaps: ctx.keymaps } : {},
-        ...ctx.prefs ? { prefs: ctx.prefs } : {},
-        ...ctx.log ? { log: ctx.log } : {}
+        ...panels ? { ui: panels } : {},
+        ...keys ? { keymaps: keys } : {},
+        ...prefs ? { prefs } : {},
+        log
       });
     }
-    if (ctx.flags["qol.purgeQueuedInput"] === true) {
+    if (flags["qol.purgeQueuedInput"] === true) {
+      const { display, keyRepeat } = adapter.host;
       installPurgeQueuedInput({
-        ...ctx.display ? { display: ctx.display } : {},
-        ...ctx.keymaps ? { keymaps: ctx.keymaps } : {},
-        ...ctx.keyRepeat ? { keyRepeat: ctx.keyRepeat } : {},
-        ...ctx.log ? { log: ctx.log } : {}
+        ...display ? { display } : {},
+        ...keys ? { keymaps: keys } : {},
+        ...keyRepeat ? { keyRepeat } : {},
+        log
       });
     }
-    if (ctx.flags["qol.rememberSettings"] !== true) return;
-    if (ctx.newCharacter !== true) return;
-    const opts = ctx.state?.options;
-    const stored = ctx.prefs?.get();
+    if (flags["qol.rememberSettings"] !== true) return;
+    if (!adapter.meta.newCharacter) return;
+    const opts = adapter.engine.liveOptions;
+    const stored = adapter.store.prefs?.get();
     if (!opts || !stored || typeof stored !== "object") return;
     const remembered = readRememberedSettings(stored);
     if (!remembered) {
       const version = stored.v;
-      ctx.log?.(`stored settings are version ${String(version)}; ignoring them`);
+      log(`stored settings are version ${String(version)}; ignoring them`);
       return;
     }
-    const cheats = ctx.flags["qol.rememberCheats"] === true;
+    const cheats = flags["qol.rememberCheats"] === true;
     let applied = 0;
     for (const [name, value] of Object.entries(remembered.values ?? {})) {
       if (!mayRemember(opts, name, cheats)) continue;
@@ -1247,7 +1320,7 @@ var plugin_default = {
     if (typeof remembered.lazymoveDelay === "number") {
       opts.lazymoveDelay = remembered.lazymoveDelay;
     }
-    ctx.log?.(`restored ${String(applied)} remembered option(s) onto the new character`);
+    log(`restored ${String(applied)} remembered option(s) onto the new character`);
   },
   uninstall() {
     uninstallMiscNiceties();

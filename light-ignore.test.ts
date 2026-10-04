@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { installLightIgnore, uninstallLightIgnore, type LightObjectLike } from "./light-ignore";
+import { installLightIgnore, uninstallLightIgnore } from "./core-adapter";
+import type { LightObjectLike } from "./light-ignore";
 
 const TV_LIGHT = 19;
 const CORE = { TV: { LIGHT: TV_LIGHT } };
