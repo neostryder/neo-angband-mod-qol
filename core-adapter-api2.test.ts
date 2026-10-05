@@ -23,7 +23,7 @@ function adapters(initial: JsonValue | null = null, newCharacter?: boolean) {
   const unused = async () => api2Unavailable("unused domain");
   const mod: ModApi2 = {
     meta: {
-      id: "qol", api: "2.0.0", engine: "test", tier: "first-party", flags,
+      id: "qol", api: "2.0.0", engine: "test", tier: "first-party", flags: { ...flags },
       newCharacter: newCharacter === true,
       granted: () => true, log: api2Log,
       settings: unused, setSetting: unused, mods: unused,
@@ -80,6 +80,7 @@ function adapters(initial: JsonValue | null = null, newCharacter?: boolean) {
 describe("the API 2 adapter twin", () => {
   it("reads the same flags", () => {
     const { api1, api2 } = adapters();
+    expect(api2.meta.flags).not.toBe(api1.meta.flags);
     expect(api2.meta.flags).toEqual(api1.meta.flags);
   });
 
@@ -151,7 +152,9 @@ describe("the API 2 adapter twin", () => {
     expect(Object.keys(api2.ui)).toEqual(["keys"]);
     expect(Object.keys(api2.ui.keys)).toEqual(["bind"]);
   });
+});
 
+describe("the API 1 adapter", () => {
   it("keeps live options inside the API 1 adapter", () => {
     const options = new neoCore.OptionState();
     const adapter = createApi1Adapter({ core: neoCore, flags: {}, state: { options } });
