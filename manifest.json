@@ -1,101 +1,113 @@
 {
-  "id": "qol",
-  "name": "Quality of Life",
-  "version": "1.13.0",
-  "shape": "content",
-  "facets": [
-    "content",
-    "plugin"
-  ],
-  "modApi": 1,
-  "engine": ">=1.8.0",
-  "dependencies": {
-    "core": "*"
-  },
-  "capabilities": [
-    "backup:folder",
-    "ui:panel.mount",
-    "keymap:write",
-    "registry:menu"
-  ],
-  "author": "neostryder",
-  "license": "GPL-2.0-only",
-  "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
-  "rules": [
-    {
-      "flag": "qol.autoDig",
-      "title": "Auto-dig on walk",
-      "description": "Walking into a rubble pile or mineral vein you can tunnel through starts digging automatically, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move.",
-      "default": true
+  "format": "neo-angband/mod/manifest",
+  "schemaVersion": 2,
+  "data": {
+    "id": "qol",
+    "name": "Quality of Life",
+    "version": "1.13.0",
+    "api": ">=1.0.0 <2.0.0",
+    "runtime": "in-process",
+    "engine": {
+      "range": ">=1.8.0",
+      "because": "The optionsChanged snapshot includes hitpointWarn, delayFactor and lazymoveDelay for remembered settings."
     },
-    {
-      "flag": "qol.rememberSettings",
-      "title": "Remember my settings",
-      "description": "Changes you make in the '=' options menu are kept, and every new character starts with them. Angband normally forgets them the moment a character dies, so every new life begins by setting them all again. Existing characters are never changed; each save keeps the options it was saved with.",
-      "default": true,
-      "requiresReload": true
+    "dependencies": {
+      "required": {
+        "core": {
+          "range": "*"
+        }
+      }
     },
-    {
-      "flag": "qol.forgivingPrefFiles",
-      "title": "Keep reading a pref file past a mistake",
-      "description": "Angband stops reading a pref file at the first line it cannot understand, so one typo near the top silently throws away everything below it, such as a whole graphics pack or the rest of your keymaps. With this on, the whole file is read and the bad lines are skipped. You are told about the first 20 mistakes; any after that are skipped without a message, so they don't fill the message line.",
-      "default": true,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.rememberCheats",
-      "title": "Remember cheat options too",
-      "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default, because turning a cheat option on permanently bars that character from the high score list, and a new character should not inherit that unless you choose it. Needs \"Remember my settings\" to be on.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.accessibilityMacroWizard",
-      "title": "Accessibility: activation shortcut helper",
-      "description": "When you learn a spell or gain a known activatable item, offer to bind the casting or activation command to an unused shortcut key. You can accept the suggested function key, choose a different key, or decline each offer.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.accessibilityRepeatShortcuts",
-      "title": "Accessibility: repeated-action shortcuts",
-      "description": "Offer an unused one-key shortcut for resting as needed. It starts the game's ordinary rest command and never replaces an existing shortcut.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.purgeQueuedInput",
-      "title": "Purge queued input",
-      "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you, enough presses at once to back out of several stacked menus or prompts instead of clearing them one Escape at a time. Holding the key down does not repeat the purge. The host decides whether a keypress is a new press or the key still being held, and only a new press purges, so an accidental long hold purges once rather than for as long as the key stays down. Separate presses in quick succession each purge again.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.ignoreTorches",
-      "title": "Quality ignore: always ignore torches",
-      "description": "Treat every Wooden Torch as ignored, whatever quality tier you have set for light sources and whether or not the lantern toggle below is on. A torch artifact, or a torch inscribed !k or !*, is never ignored by this.",
-      "default": false,
-      "requiresReload": true
-    },
-    {
-      "flag": "qol.ignoreLanterns",
-      "title": "Quality ignore: always ignore lanterns",
-      "description": "Treat every Lantern as ignored, whatever quality tier you have set for light sources and whether or not the torch toggle above is on. The two toggles are separate so you can ignore only torches, for example if you refuel a Lantern of Shadows from lanterns found on the ground. A lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
-      "default": false,
-      "requiresReload": true
-    }
-  ],
-  "sections": [
-    {
-      "id": "qol-misc-niceties",
-      "flag": "qol.miscNiceties",
-      "title": "Misc. niceties",
-      "description": "Bundle small independent conveniences that are not each worth a separate setting. It shows an ellipsis instead of silently cutting off a store item name that is too long for its column, shows the selected store item's full description on the message line while browsing, and adds a one-line colour key to the visible-monster list ('[') explaining that violet marks a unique and red marks a monster whose native level is above the current dungeon depth. It also makes clarity and wording improvements to upstream Angband's own text, in item and monster descriptions and in game messages. More independent niceties can join this switch later.",
-      "default": false,
-      "renamedSectionFlags": [
-        "qol.miscNiceties"
-      ]
-    }
-  ],
-  "repository": "https://github.com/neostryder/neo-angband-mod-qol"
+    "capabilities": [
+      "backup:folder",
+      "ui:panel.mount",
+      "keymap:write",
+      "registry:menu"
+    ],
+    "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
+    "author": "neostryder",
+    "license": "GPL-2.0-only",
+    "repository": "https://github.com/neostryder/neo-angband-mod-qol",
+    "shape": "content",
+    "facets": [
+      "content",
+      "plugin"
+    ],
+    "rules": [
+      {
+        "flag": "qol.autoDig",
+        "title": "Auto-dig on walk",
+        "description": "Walking into a rubble pile or mineral vein you can tunnel through starts digging automatically, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move.",
+        "default": true
+      },
+      {
+        "flag": "qol.rememberSettings",
+        "title": "Remember my settings",
+        "description": "Changes you make in the '=' options menu are kept, and every new character starts with them. Angband normally forgets them the moment a character dies, so every new life begins by setting them all again. Existing characters are never changed; each save keeps the options it was saved with.",
+        "default": true,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.forgivingPrefFiles",
+        "title": "Keep reading a pref file past a mistake",
+        "description": "Angband stops reading a pref file at the first line it cannot understand, so one typo near the top silently throws away everything below it, such as a whole graphics pack or the rest of your keymaps. With this on, the whole file is read and the bad lines are skipped. You are told about the first 20 mistakes; any after that are skipped without a message, so they don't fill the message line.",
+        "default": true,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.rememberCheats",
+        "title": "Remember cheat options too",
+        "description": "Include the cheat options in what is remembered, so a new character starts with the ones you had on. Off by default, because turning a cheat option on permanently bars that character from the high score list, and a new character should not inherit that unless you choose it. Needs \"Remember my settings\" to be on.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.accessibilityMacroWizard",
+        "title": "Accessibility: activation shortcut helper",
+        "description": "When you learn a spell or gain a known activatable item, offer to bind the casting or activation command to an unused shortcut key. You can accept the suggested function key, choose a different key, or decline each offer.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.accessibilityRepeatShortcuts",
+        "title": "Accessibility: repeated-action shortcuts",
+        "description": "Offer an unused one-key shortcut for resting as needed. It starts the game's ordinary rest command and never replaces an existing shortcut.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.purgeQueuedInput",
+        "title": "Purge queued input",
+        "description": "Claim an unused key (F2, if nothing else already has it) that sends Escape for you, enough presses at once to back out of several stacked menus or prompts instead of clearing them one Escape at a time. Holding the key down does not repeat the purge. The host decides whether a keypress is a new press or the key still being held, and only a new press purges, so an accidental long hold purges once rather than for as long as the key stays down. Separate presses in quick succession each purge again.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.ignoreTorches",
+        "title": "Quality ignore: always ignore torches",
+        "description": "Treat every Wooden Torch as ignored, whatever quality tier you have set for light sources and whether or not the lantern toggle below is on. A torch artifact, or a torch inscribed !k or !*, is never ignored by this.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
+        "flag": "qol.ignoreLanterns",
+        "title": "Quality ignore: always ignore lanterns",
+        "description": "Treat every Lantern as ignored, whatever quality tier you have set for light sources and whether or not the torch toggle above is on. The two toggles are separate so you can ignore only torches, for example if you refuel a Lantern of Shadows from lanterns found on the ground. A lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
+        "default": false,
+        "requiresReload": true
+      }
+    ],
+    "sections": [
+      {
+        "id": "qol-misc-niceties",
+        "flag": "qol.miscNiceties",
+        "title": "Misc. niceties",
+        "description": "Bundle small independent conveniences that are not each worth a separate setting. It shows an ellipsis instead of silently cutting off a store item name that is too long for its column, shows the selected store item's full description on the message line while browsing, and adds a one-line colour key to the visible-monster list ('[') explaining that violet marks a unique and red marks a monster whose native level is above the current dungeon depth. It also makes clarity and wording improvements to upstream Angband's own text, in item and monster descriptions and in game messages. More independent niceties can join this switch later.",
+        "default": false,
+        "renamedSectionFlags": [
+          "qol.miscNiceties"
+        ]
+      }
+    ]
+  }
 }

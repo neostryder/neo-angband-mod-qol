@@ -68,6 +68,13 @@ export interface OptionStateLike {
   lazymoveDelay: number;
 }
 
+export type OptionCategories = Pick<OptionStateLike, "isBirth" | "isCheat" | "isScore">;
+
+export interface StartingOptions extends OptionCategories {
+  set(name: string, value: boolean): boolean;
+  setNumbers(values: Partial<Pick<OptionStateLike, "hitpointWarn" | "delayFactor" | "lazymoveDelay">>): void;
+}
+
 /**
  * What this plugin needs from the host's context, structurally.
  *
@@ -290,9 +297,9 @@ export interface QolAdapter {
     /** core.setPrefErrorPolicy: keep reading a pref file past a bad line. Absent on an older engine. API 2: a host-interpreted policy declaration, since it applies before any game exists. */
     readonly setPrefErrorPolicy: ((policy: PrefErrorPolicyLike | null) => void) | undefined;
     /** new core.OptionState(): a throwaway option table that classifies birth, cheat and score options. API 2: a content record lookup or view field listing each option's category. */
-    newOptionState(): OptionStateLike;
-    /** ctx.state.options: the new character's live option store, written once at boot. API 2: a view field for the options and a host-interpreted declaration of a new character's starting options. */
-    readonly liveOptions: OptionStateLike | undefined;
+    newOptionState(): OptionCategories;
+    /** API 2 needs a starting-options declaration; these setters keep the live option store inside the adapter. */
+    readonly startingOptions: StartingOptions | undefined;
     /** core.TV.LIGHT and ctx.state.isIgnored: wraps the live ignore check to hide torches or lanterns. API 2: a host-interpreted ignore declaration or policy table, since isIgnored is a synchronous engine callback. */
     installLightIgnore(): void;
   };
@@ -348,9 +355,28 @@ export function createAdapter(ctx: PluginContext, menuHost: MenuHost | null = nu
       get setPrefErrorPolicy() {
         return core.setPrefErrorPolicy;
       },
-      newOptionState: () => new core.OptionState(),
-      get liveOptions() {
-        return ctx.state?.options;
+      newOptionState: () => {
+        const options = new core.OptionState();
+        return {
+          isBirth: (name) => options.isBirth(name),
+          isCheat: (name) => options.isCheat(name),
+          isScore: (name) => options.isScore(name),
+        };
+      },
+      get startingOptions(): StartingOptions | undefined {
+        const options = ctx.state?.options;
+        if (!options) return undefined;
+        return {
+          isBirth: (name) => options.isBirth(name),
+          isCheat: (name) => options.isCheat(name),
+          isScore: (name) => options.isScore(name),
+          set: (name, value) => options.set(name, value),
+          setNumbers: (values) => {
+            if (typeof values.hitpointWarn === "number") options.hitpointWarn = values.hitpointWarn;
+            if (typeof values.delayFactor === "number") options.delayFactor = values.delayFactor;
+            if (typeof values.lazymoveDelay === "number") options.lazymoveDelay = values.lazymoveDelay;
+          },
+        };
       },
       installLightIgnore: () =>
         installLightIgnore({

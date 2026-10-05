@@ -15,6 +15,7 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import {
   loadPackFile as loadJson,
   loadPackRecords as loadRecords,
@@ -221,10 +222,20 @@ function dugGame(feat: number = FEAT.RUBBLE, digging = 200): {
 }
 
 describe("the qol mod's entry point", () => {
+  it("loads the schema 2 manifest as an API 1 in-process plugin", () => {
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")), {
+      code: ["plugin.js"],
+    });
+    expect(manifest.manifestSchema).toBe(2);
+    expect(manifest.api).toBe(">=1.0.0 <2.0.0");
+    expect(manifest.modApi).toBe(plugin.api);
+    expect(manifest.runtime).toBe("in-process");
+    expect(manifest.entry).toBe("plugin.js");
+    expect(manifest.dependencies).toEqual({ core: "*" });
+  });
+
   it("requests only capabilities used by remaining features", () => {
-    const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")) as {
-      capabilities: string[];
-    };
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
     expect(manifest.capabilities).toEqual([
       "backup:folder",
       "ui:panel.mount",
@@ -234,10 +245,8 @@ describe("the qol mod's entry point", () => {
   });
 
   it("declares separate, opt-in accessibility accommodations", () => {
-    const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")) as {
-      rules: { flag: string; title: string; default: boolean }[];
-    };
-    const accommodations = manifest.rules
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+    const accommodations = (manifest.rules ?? [])
       .filter((rule) => rule.flag.startsWith("qol.accessibility"))
       .map(({ flag, title, default: isDefault }) => ({ flag, title, default: isDefault }));
 

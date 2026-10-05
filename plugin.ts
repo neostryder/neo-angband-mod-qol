@@ -52,7 +52,7 @@ import type { ModHooks } from "@rpgm-tools/neo-angband-core";
 import {
   createAdapter,
   type MenuHost,
-  type OptionStateLike,
+  type OptionCategories,
   type PluginContext,
 } from "./core-adapter";
 import {
@@ -116,7 +116,7 @@ interface OptionSnapshot {
  */
 const PREF_ERROR_REPORT_LIMIT = 20;
 
-function mayRemember(opts: OptionStateLike, name: string, cheats: boolean): boolean {
+function mayRemember(opts: OptionCategories, name: string, cheats: boolean): boolean {
   if (opts.isBirth(name)) return false;
   if (opts.isCheat(name) || opts.isScore(name)) return cheats;
   return true;
@@ -385,7 +385,7 @@ export default {
 
     if (flags["qol.rememberSettings"] !== true) return;
     if (!adapter.meta.newCharacter) return;
-    const opts = adapter.engine.liveOptions;
+    const opts = adapter.engine.startingOptions;
     const stored = adapter.store.prefs?.get();
     if (!opts || !stored || typeof stored !== "object") return;
 
@@ -412,15 +412,7 @@ export default {
        * an error: the option is gone, so there is nothing to restore. */
       if (opts.set(name, value)) applied++;
     }
-    if (typeof remembered.hitpointWarn === "number") {
-      opts.hitpointWarn = remembered.hitpointWarn;
-    }
-    if (typeof remembered.delayFactor === "number") {
-      opts.delayFactor = remembered.delayFactor;
-    }
-    if (typeof remembered.lazymoveDelay === "number") {
-      opts.lazymoveDelay = remembered.lazymoveDelay;
-    }
+    opts.setNumbers(remembered);
     log(`restored ${String(applied)} remembered option(s) onto the new character`);
   },
 
