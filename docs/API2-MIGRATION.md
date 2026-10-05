@@ -53,7 +53,8 @@ The table covers the members used by the adapter and plugin. An API 2 home means
 | Table status | Count |
 | --- | --- |
 | Moved into the running API 2 plugin | 0 |
-| API 2 home, still unwired | 13 |
+| API 2 home awaiting wiring | 12 |
+| API 1 entry awaiting CR1 | 1 |
 | Core request | 26 |
 
 The plugin has no controller or presentation members (`hud`, `menu`, `screen`, `birth`, `frontend`, `regions`). It reads no registry, raw snapshot or game-event subscription. Its menu dependency is the registry action in the table. The `ctx` variables in `bitmap-text.ts` refer to canvases.
@@ -62,7 +63,7 @@ The plugin has no controller or presentation members (`hud`, `menu`, `screen`, `
 
 ### CR1: loading and retained engine access
 
-The folder loader can call the existing in-process shim after checking an API 2 definition and its range. The builder needs to accept the same definition. For P-tier mods, an allowlist gates a versioned engine domain such as `engine: { api, core, state?, registries? }`. Its members are documented aliases of the current namespace, live state and registry host. Composition also needs this context before startup so the retained live hooks can run. Loading applies to every tier. The engine aliases and live hooks stay P-tier only.
+API 2 folder loading needs to validate the definition's API range and call the in-process shim. The builder needs to accept that definition too. A P-tier allowlist grants a versioned domain such as `engine: { api, core, state?, registries? }`. Its fields expose documented aliases of the existing engine namespace, live state and registry host. These aliases need to exist during hook composition, before startup. The `walkBlockedByDiggable` fallback reads live engine data through `core` and `state`. Every tier can use the loader; only P-tier mods retain engine aliases and live hooks.
 
 ### CR2: digging on a blocked walk
 
@@ -94,7 +95,7 @@ The host can apply `{ kind: "display-options", storeItemNameEllipsis: true, stor
 
 ### CR9: purge input policy
 
-The purge can use `{ kind: "purge-input", trigger: "F2", modifiers: [], freshOnly: true, escapeCount: 3 }`. The host reserves F2 only when it is unused and treats its own repeat classification as the fresh-press test. It consumes repeat presses and sends three cancellations through ordinary Escape handling for each fresh press. No macro takes ownership of the key. A key-event implementation instead needs `{ key, code, modifiers, isRepeat }`, delivery before default handling, unsubscribe support and an action for those cancellations. Prompt answers alone do not close all menus. The policy can run in any granted tier, with raw interception limited to P-tier engine access.
+The host can implement purge through a granted `{ kind: "purge-input", trigger: "F2", modifiers: [], freshOnly: true, escapeCount: 3 }` policy. It reserves an unused F2 and checks its own repeat classification. A repeat press is consumed. A fresh press sends three ordinary Escape cancellations to clear stacked menus. The key stays outside the macro keymap. An implementation using key events needs a `{ key, code, modifiers, isRepeat }` payload before default handling, an unsubscribe handle and a cancellation action. Any granted tier can use the policy. Raw interception requires P-tier engine access.
 
 ### CR10: panels with editable controls and dismissal
 
@@ -108,15 +109,17 @@ A backup-folder domain can wrap the existing `choose`, `write` and `list` calls 
 
 The backup picker can register through `{ menu: "core:game-menu", action: "choose-backup-folder", label }` with a callback for selection. The host adds the row when the mod starts and removes it when the mod stops. The existing `registry:menu` grant remains until the declaration has a replacement grant. A declaration can serve any granted tier, while the mutable registry-host fallback remains P-tier only.
 
-### CR13: builder manifest id
+## SDK builder defect
 
-The SDK builder's `readManifestId` calls `manifestFields` without importing it. Its catch block hides that error and selects the folder basename instead, so a build in this worktree writes `overhaul-api2` into the banner. Core can fix this by importing its own manifest reader in the builder. The bug affects both manifest schemas and makes the committed output depend on the checkout folder's name. This build-tool fix has no tier restriction.
+The SDK builder needs to import `manifestFields` for its `readManifestId` call. The missing import throws an error that the catch block discards. The builder then uses the folder basename for the plugin banner, which is `overhaul-api2` in this worktree. Both manifest schemas take this path, so the banner depends on the checkout folder. The fix belongs in the SDK builder and applies to every tier.
 
 ## Removal list
 
 `plugin.ts` no longer receives `engine.liveOptions`. It calls the category predicates and setters in `engine.startingOptions`, keeping the live OptionState inside the adapter. The temporary classifier returned by `engine.newOptionState` exposes only its category predicates. Core still performs the same option writes.
 
-The four grants stay because the current entry still uses them. Backup waits for CR11, the menu row for CR12, key availability and purge for CR8-CR9, and panels for CR10. The existing key bindings keep `keymap:write` as well. The Core package supplies types and real-game tests, content supplies their pack data, and the SDK supplies manifest validation and the builder. The remaining reads and writes depend on the Core requests in their table rows.
+The current entry keeps all four grants. Cloud backup depends on CR11 and its menu action on CR12. Key availability needs CR8, purge needs CR9, and editable panels need CR10. Existing key bindings also use `keymap:write`. Each remaining engine read or write depends on the Core requests listed in its table row.
+
+Real-game tests import their engine calls from the Core package, which also defines the plugin context types. The content package provides the test pack data and record loaders. Manifest validation depends on the SDK reading schema 2 as an API 1 in-process plugin. The SDK also builds `plugin.js` and checks it against the source. Its missing manifest import is tracked under SDK builder defect.
 
 Storage keeps the current preference JSON, including the old direct-options shape. The host can read that data at version 0 without a new preference migration. When the plugin changes API, storage and key callers must handle failed results. The twin forwards a failed read or write to its caller without inventing a fallback value.
 
@@ -124,6 +127,6 @@ Storage keeps the current preference JSON, including the old direct-options shap
 
 The repository's `pnpm verify` command runs typecheck and tests before checking the committed plugin. `plugin.test.ts` drives a real game for auto-dig and its RNG-free declines. It also covers remembered settings on new and loaded characters, pregame policy gating and cloud backup. Light-ignore, input and display tests exercise the enabled and disabled choices. Pixel rendering requires a separate Electron check.
 
-`core-adapter-api2.test.ts` compares metadata and stored JSON from both adapters and tests their binding decisions on the same keys. It also exercises all API 2 failure reasons. The boundary test parses TypeScript syntax rather than stripping text. Its source checks reject runtime engine imports in either adapter and any `ctx` identifier in the twin. The regression cases cover non-null and asserted context reads, whitespace, bracket access, re-exports, dynamic imports, template expressions and engine-name suffixes.
+The adapter tests compare metadata, stored JSON and binding decisions from the two adapters. Their flags maps have equal entries in separate objects, and each API 2 failure reason has a test. The live-options test sits in the API 1 adapter group. The boundary scan uses TypeScript syntax nodes to reject runtime engine imports in both adapters and `ctx` identifiers in the twin. Its fixtures test context aliases, destructuring and member-held reads, including assertions, non-null reads, whitespace and bracket access. Import fixtures cover re-exports, dynamic imports and both CommonJS forms. Template expressions and engine-name suffixes also have fixtures.
 
 The changelog's exclusion of internal refactoring and test additions applies to this migration, so its release lists stay unchanged.
