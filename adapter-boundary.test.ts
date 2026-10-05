@@ -1,73 +1,145 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import ts from "typescript";
 
-/**
- * core-adapter.ts is the only source file that reads the plugin context or
- * the engine. Every other source file at the repository root is scanned with
- * its comments and string literals blanked out, and fails on any of the
- * patterns below.
- */
+/** The scan uses syntax nodes because assertions and whitespace can hide context reads from a text pattern. */
 const ADAPTER = "core-adapter.ts";
+const API2_ADAPTER = "core-adapter-api2.ts";
+const CONTEXT_MEMBERS = new Set([
+  "core", "state", "registries", "snapshot", "intent", "events", "characterStore", "prefs",
+  "inspect", "keymaps", "ui", "display", "keyRepeat", "backupFolder", "newCharacter", "flags", "log",
+]);
+const ENGINE_MEMBERS = new Set([
+  "movementTunnelTest", "tunnelAux", "setPrefErrorPolicy", "OptionState", "TV", "isIgnored", "moveEnergy",
+]);
 
-const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
-  [
-    /\bctx\??\.(core|state|registries|snapshot|intent|events|characterStore|prefs|inspect|keymaps|ui|display|keyRepeat|backupFolder|newCharacter|flags|log)\b/,
-    "a plugin-context member",
-  ],
-  [/\}\s*=\s*ctx\b/, "a member destructured from the plugin context"],
-  [/\.registries\b/, "the registries"],
-  [/\bcore\??\.\w/, "the engine namespace"],
-  [
-    /(?<!\bengine)\.(movementTunnelTest|tunnelAux|setPrefErrorPolicy|OptionState|TV|isIgnored|moveEnergy)\b/,
-    "an engine name outside the adapter's engine group",
-  ],
-];
-
-/** Checked with string literals kept, since the module name is one. */
-const RUNTIME_IMPORT = /^import\s+(?!type\b)[^;]*["']@rpgm-tools\/neo-angband-core["']/m;
-
-const TOKENS = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
-
-/** Blank comments, and string literals too unless `keepStrings` is set. */
-function blank(source: string, keepStrings: boolean): string {
-  return source.replace(TOKENS, (token) => {
-    if (token.startsWith("/")) return " ";
-    return keepStrings ? token : '""';
-  });
+function unwrap(expression: ts.Expression): ts.Expression {
+  while (
+    ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) ||
+    ts.isTypeAssertionExpression(expression) || ts.isNonNullExpression(expression) ||
+    ts.isSatisfiesExpression(expression)
+  ) expression = expression.expression;
+  return expression;
 }
 
-function violations(source: string): string[] {
-  const code = blank(source, false);
-  const found = FORBIDDEN.filter(([pattern]) => pattern.test(code)).map(([, what]) => what);
-  if (RUNTIME_IMPORT.test(blank(source, true))) found.push("a runtime import of the engine");
-  return found;
+function member(node: ts.Node): { receiver: ts.Expression; name: string } | undefined {
+  if (ts.isPropertyAccessExpression(node)) return { receiver: unwrap(node.expression), name: node.name.text };
+  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+    return { receiver: unwrap(node.expression), name: node.argumentExpression.text };
+  }
+  return undefined;
+}
+
+function engineModule(node: ts.Node | undefined): boolean {
+  return node !== undefined && ts.isStringLiteralLike(node) &&
+    /^@rpgm-tools\/neo-angband-core(?:\/|$)/u.test(node.text);
+}
+
+function violations(source: string, filename = "plugin.ts"): string[] {
+  const found = new Set<string>();
+  const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && engineModule(node.moduleSpecifier)) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      const typeOnly = clause?.isTypeOnly || (clause?.name === undefined && bindings !== undefined &&
+        ts.isNamedImports(bindings) && bindings.elements.length > 0 && bindings.elements.every((item) => item.isTypeOnly));
+      if (!typeOnly) found.add("a runtime import of the engine");
+    }
+    if (ts.isExportDeclaration(node) && engineModule(node.moduleSpecifier)) {
+      const clause = node.exportClause;
+      const typeOnly = node.isTypeOnly || (clause !== undefined && ts.isNamedExports(clause) &&
+        clause.elements.length > 0 && clause.elements.every((item) => item.isTypeOnly));
+      if (!typeOnly) found.add("a runtime import of the engine");
+    }
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && engineModule(node.arguments[0])) {
+      found.add("a runtime import of the engine");
+    }
+    if (ts.isImportEqualsDeclaration(node) && !node.isTypeOnly && ts.isExternalModuleReference(node.moduleReference) &&
+      engineModule(node.moduleReference.expression)) found.add("a runtime import of the engine");
+    if (filename !== ADAPTER) {
+      if (filename === API2_ADAPTER && ts.isIdentifier(node) && node.text === "ctx") found.add("ctx in the API 2 adapter");
+      const access = member(node);
+      if (access) {
+        const { receiver, name } = access;
+        if (ts.isIdentifier(receiver) && receiver.text === "ctx" && CONTEXT_MEMBERS.has(name)) found.add("a plugin-context member");
+        if (name === "registries") found.add("the registries");
+        if (ts.isIdentifier(receiver) && receiver.text === "core") found.add("the engine namespace");
+        const group = (ts.isIdentifier(receiver) && receiver.text === "engine") || member(receiver)?.name === "engine";
+        if (ENGINE_MEMBERS.has(name) && !group) found.add("an engine name outside the adapter's engine group");
+      }
+      if (ts.isIdentifier(node) && /engine$/iu.test(node.text) && node.text !== "engine") found.add("an engine namespace alias");
+      if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name) && node.initializer) {
+        const initializer = unwrap(node.initializer);
+        if (ts.isIdentifier(initializer) && initializer.text === "ctx") found.add("a member destructured from the plugin context");
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return [...found];
 }
 
 describe("the engine adapter boundary", () => {
   const sources = readdirSync(new URL("./", import.meta.url)).filter(
-    (name) => name.endsWith(".ts") && !name.endsWith(".test.ts") && name !== ADAPTER,
+    (name) => name.endsWith(".ts") && !name.endsWith(".test.ts"),
   );
 
   it("finds the mod's sources", () => {
     expect(sources).toContain("plugin.ts");
     expect(sources).toContain("light-ignore.ts");
+    expect(sources).toContain(ADAPTER);
+    expect(sources).toContain(API2_ADAPTER);
   });
 
   it.each(sources)("%s reads nothing from the plugin context or the engine", (name) => {
     const source = readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
+    expect(violations(source, name)).toEqual([]);
+  });
+
+  it.each([
+    ["ctx.core.TV;", "a plugin-context member"],
+    ["ctx!.state;", "a plugin-context member"],
+    ["(ctx as any).prefs;", "a plugin-context member"],
+    ["ctx . flags;", "a plugin-context member"],
+    ['ctx?.["state"];', "a plugin-context member"],
+    ["const { core } = (ctx as any);", "a member destructured from the plugin context"],
+    ["host.registries.menus;", "the registries"],
+    ["core!.tunnelAux(s, g, d);", "the engine namespace"],
+    ["state.isIgnored = f;", "an engine name outside the adapter's engine group"],
+    ["gameengine.tunnelAux(s, g, d);", "an engine namespace alias"],
+    ["gameEngine.TV;", "an engine namespace alias"],
+    ['import { TV } from "@rpgm-tools/neo-angband-core";', "a runtime import of the engine"],
+    ['export { TV } from "@rpgm-tools/neo-angband-core";', "a runtime import of the engine"],
+    ['export * from "@rpgm-tools/neo-angband-core";', "a runtime import of the engine"],
+    ['import("@rpgm-tools/neo-angband-core");', "a runtime import of the engine"],
+    ['import "@rpgm-tools/neo-angband-core";', "a runtime import of the engine"],
+    ['import { type ModHooks, TV } from "@rpgm-tools/neo-angband-core";', "a runtime import of the engine"],
+    ['import core = require("@rpgm-tools/neo-angband-core");', "a runtime import of the engine"],
+    ['const text = `${ctx!.core.TV}`;', "a plugin-context member"],
+  ])("rejects %s", (source, violation) => {
+    expect(violations(source)).toContain(violation);
+  });
+
+  it.each(["ctx;", "const ctx = mod;", "ctx.imageSmoothingEnabled = false;"])("rejects %s in the API 2 twin", (source) => {
+    expect(violations(source, API2_ADAPTER)).toContain("ctx in the API 2 adapter");
+  });
+
+  it.each([
+    "engine.tunnelAux(s, g, d); // ctx.core",
+    "adapter.engine.tunnelAux(s, g, d);",
+    'const text = "ctx.core.TV";',
+    'const text = `ctx.core.TV`;',
+    "ctx.imageSmoothingEnabled = false;",
+    'import type { ModHooks } from "@rpgm-tools/neo-angband-core";',
+    'import { type ModHooks } from "@rpgm-tools/neo-angband-core";',
+    'export type { ModHooks } from "@rpgm-tools/neo-angband-core";',
+    'type Core = typeof import("@rpgm-tools/neo-angband-core");',
+  ])("allows %s", (source) => {
     expect(violations(source)).toEqual([]);
   });
 
-  it("catches each pattern it is meant to catch", () => {
-    expect(violations("const x = ctx.core.TV;")).toContain("a plugin-context member");
-    expect(violations("const { core } = ctx;")).toContain("a member destructured from the plugin context");
-    expect(violations("host.registries.menus;")).toContain("the registries");
-    expect(violations("core.tunnelAux(s, g, d);")).toContain("the engine namespace");
-    expect(violations("state.isIgnored = f;")).toContain("an engine name outside the adapter's engine group");
-    expect(violations('import { TV } from "@rpgm-tools/neo-angband-core";')).toContain(
-      "a runtime import of the engine",
-    );
-    expect(violations("engine.tunnelAux(s, g, d); // ctx.core")).toEqual([]);
-    expect(violations('import type { ModHooks } from "@rpgm-tools/neo-angband-core";')).toEqual([]);
+  it("checks runtime imports inside the API 1 adapter", () => {
+    expect(violations('export { TV } from "@rpgm-tools/neo-angband-core";', ADAPTER)).toContain("a runtime import of the engine");
   });
 });
