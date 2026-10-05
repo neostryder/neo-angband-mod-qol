@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 
 /**
  * `docs/README.md`'s settings table and `manifest.json` must agree.
@@ -29,10 +30,7 @@ describe("the settings table and the manifest", () => {
   }
 
   const manifest = (): { rules?: Toggle[]; sections?: Toggle[] } =>
-    JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")) as {
-      rules?: Toggle[];
-      sections?: Toggle[];
-    };
+    validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
 
   const toggles = (): Toggle[] => {
     const read = manifest();

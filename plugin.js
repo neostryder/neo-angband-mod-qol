@@ -1,4 +1,4 @@
-// neo-angband-mod-qol - generated from plugin.ts by neo-angband-mod-build
+// overhaul-api2 - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
 // light-ignore.ts
@@ -88,9 +88,28 @@ function createAdapter(ctx, menuHost = null) {
       get setPrefErrorPolicy() {
         return core.setPrefErrorPolicy;
       },
-      newOptionState: () => new core.OptionState(),
-      get liveOptions() {
-        return ctx.state?.options;
+      newOptionState: () => {
+        const options = new core.OptionState();
+        return {
+          isBirth: (name) => options.isBirth(name),
+          isCheat: (name) => options.isCheat(name),
+          isScore: (name) => options.isScore(name)
+        };
+      },
+      get startingOptions() {
+        const options = ctx.state?.options;
+        if (!options) return void 0;
+        return {
+          isBirth: (name) => options.isBirth(name),
+          isCheat: (name) => options.isCheat(name),
+          isScore: (name) => options.isScore(name),
+          set: (name, value) => options.set(name, value),
+          setNumbers: (values) => {
+            if (typeof values.hitpointWarn === "number") options.hitpointWarn = values.hitpointWarn;
+            if (typeof values.delayFactor === "number") options.delayFactor = values.delayFactor;
+            if (typeof values.lazymoveDelay === "number") options.lazymoveDelay = values.lazymoveDelay;
+          }
+        };
       },
       installLightIgnore: () => installLightIgnore({
         flags: ctx.flags,
@@ -1296,7 +1315,7 @@ var plugin_default = {
     }
     if (flags["qol.rememberSettings"] !== true) return;
     if (!adapter.meta.newCharacter) return;
-    const opts = adapter.engine.liveOptions;
+    const opts = adapter.engine.startingOptions;
     const stored = adapter.store.prefs?.get();
     if (!opts || !stored || typeof stored !== "object") return;
     const remembered = readRememberedSettings(stored);
@@ -1311,15 +1330,7 @@ var plugin_default = {
       if (!mayRemember(opts, name, cheats)) continue;
       if (opts.set(name, value)) applied++;
     }
-    if (typeof remembered.hitpointWarn === "number") {
-      opts.hitpointWarn = remembered.hitpointWarn;
-    }
-    if (typeof remembered.delayFactor === "number") {
-      opts.delayFactor = remembered.delayFactor;
-    }
-    if (typeof remembered.lazymoveDelay === "number") {
-      opts.lazymoveDelay = remembered.lazymoveDelay;
-    }
+    opts.setNumbers(remembered);
     log(`restored ${String(applied)} remembered option(s) onto the new character`);
   },
   uninstall() {
