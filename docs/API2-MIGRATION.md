@@ -91,11 +91,11 @@ The host can apply `{ kind: "display-options", storeItemNameEllipsis: true, stor
 
 ### CR8: reading key availability
 
-`ui.keys.isBindableTriggerKey(trigger)` can return a boolean result under `keymap:write`. It must check the same keyset and trigger validity as the API 1 call without changing ownership. This read supplies the wizard's suggested key, the repeat-card candidate and the purge-key check. The subsequent bind still checks for a collision. The grant can cover this read in every tier.
+`ui.keys.isBindableTriggerKey(trigger)` can answer with a boolean under `keymap:write`. It has to check the same keyset and trigger validity as the API 1 call, and it must leave ownership alone. The wizard's suggested key comes from this read, and so do the repeat-card candidate and the purge-key check. Binding the key afterwards still checks for a collision. The grant can cover this read in every tier.
 
 ### CR9: purge input policy
 
-The host can implement purge through a granted `{ kind: "purge-input", trigger: "F2", modifiers: [], freshOnly: true, escapeCount: 3 }` policy. It reserves an unused F2 and checks its own repeat classification. A repeat press is consumed. A fresh press sends three ordinary Escape cancellations to clear stacked menus. The key stays outside the macro keymap. An implementation using key events needs a `{ key, code, modifiers, isRepeat }` payload before default handling, an unsubscribe handle and a cancellation action. Any granted tier can use the policy. Raw interception requires P-tier engine access.
+The host can implement purge through a granted `{ kind: "purge-input", trigger: "F2", modifiers: [], freshOnly: true, escapeCount: 3 }` policy. It reserves F2 when nothing else is using it and does its own repeat classification. A repeated press is consumed, and a fresh press sends three ordinary Escape cancellations to clear any stacked menus. F2 stays out of the macro keymap. Building this on key events instead would need a `{ key, code, modifiers, isRepeat }` payload delivered before default handling, plus an unsubscribe handle and a cancellation action. Any tier with the grant can use the policy, while raw interception needs P-tier engine access.
 
 ### CR10: panels with editable controls and dismissal
 
@@ -115,13 +115,13 @@ The SDK builder needs to import `manifestFields` for its `readManifestId` call. 
 
 ## Removal list
 
-`plugin.ts` no longer receives `engine.liveOptions`. It calls the category predicates and setters in `engine.startingOptions`, keeping the live OptionState inside the adapter. The temporary classifier returned by `engine.newOptionState` exposes only its category predicates. Core still performs the same option writes.
+`plugin.ts` stops receiving `engine.liveOptions`. It calls the category predicates and setters in `engine.startingOptions` instead, so the live OptionState stays inside the adapter. The temporary classifier that `engine.newOptionState` returns exposes nothing but its category predicates. Core still makes the same option writes.
 
-The current entry keeps all four grants. Cloud backup depends on CR11 and its menu action on CR12. Key availability needs CR8, purge needs CR9, and editable panels need CR10. Existing key bindings also use `keymap:write`. Each remaining engine read or write depends on the Core requests listed in its table row.
+All four grants stay in the current entry. Cloud backup depends on CR11, and its menu action on CR12. Key availability waits on CR8, purge on CR9 and editable panels on CR10, and the existing key bindings use `keymap:write` as well. For every other engine read or write, the Core requests it depends on are listed in its table row.
 
-Real-game tests import their engine calls from the Core package, which also defines the plugin context types. The content package provides the test pack data and record loaders. Manifest validation depends on the SDK reading schema 2 as an API 1 in-process plugin. The SDK also builds `plugin.js` and checks it against the source. Its missing manifest import is tracked under SDK builder defect.
+The real-game tests import their engine calls from the Core package, which also defines the plugin context types, and they get the test pack data and record loaders from the content package. Manifest validation relies on the SDK reading schema 2 as an API 1 in-process plugin. The SDK also builds `plugin.js` and checks the result against the source. Its missing manifest import is tracked under SDK builder defect.
 
-Storage keeps the current preference JSON, including the old direct-options shape. The host can read that data at version 0 without a new preference migration. When the plugin changes API, storage and key callers must handle failed results. The twin forwards a failed read or write to its caller without inventing a fallback value.
+Storage keeps the preference JSON as it is now, old direct-options shape included, and the host can read that data at version 0 with no new preference migration. Once the plugin changes API, the storage and key callers have to handle failed results. When a read or write fails, the twin passes the failure on to its caller and doesn't make up a fallback value.
 
 ## Verification
 
