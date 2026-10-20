@@ -68,7 +68,7 @@ sequenceDiagram
   end
 ```
 
-*Source of truth: `plugin.ts`, `preferences.ts`, and `core-adapter.ts`. Character-select import offers belong to the host, per `CHANGELOG.md`.*
+*Source of truth: `plugin.ts`, `preferences.ts`, and `core-adapter.ts`.*
 
 See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
 
