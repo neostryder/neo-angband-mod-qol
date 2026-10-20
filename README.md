@@ -18,6 +18,58 @@ behaviour Angband does not have.
 
 ## Available toggles
 
+```mermaid
+sequenceDiagram
+  participant H as Host
+  participant Q as plugin.ts
+  participant C as Core and live game
+  participant P as ctx.prefs
+  participant B as backupFolder
+  H->>Q: hooks before startGame
+  opt backupFolder exists
+    Q->>B: Subscribe onSave to write each saved file
+  end
+  opt qol.autoDig is true
+    Q-->>H: Supply walkBlockedByDiggable
+  end
+  opt qol.forgivingPrefFiles is true
+    Q->>C: setPrefErrorPolicy when available
+    Note over Q,C: The policy continues after errors and reports at most 20.
+  end
+  opt qol.accessibilityMacroWizard is true
+    Q-->>H: Supply abilityGained = offerAbilityMacro
+  end
+  opt qol.rememberSettings is true and ctx.prefs exists
+    Q-->>H: Supply optionsChanged
+  end
+  opt qol.miscNiceties is true
+    Q-->>H: Supply messageText = upstreamWordingFix
+  end
+  H->>C: startGame with composed hooks
+  H->>Q: register with the live game
+  Q->>C: Install misc niceties and the light-ignore wrapper
+  Note over Q,C: Feature flags gate the wrappers and optional macro, repeat and purge controls.
+  opt backupFolder exists
+    Q->>H: Add Choose cloud-backup folder... to the Game menu
+  end
+  opt qol.rememberSettings is true and newCharacter is true
+    Q->>P: Read remembered settings
+    P-->>Q: Return the stored option snapshot
+    Q->>C: Apply the same option filter and restore settings
+  end
+  opt The player changes options and qol.rememberSettings is true
+    H->>Q: optionsChanged with an option snapshot
+    Q->>P: Store filtered remembered settings
+  end
+  Note over Q,P: Both filters exclude birth options and allow cheat and score options only with qol.rememberCheats.
+  opt A later save succeeds
+    H->>B: Deliver the saved file to onSave
+    B->>B: Write the importable backup
+  end
+```
+
+*Source of truth: `plugin.ts`, `preferences.ts`, and `core-adapter.ts`. Character-select import offers belong to the host, per `CHANGELOG.md`.*
+
 See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
 
 | Toggle | Default | What it does |
@@ -69,6 +121,19 @@ The engine used to carry its own cap of twenty errors, with an environment varia
 
 For mod authors: the mod uses one general engine setting, `setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks` member because the three readers it governs (the `=` menu's "Load a user pref file", a mod's own `prefs` resource and the graphics pack loader) have no game state to hang a hook on, and two of them run before there is a game at all.
 ### Why auto-dig belongs in a mod
+
+```mermaid
+flowchart TD
+  F{"Is qol.autoDig true when hooks are composed?"}
+  F -->|"No"| ABSENT["The mod supplies no walkBlockedByDiggable hook"]
+  F -->|"Yes"| H["The host calls walkBlockedByDiggable<br/>for a blocked walk"]
+  H --> T{"Does movementTunnelTest accept the grid?"}
+  T -->|"No"| DECLINE["The hook returns null<br/>The decision draws no random number"]
+  T -->|"Yes"| DIG["tunnelAux makes one real digging attempt<br/>The attempt can draw random numbers"]
+  DIG --> E["The hook returns moveEnergy<br/>The player spends a full move<br/>and does not step onto the grid"]
+```
+
+*Source of truth: `plugin.ts` and `README.md`. The decision uses no random draws and makes one dig attempt per step.*
 
 In Angband 4.2.6, walking into diggable terrain spends no energy: you bump it and nothing happens. That is what the original C code does, and Neo Angband keeps behaviour like that in the base game, so auto-dig lives entirely in this mod. The engine has no auto-dig setting and no dig-on-walk code, so deleting this mod deletes the feature's code with it.
 
