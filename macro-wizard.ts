@@ -1,6 +1,6 @@
-/** The accessibility activation-shortcut helper, driven by core's ability event. */
+/** The accessibility activation-shortcut helper, driven by the game's ability notification. */
 
-import { bitmapTextBlock, paintBitmapButtonLabel, wrapBitmapText } from "./bitmap-text";
+import type { Api2Panel, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 
 export interface AbilityGainedLike {
   readonly kind: "spell" | "activation";
@@ -8,34 +8,27 @@ export interface AbilityGainedLike {
   readonly command: "cast" | "activate";
 }
 
-interface KeymapsLike {
-  isBindableTriggerKey(trigger: string): boolean;
-  bind(trigger: string, action: string): boolean;
-}
+type Keys = Pick<ModApi2["ui"]["keys"], "isBindableTriggerKey" | "bind">;
 
-interface PanelLike {
-  readonly root: ShadowRoot;
-  readonly closed: Promise<void>;
-  close(): void;
-}
-
-interface UiLike {
-  openPanel(spec: { id: string; modal: boolean; label: string }): PanelLike;
-}
-
-export interface MacroWizardContext {
-  readonly ui?: UiLike;
-  readonly keymaps?: KeymapsLike;
-  readonly log?: (message: string) => void;
+/** What the wizard needs of the API: key checks and bindings, panels, and a log. */
+export interface MacroWizardMod {
+  readonly ui: Pick<ModApi2["ui"], "mount" | "unmount" | "patch"> & { readonly keys: Keys };
+  readonly meta: Pick<ModApi2["meta"], "log">;
 }
 
 const SUGGESTED_TRIGGERS = [
   "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
 ];
 
+const PANEL_ID = "activation-shortcut";
+
 /** Prefer an unused function key, which has no ordinary game command to replace. */
-export function suggestedMacroTrigger(keymaps: KeymapsLike): string | null {
-  return SUGGESTED_TRIGGERS.find((trigger) => keymaps.isBindableTriggerKey(trigger)) ?? null;
+export async function suggestedMacroTrigger(keys: Keys): Promise<string | null> {
+  for (const trigger of SUGGESTED_TRIGGERS) {
+    const answer = await keys.isBindableTriggerKey(trigger);
+    if (answer.ok && answer.value) return trigger;
+  }
+  return null;
 }
 
 /** The current host command keys for the two ability families. */
@@ -43,169 +36,109 @@ export function macroActionFor(ability: AbilityGainedLike): string {
   return ability.command === "activate" ? "A" : "m";
 }
 
-/** Bind only a currently free valid trigger. Kept pure enough for the mod tests. */
-export function bindAbilityMacro(
-  keymaps: KeymapsLike,
-  ability: AbilityGainedLike,
-  trigger: string,
-): boolean {
-  if (!keymaps.isBindableTriggerKey(trigger)) return false;
-  return keymaps.bind(trigger, macroActionFor(ability));
+/** Bind only a currently free valid trigger. */
+export async function bindAbilityMacro(keys: Keys, ability: AbilityGainedLike, trigger: string): Promise<boolean> {
+  const bindable = await keys.isBindableTriggerKey(trigger);
+  if (!bindable.ok || !bindable.value) return false;
+  return (await keys.bind(trigger, macroActionFor(ability))).ok;
 }
 
-let runtime: MacroWizardContext | null = null;
+/** The helper's card for one ability; `problem` is shown under the key field after a refused bind. */
+export function macroPanel(ability: AbilityGainedLike, trigger: string, problem?: string): Api2Panel {
+  const family = ability.command === "activate" ? "activation" : "casting";
+  return {
+    id: PANEL_ID,
+    title: `Shortcut for ${ability.name}`,
+    modal: true,
+    root: {
+      type: "column",
+      children: [
+        { type: "text", text: `Bind a key to open the ${family} command?` },
+        { type: "input", label: "Key", action: "set-key", value: trigger },
+        ...(problem ? [{ type: "text" as const, text: problem }] : []),
+        {
+          type: "row",
+          children: [
+            { type: "button", label: "Bind shortcut", action: "bind" },
+            { type: "button", label: "No thanks", action: "decline" },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+const UNAVAILABLE = "That key is unavailable. Choose an unused printable key, Enter, or F1 through F12.";
+
+let mod: MacroWizardMod | null = null;
 let active = false;
-let activePanel: PanelLike | null = null;
 const pending: AbilityGainedLike[] = [];
 
-/** Install the live context after the game exists; hooks are composed before it does. */
-export function installMacroWizard(deps: MacroWizardContext): void {
-  runtime = deps.ui && deps.keymaps ? deps : null;
-  if (!runtime) deps.log?.("this game is too old for the activation shortcut helper");
+/** Hand the wizard the live API once the game exists; hooks are composed before it does. */
+export function startMacroWizard(live: MacroWizardMod): void {
+  mod = live;
+  if (pending.length > 0) void showNext();
 }
 
-/** Called by the synchronous core notification. The modal itself owns the later choice. */
+/** Called by the synchronous game notification. The panel itself owns the later choice. */
 export function offerAbilityMacro(ability: AbilityGainedLike): void {
-  if (!runtime) return;
   pending.push(ability);
-  showNext();
+  if (mod) void showNext();
 }
 
-function showNext(): void {
-  if (active || !runtime) return;
+async function showNext(): Promise<void> {
+  const live = mod;
+  if (active || !live) return;
   const ability = pending.shift();
   if (!ability) return;
-  const suggested = suggestedMacroTrigger(runtime.keymaps!);
-  if (!suggested) {
-    runtime.log?.(`no unused keymap trigger is available for ${ability.name}`);
-    showNext();
-    return;
-  }
   active = true;
-  let panel: PanelLike;
-  try {
-    panel = runtime.ui!.openPanel({
-      id: "activation-shortcut",
-      modal: true,
-      label: "Activation shortcut helper",
-    });
-  } catch (error) {
-    runtime.log?.(`could not open activation shortcut helper: ${String(error)}`);
+  const next = (): void => {
     active = false;
-    showNext();
+    void showNext();
+  };
+  const suggested = await suggestedMacroTrigger(live.ui.keys);
+  if (!suggested) {
+    live.meta.log(`no unused keymap trigger is available for ${ability.name}`);
+    next();
     return;
   }
-  activePanel = panel;
-  drawPrompt(panel, ability, suggested, (): void => {
-    active = false;
-    activePanel = null;
-    showNext();
-  });
-}
-
-/** Close the active helper and discard deferred offers when this plugin leaves. */
-export function uninstallMacroWizard(): void {
-  runtime = null;
-  pending.splice(0);
-  active = false;
-  activePanel?.close();
-  activePanel = null;
-}
-
-function drawPrompt(
-  panel: PanelLike,
-  ability: AbilityGainedLike,
-  suggested: string,
-  done: () => void,
-): void {
-  const root = panel.root;
-  const style = document.createElement("style");
-  /* No `font`/`font-size` rules here any more: every piece of this card's
-   * own text is now a bitmap-blitted canvas (see bitmap-text.ts), matching
-   * the font the game itself draws with instead of a system one (#197,
-   * #199). The trigger-key `<input>` is the one exception - a player has to
-   * be able to type into it, which a canvas cannot do - so it alone keeps a
-   * real CSS font, close in size to the surrounding bitmap text. */
-  style.textContent =
-    "main { background: #151515; color: #f5f5f5; border: 2px solid #d4b05b; border-radius: 8px; max-width: 34rem; margin: 12vh auto; padding: 1.25rem; }" +
-    "input { width: 5rem; font: 16px monospace; }" +
-    "label { display: flex; align-items: center; gap: .4rem; }" +
-    "button { margin: .5rem .5rem 0 0; background: none; border: 1px solid #686878; border-radius: 4px; cursor: pointer; padding: .25rem .5rem; }";
-  const main = document.createElement("main");
-
-  const dpr = window.devicePixelRatio || 1;
-  const cellHeight = 16;
-  const cellWidth = cellHeight * (16 / 24);
-  const titleCellHeight = 20;
-  const titleCellWidth = titleCellHeight * (16 / 24);
-  /* 34rem (16px root) less main's own left/right padding, divided by one
-   * glyph cell - a rough estimate good enough for wrapping this dialog's
-   * own short sentences. */
-  const maxChars = Math.max(10, Math.floor((34 * 16 - 40) / cellWidth));
-
-  const title = bitmapTextBlock(
-    wrapBitmapText(`Shortcut for ${ability.name}`, maxChars).map((line) => [
-      { text: line, css: "#f5f5f5" },
-    ]),
-    titleCellWidth,
-    titleCellHeight,
-    dpr,
-  );
-  const words = bitmapTextBlock(
-    wrapBitmapText(
-      `Bind ${suggested} to open the ${ability.command === "activate" ? "activation" : "casting"} command?`,
-      maxChars,
-    ).map((line) => [{ text: line, css: "#f5f5f5" }]),
-    cellWidth,
-    cellHeight,
-    dpr,
-  );
-  words.style.marginTop = ".5rem";
-  const label = document.createElement("label");
-  label.style.marginTop = ".5rem";
-  label.appendChild(bitmapTextBlock([[{ text: "Key:", css: "#f5f5f5" }]], cellWidth, cellHeight, dpr));
-  const input = document.createElement("input");
-  input.value = suggested;
-  input.maxLength = 5;
-  input.setAttribute("aria-label", "Shortcut key");
-  label.appendChild(input);
-  const accept = document.createElement("button");
-  paintBitmapButtonLabel(accept, "Bind shortcut", "#f5f5f5", cellWidth, cellHeight, dpr);
-  const decline = document.createElement("button");
-  paintBitmapButtonLabel(decline, "No thanks", "#f5f5f5", cellWidth, cellHeight, dpr);
-  let result = bitmapTextBlock([[{ text: "", css: "#e07a6e" }]], cellWidth, cellHeight, dpr);
+  let key = suggested;
   let finished = false;
   const finish = (): void => {
     if (finished) return;
     finished = true;
-    panel.close();
-    done();
+    void live.ui.unmount(PANEL_ID);
+    next();
   };
-  void panel.closed.then(() => {
-    if (!finished) {
-      finished = true;
-      done();
-    }
-  });
-  accept.addEventListener("click", () => {
-    const trigger = input.value.trim();
-    if (runtime?.keymaps && bindAbilityMacro(runtime.keymaps, ability, trigger)) {
-      finish();
-      return;
-    }
-    const next = bitmapTextBlock(
-      wrapBitmapText(
-        "That key is unavailable. Choose an unused printable key, Enter, or F1 through F12.",
-        maxChars,
-      ).map((line) => [{ text: line, css: "#e07a6e" }]),
-      cellWidth,
-      cellHeight,
-      dpr,
-    );
-    result.replaceWith(next);
-    result = next;
-  });
-  decline.addEventListener("click", finish);
-  root.append(style, main);
-  main.append(title, words, label, document.createElement("br"), accept, decline, result);
+  const opened = await live.ui.mount(
+    macroPanel(ability, key),
+    (action, value) => {
+      if (action === "set-key" && typeof value === "string") {
+        key = value.trim();
+      } else if (action === "decline") {
+        finish();
+      } else if (action === "bind") {
+        void bindAbilityMacro(live.ui.keys, ability, key).then((bound) => {
+          if (finished) return;
+          if (bound) finish();
+          else void live.ui.patch(PANEL_ID, { root: macroPanel(ability, key, UNAVAILABLE).root });
+        });
+      }
+    },
+    finish,
+  );
+  if (!opened.ok) {
+    live.meta.log(`could not open activation shortcut helper: ${opened.message}`);
+    finished = true;
+    next();
+  }
+}
+
+/** Close the active helper and discard deferred offers when this mod stops. */
+export function stopMacroWizard(): void {
+  const live = mod;
+  mod = null;
+  pending.splice(0);
+  if (active) void live?.ui.unmount(PANEL_ID);
+  active = false;
 }
