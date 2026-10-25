@@ -30,10 +30,11 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 
 ## What it needs
 
-- **Engine:** `>=1.8.0`
+- **Mod API:** `>=2.0.0 <3.0.0`
+- **Engine:** `>=1.22.0`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle

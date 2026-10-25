@@ -1,833 +1,500 @@
 /**
- * The `qol` mod's own tests, next to the mod's own code.
+ * The `qol` mod's API 2 entry point: what it declares to the game for each
+ * flag, and what its `start` does with a live game.
  *
- * They exercise the mod exactly as the game does: import its default entry
- * point, hand it resolved flags, install the result as GameState.modHooks, and
- * play a real turn through a real startGame. Nothing here reaches into core's
- * internals - it imports @rpgm-tools/neo-angband-core's published API, like any third-party
- * mod's tests would.
- *
- * The complementary half is in core: packages/core/src/game/auto-dig.test.ts
- * pins what the walkBlockedByDiggable SEAM promises (an absent hook bumps and
- * draws nothing; the returned energy is spent; null falls back). This file pins
- * what the MOD does with that promise.
+ * The policy tables are applied by the game, and their behaviour (a dig on
+ * walking into rubble, a pref file read past a mistake, a torch ignored) is
+ * tested there and played in the lab. What this file pins is the half the game
+ * cannot know: which tables THIS mod asks for, under which flags, and that each
+ * one is a table the game accepts.
  */
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import {
-  loadPackFile as loadJson,
-  loadPackRecords as loadRecords,
-} from "@rpgm-tools/neo-angband-content/pack";
-import {
-  DDGRID,
-  FEAT,
-  loc,
-  squareMemorize,
-  squareMonster,
-  startGame,
-  walkAction,
-} from "@rpgm-tools/neo-angband-core";
-import type { GamePack, GameState, Loc, ModHooks } from "@rpgm-tools/neo-angband-core";
+  api2PolicyEffects,
+  apiRangeVerdict,
+  checkApi2Policies,
+  matchCapability,
+  validateManifest,
+} from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Hooks, Api2Policies, JsonValue, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { readRememberedSettings } from "./preferences";
+import { readHideRepeatShortcuts, readRememberedSettings } from "./preferences";
 import plugin from "./plugin";
 
-/**
- * The mod's behaviour, driven the way the HOST drives it.
- *
- * The entry point is a ModPlugin whose `hooks` takes a context and reads the engine
- * off `ctx.core` (mods/qol/plugin.ts). The host reduces that to a function of flags
- * (src/mod-hooks.ts pluginAdapter); this is the same reduction, with the REAL core
- * namespace passed in - so these tests exercise the shipped path rather than a
- * signature only they use.
- */
-const qolHooks = (flags: Readonly<Record<string, boolean>>): ModHooks =>
-  plugin.hooks({ flags, core: neoCore });
+const manifestDocument = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")) as unknown;
+const manifest = validateManifest(manifestDocument, { code: ["plugin.js"] });
 
-describe("plugin teardown", () => {
-  it("asks every QoL-owned panel feature to clean up (neo-angband #251)", () => {
-    const source = readFileSync(new URL("./plugin.ts", import.meta.url), "utf8");
-    const start = source.indexOf("  uninstall(): void {");
-    expect(start).toBeGreaterThan(-1);
-    const body = source.slice(start, source.indexOf("\n  },", start));
-    expect(body).toContain("uninstallMacroWizard()");
-    expect(body).toContain("uninstallRepeatShortcuts()");
-    expect(body).toContain("uninstallPurgeQueuedInput()");
-  });
-});
-
-describe("qol.purgeQueuedInput: gating (neo-angband #35)", () => {
-  type Ctx = Parameters<typeof plugin.register>[1];
-
-  /** A display fake for the key listener used by purge queued input. */
-  function fakeDisplay(onKey: NonNullable<Ctx["display"]>["onKey"]): Ctx["display"] {
-    return {
-      snapshot: () => ({
-        mode: "play",
-        grid: { cols: 80, rows: 24, cellWidth: 16, cellHeight: 24 },
-        viewport: { origin: { x: 0, y: 0 }, size: { width: 66, height: 24 }, screenOrigin: { x: 0, y: 0 } },
-        level: { width: 66, height: 24 },
-        layout: "left",
-        regions: {},
-      }),
-      onKey,
-      setGrid: vi.fn(),
-      setCamera: vi.fn(),
-      setMapView: vi.fn(),
-      setSidebarExtent: vi.fn(),
-      setTileScaling: vi.fn(),
-      setVisualFilter: vi.fn(),
-      repaint: vi.fn(),
-    } as unknown as Ctx["display"];
-  }
-
-  it("claims nothing when the rule is off, leaving existing behaviour unchanged", () => {
-    const isBindableTriggerKey = vi.fn(() => true);
-    plugin.register(menuHost([]), {
-      flags: {},
-      core: neoCore,
-      keymaps: { isBindableTriggerKey, bind: vi.fn(() => true) },
-      display: fakeDisplay(vi.fn(() => () => undefined)),
-    } as Ctx);
-    expect(isBindableTriggerKey).not.toHaveBeenCalled();
-  });
-
-  it("claims the trigger through ctx.display.onKey, never through ctx.keymaps.bind, when the rule is on", () => {
-    const isBindableTriggerKey = vi.fn(() => true);
-    const bind = vi.fn(() => true);
-    const onKey = vi.fn(() => () => undefined);
-    plugin.register(menuHost([]), {
-      flags: { "qol.purgeQueuedInput": true },
-      core: neoCore,
-      keymaps: { isBindableTriggerKey, bind },
-      display: fakeDisplay(onKey),
-    } as Ctx);
-    expect(isBindableTriggerKey).toHaveBeenCalledWith("F2");
-    expect(onKey).toHaveBeenCalledOnce();
-    /* Binding the trigger would make a held key's repeats unobservable to
-     * ctx.keyRepeat - see purge-queued-input.ts's own header - so this must
-     * never call bind() for its own trigger. */
-    expect(bind).not.toHaveBeenCalled();
-  });
-});
-
-
-const pack: GamePack = {
-  constants: loadJson("constants"),
-  terrain: loadRecords("terrain"),
-  roomTemplates: loadRecords("room_template"),
-  vaults: loadRecords("vault"),
-  dungeonProfiles: loadRecords("dungeon_profile"),
-  projection: loadRecords("projection"),
-  trap: loadRecords("trap"),
-  names: loadRecords("names"),
-  quest: loadRecords("quest"),
-  obj: {
-    objectBase: loadJson("object_base"),
-    object: loadJson("object"),
-    egoItem: loadJson("ego_item"),
-    artifact: loadJson("artifact"),
-    curse: loadJson("curse"),
-    brand: loadJson("brand"),
-    slay: loadJson("slay"),
-    activation: loadJson("activation"),
-    objectProperty: loadJson("object_property"),
-    flavor: loadJson("flavor"),
-  } as GamePack["obj"],
-  mon: {
-    pain: loadRecords("pain"),
-    blowMethods: loadRecords("blow_methods"),
-    blowEffects: loadRecords("blow_effects"),
-    monsterSpells: loadRecords("monster_spell"),
-    monsterBases: loadRecords("monster_base"),
-    monsters: loadRecords("monster"),
-    summons: loadRecords("summon"),
-    pits: loadRecords("pit"),
-  },
-  player: {
-    races: loadRecords("p_race"),
-    classes: loadRecords("class"),
-    properties: loadRecords("player_property"),
-    timed: loadRecords("player_timed"),
-    shapes: loadRecords("shape"),
-    bodies: loadRecords("body"),
-    history: loadRecords("history"),
-    realms: loadRecords("realm"),
-  },
-} as unknown as GamePack;
-
-/* Only the auto-dig rule. NOT every rule - the mod has three now, and the two
- * "remember my settings" ones need a prefs store to install anything. */
-const DIG_ON = { "qol.autoDig": true };
-
-/** One menu action accepted by the real registry-host facade. */
-interface RegisteredMenuAction {
-  readonly id: "core:game-menu";
-  readonly action: string;
-  readonly label: string;
-  readonly handler: () => void | Promise<void>;
-}
-
-/**
- * The front end owns the concrete menu registry, but a plugin receives this
- * exact registry-host seam. Keep the recorder at that boundary while each
- * test still boots a real game for the register() context.
- */
-function menuHost(actions: RegisteredMenuAction[]): Parameters<typeof plugin.register>[0] {
-  return {
-    menus: {
-      addAction(id, action, label, handler): void {
-        actions.push({ id, action, label, handler });
-      },
-    },
-  };
-}
-
-/**
- * A real game with a diggable wall next to the player and a digger strong enough
- * that the roll always succeeds. Returns the direction to walk and the grid.
- *
- * The direction is SEARCHED rather than assumed: a real generated level can put a
- * monster next to the player, and walking into a monster is an attack, not a
- * blocked walk. Picking the first monster-free orthogonal neighbour keeps this
- * test about digging even if the generation stream shifts.
- */
-function dugGame(feat: number = FEAT.RUBBLE, digging = 200): {
-  state: GameState;
-  registry: ReturnType<typeof startGame>["registry"];
-  dir: number;
-  grid: Loc;
-} {
-  const { state, registry } = startGame(pack, { seed: 20260729, depth: 2 });
-  let chosen: { dir: number; grid: Loc } | null = null;
-  for (const dir of [6, 4, 2, 8]) {
-    const d = DDGRID[dir] as Loc;
-    const grid = loc(state.actor.grid.x + d.x, state.actor.grid.y + d.y);
-    if (!state.chunk.inBoundsFully(grid)) continue;
-    if (squareMonster(state, grid)) continue;
-    chosen = { dir, grid };
-    break;
-  }
-  if (!chosen) throw new Error("no monster-free neighbour to dig into");
-  state.chunk.setFeat(chosen.grid, feat);
-  squareMemorize(state, chosen.grid); // square_isknown gate
-  /* The DIGGING skill the roll actually uses. In a live session it comes from
-   * player_best_digger (player-util.c L744) through this seam, which temporarily
-   * wields the pack's best digger - so setting combat.skills directly would be
-   * ignored, exactly as it is in the real game. */
-  state.bestDiggerDigging = (): number => digging;
-  return { state, registry, dir: chosen.dir, grid: chosen.grid };
-}
+const allRuleFlags = (): Record<string, boolean> =>
+  Object.fromEntries((manifest.rules ?? []).map((rule) => [rule.flag, true]));
+const hooksFor = (flags: Readonly<Record<string, boolean>>): Api2Hooks => plugin.hooks({ id: "qol", flags }) ?? {};
+const policiesFor = (flags: Readonly<Record<string, boolean>>): Api2Policies => plugin.policies({ id: "qol", flags }) ?? {};
 
 describe("the qol mod's entry point", () => {
-  it("loads the schema 2 manifest as an API 1 in-process plugin", () => {
-    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")), {
-      code: ["plugin.js"],
-    });
+  it("is a schema 2 manifest on API 2, run in process", () => {
+    expect((manifestDocument as { schemaVersion: number }).schemaVersion).toBe(2);
     expect(manifest.manifestSchema).toBe(2);
-    expect(manifest.api).toBe(">=1.0.0 <2.0.0");
-    expect(manifest.modApi).toBe(plugin.api);
+    expect(manifest.api).toBe(plugin.api);
+    expect(manifest.api).toBe(">=2.0.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
     expect(manifest.dependencies).toEqual({ core: "*" });
   });
 
-  it("requests only capabilities used by remaining features", () => {
-    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+  it("declares a range this game runs", () => {
+    expect(apiRangeVerdict(plugin.api)).toEqual({ ok: true });
+  });
+
+  it("requests the grant each declaration and panel needs, and nothing else", () => {
     expect(manifest.capabilities).toEqual([
       "backup:folder",
       "ui:panel.mount",
       "keymap:write",
       "registry:menu",
+      "registry:command",
+      "registry:ui-entry",
+      "registry:message",
     ]);
+    for (const capability of manifest.capabilities ?? []) {
+      expect(matchCapability(capability), capability).not.toBeNull();
+    }
   });
 
   it("declares separate, opt-in accessibility accommodations", () => {
-    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
     const accommodations = (manifest.rules ?? [])
       .filter((rule) => rule.flag.startsWith("qol.accessibility"))
       .map(({ flag, title, default: isDefault }) => ({ flag, title, default: isDefault }));
 
     expect(accommodations).toEqual([
-      {
-        flag: "qol.accessibilityMacroWizard",
-        title: "Accessibility: activation shortcut helper",
-        default: false,
-      },
-      {
-        flag: "qol.accessibilityRepeatShortcuts",
-        title: "Accessibility: repeated-action shortcuts",
-        default: false,
-      },
+      { flag: "qol.accessibilityMacroWizard", title: "Accessibility: activation shortcut helper", default: false },
+      { flag: "qol.accessibilityRepeatShortcuts", title: "Accessibility: repeated-action shortcuts", default: false },
     ]);
   });
 
   it("contributes nothing when the mod is enabled but every patch is off", () => {
-    /* The host still calls an enabled mod, so "{}" is the honest answer, and
-     * composeModHooks turns a set of empty contributions back into `undefined` -
-     * leaving GameState.modHooks absent. */
-    expect(qolHooks({})).toEqual({});
-    expect(qolHooks({ "qol.autoDig": false })).toEqual({});
-  });
-
-  it("installs walkBlockedByDiggable, and ONLY that, for qol.autoDig", () => {
-    const hooks = qolHooks(DIG_ON);
-    expect(Object.keys(hooks)).toEqual(["walkBlockedByDiggable"]);
+    expect(hooksFor({})).toEqual({});
+    expect(hooksFor({ "qol.rememberSettings": false, "qol.accessibilityMacroWizard": false })).toEqual({});
+    expect(policiesFor({})).toEqual({});
+    expect(policiesFor({ "qol.autoDig": false, "qol.miscNiceties": false })).toEqual({});
   });
 
   it("ignores flags that are not its own", () => {
-    /* The host slices the flag map per mod, but a mod must not act on a foreign
-     * flag even if one arrives. */
-    expect(qolHooks({ "bugfix.stairsReachable": true })).toEqual({});
+    expect(hooksFor({ "bugfix.stairsReachable": true })).toEqual({});
+    expect(policiesFor({ "bugfix.stairsReachable": true })).toEqual({});
+  });
+
+  it("is a mod with no engine access needed to declare anything", () => {
+    /* hooks and policies are asked without the engine domain, so a public-tier install keeps every declared feature. */
+    const all = { ...allRuleFlags(), "qol.miscNiceties": true };
+    expect(() => plugin.hooks({ id: "qol", flags: all })).not.toThrow();
+    expect(() => plugin.policies({ id: "qol", flags: all })).not.toThrow();
   });
 });
 
-/**
- * qol.forgivingPrefFiles, the half of #272 that came back as a mod.
- *
- * Core's own tests (packages/core/src/visuals/prefs.test.ts) pin what the SEAM
- * does - that a policy of `{continueAfterError: true}` really does apply the
- * lines after a bad one, and that core's default really does stop. This file
- * pins what the MOD asks for, which is the half core cannot know about.
- *
- * The seam is RECORDED rather than driven, because it landed in the engine after
- * the published one these tests import by default. A test that drove the real
- * `setPrefErrorPolicy` would pass or fail depending on which engine happened to
- * be installed, which is a test that measures the wrong thing.
- */
-describe("qol.forgivingPrefFiles: reading a pref file past a mistake", () => {
-  type Policy = { continueAfterError: boolean; reportLimit: number } | null;
+describe("policy tables", () => {
+  const cases: readonly (readonly [flag: string, tables: readonly string[]])[] = [
+    ["qol.autoDig", ["walkBlockedByDiggable"]],
+    ["qol.forgivingPrefFiles", ["prefErrors"]],
+    ["qol.ignoreTorches", ["ignore"]],
+    ["qol.ignoreLanterns", ["ignore"]],
+    ["qol.miscNiceties", ["displayOptions", "messageText"]],
+    ["qol.purgeQueuedInput", ["purgeInput"]],
+  ];
 
-  /** The engine, with the #272 seam replaced by a recorder. */
-  function coreWithSeam(): { core: typeof neoCore; asked: Policy[] } {
-    const asked: Policy[] = [];
-    const core = {
-      ...neoCore,
-      setPrefErrorPolicy: (p: Policy): void => {
-        asked.push(p);
-      },
-    };
-    return { core: core as typeof neoCore, asked };
-  }
-
-  /** An engine from before the seam existed. */
-  function coreWithoutSeam(): typeof neoCore {
-    const core: Record<string, unknown> = { ...neoCore };
-    delete core["setPrefErrorPolicy"];
-    return core as unknown as typeof neoCore;
-  }
-
-  it("asks core to keep reading, and to report the first 20 mistakes", () => {
-    const { core, asked } = coreWithSeam();
-    plugin.hooks({ flags: { "qol.forgivingPrefFiles": true }, core });
-    /* 20 is the number core itself used to carry as PARSE_ERROR_LIMIT. The
-     * difference from that cap is `continueAfterError`: the old one stopped
-     * applying the file as well as stopping the report. */
-    expect(asked).toEqual([{ continueAfterError: true, reportLimit: 20 }]);
-  });
-
-  it("asks for nothing at all when the toggle is off", () => {
-    /* "A disabled mod's patches DO NOT EXIST". Off must not install a policy
-     * that says "behave like core would have anyway" - it must not call. */
-    const off = coreWithSeam();
-    plugin.hooks({ flags: { "qol.forgivingPrefFiles": false }, core: off.core });
-    expect(off.asked).toEqual([]);
-
-    const absent = coreWithSeam();
-    plugin.hooks({ flags: {}, core: absent.core });
-    expect(absent.asked).toEqual([]);
-  });
-
-  it("adds no ModHooks member, because this is not a hook", () => {
-    const { core } = coreWithSeam();
-    expect(plugin.hooks({ flags: { "qol.forgivingPrefFiles": true }, core })).toEqual({});
-  });
-
-  it("is inert, and says so, on an engine without the seam", () => {
-    /* manifest.json's engine range should have refused this pairing. If it
-     * somehow does not, the mod must not throw at boot - and must not be
-     * silently inert either, which is the failure this project keeps finding. */
-    const said: string[] = [];
-    expect(() =>
-      plugin.hooks({
-        flags: { "qol.forgivingPrefFiles": true },
-        core: coreWithoutSeam(),
-        log: (m) => said.push(m),
-      }),
-    ).not.toThrow();
-    expect(said).toHaveLength(1);
-    expect(said[0]).toMatch(/too old/);
-  });
-});
-
-describe("qol.autoDig: walking into diggable terrain", () => {
-  it("digs once, spends a move, and does not step onto the grid", () => {
-    const { state, dir, grid } = dugGame();
-    state.modHooks = qolHooks(DIG_ON);
-    const before = loc(state.actor.grid.x, state.actor.grid.y);
-
-    const spent = walkAction(state, { code: "walk", dir });
-
-    expect(spent).toBe(state.z.moveEnergy);
-    expect(state.actor.grid).toEqual(before); // source fork: dig, don't step
-    expect(state.chunk.isRubble(grid)).toBe(false); // dug out (skill 200)
-  });
-
-  it("declines an unknown grid, drawing no RNG - the faithful bump", () => {
-    const { state, grid } = dugGame();
-    state.known.feat[grid.y * state.chunk.width + grid.x] = -1; // un-memorize it (-1 = unknown)
-    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
-    const rngBefore = JSON.stringify(state.rng.getState());
-
-    expect(hook(state, grid, { env: {} })).toBeNull();
-
-    /* Declining has to be free of observable effect: faithful core bumps the wall
-     * without drawing, so a decline that rolled first would desynchronise the
-     * stream and a seed would stop meaning the same game. */
-    expect(JSON.stringify(state.rng.getState())).toBe(rngBefore);
-    expect(state.chunk.isRubble(grid)).toBe(true);
-  });
-
-  it("declines permanent rock, drawing no RNG", () => {
-    const { state, grid } = dugGame(FEAT.PERM);
-    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
-    const rngBefore = JSON.stringify(state.rng.getState());
-    expect(hook(state, grid, { env: {} })).toBeNull();
-    expect(JSON.stringify(state.rng.getState())).toBe(rngBefore);
-  });
-
-  it("declines terrain no digger could get through at this skill", () => {
-    const { state, grid } = dugGame(FEAT.GRANITE, 20); // granite chance = (20-40) -> 0
-    const hook = qolHooks(DIG_ON).walkBlockedByDiggable!;
-    expect(hook(state, grid, { env: {} })).toBeNull();
-  });
-
-  it("spends the move even when the attempt FAILS (one attempt per walk)", () => {
-    /* A weak digger with a positive chance: movementTunnelTest passes, so the mod
-     * commits to the walk, tunnelAux rolls and (at this skill, on granite)
-     * essentially always fails. The turn is still spent - that is the source
-     * fork's behaviour, and it is what makes repeated walks dig through a vein. */
-    const { state, dir, grid } = dugGame(FEAT.GRANITE, 45); // chance = (45-40) > 0
-    state.modHooks = qolHooks(DIG_ON);
-    const spent = walkAction(state, { code: "walk", dir });
-    expect(spent).toBe(state.z.moveEnergy);
-    expect(state.chunk.feat(grid)).toBe(FEAT.GRANITE); // still there
-  });
-});
-
-/**
- * Cloud backup is registered at the same live-game register() seam the host
- * uses. The menu implementation belongs to the web front end, so this records
- * the one public registry call rather than duplicating the front end's menu.
- */
-describe("cloud backup folder", () => {
-  it("registers the Game-menu picker and writes the save files the host supplies", async () => {
-    const { state } = startGame(pack, { seed: 165, depth: 2 });
-    const actions: RegisteredMenuAction[] = [];
-    const writes: Array<{ name: string; text: string }> = [];
-    let onSave: ((file: { readonly name: string; readonly text: string }) => void) | undefined;
-    let chooses = 0;
-    const backupFolder = {
-      async choose(): Promise<string | null> {
-        chooses++;
-        return null; // cancellation is a normal no-op
-      },
-      async write(name: string, text: string): Promise<boolean> {
-        writes.push({ name, text });
-        return true;
-      },
-      onSave(fn: (file: { readonly name: string; readonly text: string }) => void): void {
-        onSave = fn;
-      },
-    };
-
-    /* The host composes hooks before it registers the live game. Keep that
-     * order here so this exercises both halves as they are actually wired. */
-    plugin.hooks({ flags: {}, core: neoCore, backupFolder });
-    plugin.register(menuHost(actions), { flags: {}, core: neoCore, state, backupFolder });
-
-    expect(actions).toHaveLength(1);
-    expect(actions[0]).toMatchObject({
-      id: "core:game-menu",
-      action: "choose-backup-folder",
-      label: "Choose cloud-backup folder...",
-    });
-    await expect(actions[0]!.handler()).resolves.toBeUndefined();
-    expect(chooses).toBe(1);
-
-    onSave?.({ name: "Bilbo-abcdef12.neochar", text: "save bytes" });
-    expect(writes).toEqual([{ name: "Bilbo-abcdef12.neochar", text: "save bytes" }]);
-  });
-
-  it("does not add a dead row when the host has no backup-folder capability", () => {
-    const { state } = startGame(pack, { seed: 166, depth: 2 });
-    const actions: RegisteredMenuAction[] = [];
-
-    expect(() => plugin.register(menuHost(actions), { flags: {}, core: neoCore, state })).not.toThrow();
-    expect(actions).toEqual([]);
-  });
-
-  it("contains a rejected picker so the Game menu can close normally", async () => {
-    const { state } = startGame(pack, { seed: 167, depth: 2 });
-    const actions: RegisteredMenuAction[] = [];
-    plugin.register(menuHost(actions), {
-      flags: {},
-      core: neoCore,
-      state,
-      backupFolder: {
-        choose: async () => Promise.reject(new Error("picker closed")),
-        write: async () => false,
-        onSave: () => undefined,
-      },
-    });
-
-    await expect(actions[0]!.handler()).resolves.toBeUndefined();
-  });
-
-  /* neo-angband#24: after a successful choose(), the row also reports how
-   * many characters are already sitting in the folder just picked - useful
-   * confirmation on a second machine, where the folder is an existing
-   * Dropbox full of characters rather than an empty one. */
-  describe("reporting what list() finds after choosing (#24)", () => {
-    function register(
-      list: (() => Promise<
-        readonly { name: string; lineage?: string; characterName: string; level: number }[]
-      >) | undefined,
-    ): { actions: RegisteredMenuAction[]; logs: string[] } {
-      const { state } = startGame(pack, { seed: 168, depth: 2 });
-      const actions: RegisteredMenuAction[] = [];
-      const logs: string[] = [];
-      plugin.register(menuHost(actions), {
-        flags: {},
-        core: neoCore,
-        state,
-        log: (msg) => logs.push(msg),
-        backupFolder: {
-          choose: async () => "NeoAngband",
-          write: async () => true,
-          onSave: () => undefined,
-          ...(list ? { list } : {}),
-        },
-      });
-      return { actions, logs };
+  it("asks for exactly the tables each flag needs, and every one is a valid table", () => {
+    for (const [flag, tables] of cases) {
+      const policies = policiesFor({ [flag]: true });
+      expect(Object.keys(policies).sort(), flag).toEqual([...tables].sort());
+      expect(checkApi2Policies(policies), flag).toBeNull();
     }
+  });
 
-    it("names the folder and counts the identified characters already there", async () => {
-      const { actions, logs } = register(async () => [
-        { name: "Bilbo-abcdef12.neochar", lineage: "lin-bilbo", characterName: "Bilbo", level: 12 },
-        { name: "Frodo-00112233.neochar", lineage: "lin-frodo", characterName: "Frodo", level: 5 },
-      ]);
-      await actions[0]!.handler();
-      expect(logs).toEqual(['Using backup folder "NeoAngband" (2 characters already there).']);
-    });
+  it("is valid with every flag on at once", () => {
+    const all = { ...allRuleFlags(), "qol.miscNiceties": true };
+    const policies = policiesFor(all);
+    expect(checkApi2Policies(policies)).toBeNull();
+    expect(Object.keys(policies).sort()).toEqual(
+      ["displayOptions", "ignore", "messageText", "prefErrors", "purgeInput", "walkBlockedByDiggable"],
+    );
+  });
 
-    it("uses the singular for exactly one, and does not count an unreadable entry", async () => {
-      const { actions, logs } = register(async () => [
-        { name: "Bilbo-abcdef12.neochar", lineage: "lin-bilbo", characterName: "Bilbo", level: 12 },
-        { name: "garbage.neochar", characterName: "", level: 0 }, // no lineage: unreadable
-      ]);
-      await actions[0]!.handler();
-      expect(logs).toEqual(['Using backup folder "NeoAngband" (1 character already there).']);
+  it("digs without stepping and spends a full move (the fork's behaviour, kept exactly)", () => {
+    expect(policiesFor({ "qol.autoDig": true }).walkBlockedByDiggable).toEqual({
+      kind: "walk-blocked-by-diggable",
+      attempt: "tunnel",
+      energy: "move",
+      step: false,
     });
+  });
 
-    it("names the folder alone when the folder is empty", async () => {
-      const { actions, logs } = register(async () => []);
-      await actions[0]!.handler();
-      expect(logs).toEqual(['Using backup folder "NeoAngband".']);
+  it("keeps reading a pref file and reports the first 20 mistakes", () => {
+    expect(policiesFor({ "qol.forgivingPrefFiles": true }).prefErrors).toEqual({
+      kind: "pref-errors",
+      continueAfterError: true,
+      reportLimit: 20,
     });
+  });
 
-    it("still names the folder when the host's backupFolder has no list() at all", async () => {
-      /* An older host: everything else on backupFolder works, this method
-       * does not exist. Guarded with `?.()`, never a crash. */
-      const { actions, logs } = register(undefined);
-      await actions[0]!.handler();
-      expect(logs).toEqual(['Using backup folder "NeoAngband".']);
-    });
+  it("ignores torches and lanterns separately", () => {
+    expect(policiesFor({ "qol.ignoreTorches": true }).ignore).toEqual([{ tval: "light", kindNameContains: "Torch", ignore: true }]);
+    expect(policiesFor({ "qol.ignoreLanterns": true }).ignore).toEqual([{ tval: "light", kindNameContains: "Lantern", ignore: true }]);
+    expect(policiesFor({ "qol.ignoreTorches": true, "qol.ignoreLanterns": true }).ignore).toHaveLength(2);
+  });
 
-    it("logs nothing on a cancelled pick - there is nothing to report", async () => {
-      const { state } = startGame(pack, { seed: 169, depth: 2 });
-      const actions: RegisteredMenuAction[] = [];
-      const logs: string[] = [];
-      plugin.register(menuHost(actions), {
-        flags: {},
-        core: neoCore,
-        state,
-        log: (msg) => logs.push(msg),
-        backupFolder: {
-          choose: async () => null,
-          write: async () => true,
-          onSave: () => undefined,
-          list: async () => [],
-        },
-      });
-      await actions[0]!.handler();
-      expect(logs).toEqual([]);
+  it("turns the three display niceties on together", () => {
+    expect(policiesFor({ "qol.miscNiceties": true }).displayOptions).toEqual({
+      kind: "display-options",
+      storeItemNameEllipsis: true,
+      storeSelectionDescription: true,
+      monsterListColorKey: true,
     });
+  });
+
+  it("claims F2 for a purge of three Escapes on a fresh press", () => {
+    expect(policiesFor({ "qol.purgeQueuedInput": true }).purgeInput).toEqual({
+      kind: "purge-input",
+      trigger: "F2",
+      modifiers: [],
+      freshOnly: true,
+      escapeCount: 3,
+    });
+  });
+
+  it("rewords upstream's immobile-monster message through the game's own table walker", () => {
+    const effects = api2PolicyEffects(policiesFor({ "qol.miscNiceties": true }));
+    expect(effects.hooks.messageText?.("The monster can not move.")).toBe("The monster cannot move.");
+    expect(effects.hooks.messageText?.("You have no room for that.")).toBe("You have no room for that.");
   });
 });
 
-/**
- * "Remember my settings" (qol.rememberSettings / qol.rememberCheats).
- *
- * Driven exactly as the host drives it: `hooks()` returns the optionsChanged
- * notification the '=' menu fires, and `register()` is the half that runs once
- * at boot. Both are given a real OptionState from the engine, so the birth /
- * cheat / score classification is the engine's own and not a list this file
- * keeps in step by hand.
- */
-describe("remember my settings", () => {
-  /** A prefs store like the host's ctx.prefs, in memory. */
-  function fakePrefs(): { get(): unknown; set(v: unknown): void } {
-    let value: unknown = null;
-    return {
-      get: () => value,
-      set: (v) => {
-        value = v;
+describe("hooks", () => {
+  it("installs abilityGained only for the activation shortcut helper", () => {
+    expect(Object.keys(hooksFor({ "qol.accessibilityMacroWizard": true }))).toEqual(["abilityGained"]);
+    expect(hooksFor({ "qol.accessibilityRepeatShortcuts": true })).toEqual({});
+  });
+
+  it("installs optionsChanged only for remembered settings", () => {
+    expect(Object.keys(hooksFor({ "qol.rememberSettings": true }))).toEqual(["optionsChanged"]);
+    expect(hooksFor({ "qol.rememberSettings": false }).optionsChanged).toBeUndefined();
+  });
+});
+
+/** An in-memory store slot and the result envelope the host wraps every call in. */
+function slot(initial: JsonValue | null = null): { get(): Promise<unknown>; set(v: JsonValue | null): Promise<unknown>; peek(): JsonValue | null } {
+  let value = initial;
+  return {
+    get: () => Promise.resolve({ ok: true, value }),
+    set: (v) => {
+      value = v;
+      return Promise.resolve({ ok: true, value: null });
+    },
+    peek: () => value,
+  };
+}
+
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+interface FakeModOptions {
+  readonly flags: Readonly<Record<string, boolean>>;
+  readonly newCharacter?: boolean;
+  readonly prefs?: ReturnType<typeof slot>;
+  readonly options?: neoCore.OptionState | null;
+  readonly backupFolder?: unknown;
+}
+
+function fakeMod(opts: FakeModOptions): { mod: ModApi2; logs: string[]; prefs: ReturnType<typeof slot> } {
+  const logs: string[] = [];
+  const prefs = opts.prefs ?? slot();
+  const mod = {
+    meta: {
+      flags: opts.flags,
+      newCharacter: opts.newCharacter ?? false,
+      log: (line: string) => logs.push(line),
+    },
+    store: { prefs },
+    ui: {
+      mount: () => Promise.resolve({ ok: true, value: { panelId: "x" } }),
+      unmount: () => Promise.resolve({ ok: true, value: null }),
+      patch: () => Promise.resolve({ ok: true, value: { panelId: "x" } }),
+      keys: {
+        isBindableTriggerKey: () => Promise.resolve({ ok: true, value: true }),
+        bind: () => Promise.resolve({ ok: true, value: null }),
       },
-    };
-  }
+    },
+    ...(opts.options === null ? {} : { engine: { state: { options: opts.options ?? new neoCore.OptionState() } } }),
+    ...(opts.backupFolder ? { backupFolder: opts.backupFolder } : {}),
+  } as unknown as ModApi2;
+  return { mod, logs, prefs };
+}
 
-  /** The context shape the host passes, with the pieces a test wants to vary. */
-  function ctxFor(
-    opts: neoCore.OptionState,
-    flags: Record<string, boolean>,
-    extra: { prefs?: ReturnType<typeof fakePrefs>; newCharacter?: boolean } = {},
-  ): Parameters<typeof plugin.register>[1] {
-    return {
-      flags,
-      core: neoCore,
-      state: { options: opts },
-      log: () => undefined,
-      ...(extra.prefs ? { prefs: extra.prefs } : {}),
-      ...(extra.newCharacter !== undefined ? { newCharacter: extra.newCharacter } : {}),
-    };
-  }
+/** The snapshot the game hands to `optionsChanged`, built from a real option store. */
+function snapshot(options: neoCore.OptionState): Parameters<NonNullable<Api2Hooks["optionsChanged"]>>[0] {
+  const s = options.snapshot();
+  return { values: s.values, hitpointWarn: s.hitpointWarn, delayFactor: s.delayFactor, lazymoveDelay: s.lazymoveDelay, birth: {} };
+}
 
-  /**
-   * Fire the capture half the way the host actually does it.
-   *
-   * NO `state`, and that is the point of this helper existing. The host composes
-   * every mod's hooks BEFORE it starts the game - the composed ModHooks is an
-   * argument to startGame - so `hooks()` is called with a context that has no
-   * `state` on it, ever. An earlier draft of this test passed one, and the mod
-   * read `ctx.state.options`: every assertion here passed against a context
-   * shape the game never produces, and the feature would have been dead on
-   * arrival with a green suite behind it.
-   */
-  function change(
-    opts: neoCore.OptionState,
-    flags: Record<string, boolean>,
-    prefs: ReturnType<typeof fakePrefs>,
-  ): void {
-    const hooks = plugin.hooks({ flags, core: neoCore, prefs, log: () => undefined });
-    hooks.optionsChanged?.(opts.snapshot());
-  }
-
+describe("remember my settings", () => {
   const ON = { "qol.rememberSettings": true, "qol.rememberCheats": false };
   const WITH_CHEATS = { "qol.rememberSettings": true, "qol.rememberCheats": true };
 
-  it("installs no hook at all when the toggle is off", () => {
-    /* "A disabled mod's patches DO NOT EXIST": off means ABSENT, not a function
-     * that checks the flag and returns. */
-    const hooks = plugin.hooks({
-      flags: { "qol.rememberSettings": false },
-      core: neoCore,
-      prefs: fakePrefs(),
-    });
-    expect(hooks.optionsChanged).toBeUndefined();
-  });
+  /** Run `start` on a live fake, then fire the capture half the way the game does. */
+  async function change(
+    options: neoCore.OptionState,
+    flags: Record<string, boolean>,
+    prefs: ReturnType<typeof slot>,
+  ): Promise<void> {
+    const { mod } = fakeMod({ flags, prefs });
+    await plugin.start(mod);
+    plugin.hooks({ id: "qol", flags }).optionsChanged?.(snapshot(options));
+    await settle();
+    plugin.stop();
+  }
 
-  it("stores what the player chose, and applies it to the next character", () => {
-    const prefs = fakePrefs();
+  it("stores what the player chose, and applies it to the next character", async () => {
+    const prefs = slot();
     const first = new neoCore.OptionState();
     expect(first.get("use_sound")).toBe(false);
     first.set("use_sound", true);
     first.hitpointWarn = 7;
     first.delayFactor = 12;
-    change(first, ON, prefs);
+    await change(first, ON, prefs);
 
-    /* A brand-new character: table defaults, nothing carried in memory. */
     const next = new neoCore.OptionState();
     expect(next.get("use_sound")).toBe(false);
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
+    const { mod, logs } = fakeMod({ flags: ON, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
     expect(next.get("use_sound")).toBe(true);
     expect(next.hitpointWarn).toBe(7);
     expect(next.delayFactor).toBe(12);
+    expect(logs.some((line) => line.startsWith("restored "))).toBe(true);
   });
 
-  it("reads a pre-removal preference blob and drops moved fields on the next write", () => {
-    const prefs = fakePrefs();
-    const options = {
-      v: 1,
-      values: { use_sound: true },
-      hitpointWarn: 7,
-      delayFactor: 12,
-      lazymoveDelay: 2,
-    };
-    prefs.set({
-      v: 2,
-      options,
-      hideRepeatShortcuts: true,
-      display: { v: 2, zoomIndex: 8, interfaceZoomIndex: 2, mapDetail: 1 },
-      firstEncounter: { characterKey: "old", monsters: [1], artifacts: [2] },
-      subwindowZoom: { inventory: { step: 3, manual: true } },
-    });
-
-    const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
-    expect(next.get("use_sound")).toBe(true);
-    expect(next.hitpointWarn).toBe(7);
-    expect(next.delayFactor).toBe(12);
-    expect(next.lazymoveDelay).toBe(2);
-
-    change(next, ON, prefs);
-    expect(prefs.get()).toEqual({
-      v: 2,
-      options: expect.objectContaining({
-        v: 1,
-        values: expect.objectContaining({ use_sound: true }),
-        hitpointWarn: 7,
-        delayFactor: 12,
-        lazymoveDelay: 2,
-      }),
-      hideRepeatShortcuts: true,
-    });
+  it("does nothing before the game is running", async () => {
+    const prefs = slot();
+    const options = new neoCore.OptionState();
+    options.set("use_sound", true);
+    plugin.hooks({ id: "qol", flags: ON }).optionsChanged?.(snapshot(options));
+    await settle();
+    expect(prefs.peek()).toBeNull();
   });
 
-  it("leaves a LOADED character exactly as its save had it", () => {
-    /* The whole reason ctx.newCharacter exists. A player who set one character
-     * up one way must not have it rewritten because they changed something on a
-     * different character. */
-    const prefs = fakePrefs();
+  it("leaves a LOADED character exactly as its save had it", async () => {
+    const prefs = slot();
     const first = new neoCore.OptionState();
     first.set("use_sound", true);
-    change(first, ON, prefs);
+    await change(first, ON, prefs);
 
     const loaded = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(loaded, ON, { prefs, newCharacter: false }));
+    const { mod } = fakeMod({ flags: ON, newCharacter: false, prefs, options: loaded });
+    await plugin.start(mod);
+    plugin.stop();
     expect(loaded.get("use_sound")).toBe(false);
   });
 
-  it("does nothing when the host cannot say whether it is new", () => {
-    const prefs = fakePrefs();
+  it("never remembers a cheat or score option by default", async () => {
+    const prefs = slot();
     const first = new neoCore.OptionState();
-    first.set("use_sound", true);
-    change(first, ON, prefs);
+    first.set("cheat_hear", true);
+    await change(first, ON, prefs);
+    const stored = readRememberedSettings(prefs.peek());
+    expect(stored).not.toBeNull();
+    expect(Object.keys(stored!.values).some((name) => name.startsWith("cheat_") || name.startsWith("score_"))).toBe(false);
 
     const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs }));
+    const { mod } = fakeMod({ flags: ON, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
+    expect(next.get("cheat_hear")).toBe(false);
+    expect(next.anyScoreSet()).toBe(false);
+  });
+
+  it("remembers cheat options when the player asks for them", async () => {
+    const prefs = slot();
+    const first = new neoCore.OptionState();
+    first.set("cheat_hear", true);
+    await change(first, WITH_CHEATS, prefs);
+
+    const next = new neoCore.OptionState();
+    const { mod } = fakeMod({ flags: WITH_CHEATS, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
+    expect(next.get("cheat_hear")).toBe(true);
+  });
+
+  it("stops applying stored cheats the moment the toggle goes off", async () => {
+    const prefs = slot();
+    const first = new neoCore.OptionState();
+    first.set("cheat_hear", true);
+    await change(first, WITH_CHEATS, prefs);
+
+    const next = new neoCore.OptionState();
+    const { mod } = fakeMod({ flags: ON, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
+    expect(next.get("cheat_hear")).toBe(false);
+  });
+
+  it("never stores a birth option, because it could never apply one", async () => {
+    const prefs = slot();
+    const first = new neoCore.OptionState();
+    await change(first, ON, prefs);
+    const stored = readRememberedSettings(prefs.peek());
+    expect(Object.keys(stored!.values).some((name) => name.startsWith("birth_"))).toBe(false);
+
+    const hooks = plugin.hooks({ id: "qol", flags: ON });
+    const { mod } = fakeMod({ flags: ON, prefs });
+    await plugin.start(mod);
+    hooks.optionsChanged?.({ values: { birth_randarts: true, use_sound: true }, hitpointWarn: 3, delayFactor: 0, lazymoveDelay: 0, birth: { birth_randarts: true } });
+    await settle();
+    plugin.stop();
+    expect(Object.keys(readRememberedSettings(prefs.peek())!.values)).toEqual(["use_sound"]);
+  });
+
+  it("ignores a stored blob it does not understand", async () => {
+    const prefs = slot({ v: 99, values: { use_sound: true } });
+    const next = new neoCore.OptionState();
+    const { mod, logs } = fakeMod({ flags: ON, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
+    expect(next.get("use_sound")).toBe(false);
+    expect(logs).toContain("stored settings are version 99; ignoring them");
+  });
+
+  it("survives an option name this game no longer has", async () => {
+    const prefs = slot({ v: 2, options: { v: 1, values: { no_such_option: true, use_sound: true }, hitpointWarn: 4, delayFactor: 0, lazymoveDelay: 0 } });
+    const next = new neoCore.OptionState();
+    const { mod } = fakeMod({ flags: ON, newCharacter: true, prefs, options: next });
+    await expect(plugin.start(mod)).resolves.toBeUndefined();
+    plugin.stop();
+    expect(next.get("use_sound")).toBe(true);
+    expect(next.hitpointWarn).toBe(4);
+  });
+
+  it("says so, and changes nothing, when the mod has no access to the game's options", async () => {
+    const prefs = slot({ v: 2, options: { v: 1, values: { use_sound: true }, hitpointWarn: 4, delayFactor: 0, lazymoveDelay: 0 } });
+    const { mod, logs } = fakeMod({ flags: ON, newCharacter: true, prefs, options: null });
+    await plugin.start(mod);
+    plugin.stop();
+    expect(logs.some((line) => line.includes("gap QOL-1"))).toBe(true);
+  });
+
+  it("restores nothing when the toggle is off", async () => {
+    const prefs = slot({ v: 2, options: { v: 1, values: { use_sound: true }, hitpointWarn: 4, delayFactor: 0, lazymoveDelay: 0 } });
+    const next = new neoCore.OptionState();
+    const { mod } = fakeMod({ flags: { "qol.rememberSettings": false }, newCharacter: true, prefs, options: next });
+    await plugin.start(mod);
+    plugin.stop();
     expect(next.get("use_sound")).toBe(false);
   });
 
-  it("never remembers a cheat option by default", () => {
-    /* The damage this prevents: cheat_live forces score_live, and a character
-     * carrying score_live is barred from the score list for a choice the player
-     * made on somebody else. */
-    const prefs = fakePrefs();
-    const first = new neoCore.OptionState();
-    first.set("cheat_live", true);
-    expect(first.get("cheat_live")).toBe(true);
-    expect(first.get("score_live")).toBe(true); // the engine's own coupling
-    first.set("use_sound", true);
-    change(first, ON, prefs);
-
-    const stored = readRememberedSettings(prefs.get());
-    expect(stored).not.toBeNull();
-    if (!stored) throw new Error("remembered settings missing");
-    expect(stored.values).not.toHaveProperty("cheat_live");
-    expect(stored.values).not.toHaveProperty("score_live");
-    expect(stored.values["use_sound"]).toBe(true);
-
-    const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
-    expect(next.get("cheat_live")).toBe(false);
-    expect(next.get("score_live")).toBe(false);
-    expect(next.get("use_sound")).toBe(true);
+  it("brings a pre-versioned preference blob forward and drops what moved out", () => {
+    const old = { v: 1, values: { use_sound: true }, hitpointWarn: 5, delayFactor: 1, lazymoveDelay: 0, display: { zoom: 2 } };
+    const migrated = plugin.prefs.migrate(old as unknown as JsonValue, 0) as { v: number; options?: unknown; display?: unknown };
+    expect(migrated.v).toBe(2);
+    expect(migrated.options).toEqual({ v: 1, values: { use_sound: true }, hitpointWarn: 5, delayFactor: 1, lazymoveDelay: 0 });
+    expect(migrated.display).toBeUndefined();
+    expect(plugin.prefs.migrate({ nonsense: true }, 0)).toBeNull();
+    expect(readHideRepeatShortcuts(plugin.prefs.migrate({ v: 2, hideRepeatShortcuts: true }, 0))).toBe(true);
   });
+});
 
-  it("remembers cheat options when the player asks for it", () => {
-    const prefs = fakePrefs();
-    const first = new neoCore.OptionState();
-    first.set("cheat_live", true);
-    change(first, WITH_CHEATS, prefs);
+describe("cloud backup folder", () => {
+  const action = plugin.actions[0]!;
 
-    const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, WITH_CHEATS, { prefs, newCharacter: true }));
-    expect(next.get("cheat_live")).toBe(true);
-    /* And the engine's coupling still applies on the way back in, so the score
-     * twin is set by core rather than by anything this mod stored. */
-    expect(next.get("score_live")).toBe(true);
-  });
-
-  it("stops applying stored cheats the moment the toggle goes off", () => {
-    /* Filtered on the way IN as well as OUT. Turning the toggle off has to take
-     * effect against what is ALREADY stored, or the player's only remedy would
-     * be to find and clear the storage themselves. */
-    const prefs = fakePrefs();
-    const first = new neoCore.OptionState();
-    first.set("cheat_live", true);
-    change(first, WITH_CHEATS, prefs);
-    expect(readRememberedSettings(prefs.get())?.values["cheat_live"]).toBe(true);
-
-    const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
-    expect(next.get("cheat_live")).toBe(false);
-  });
-
-  it("never stores a birth option, because it could never apply one", () => {
-    /* Birth options are frozen at creation and OptionState.set refuses them.
-     * They carry forward by the game's own route - the birth options editor is
-     * seeded from the last character - not through here. */
-    const prefs = fakePrefs();
-    const first = new neoCore.OptionState({ overrides: { birth_force_descend: true } });
-    expect(first.get("birth_force_descend")).toBe(true);
-    change(first, ON, prefs);
-    const stored = readRememberedSettings(prefs.get());
-    expect(stored).not.toBeNull();
-    if (!stored) throw new Error("remembered settings missing");
-    expect(stored.values).not.toHaveProperty("birth_force_descend");
-  });
-
-  it("ignores a stored blob it does not understand", () => {
-    const prefs = fakePrefs();
-    prefs.set({ v: 99, values: { use_sound: true } });
-    const next = new neoCore.OptionState();
-    plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true }));
-    expect(next.get("use_sound")).toBe(false);
-  });
-
-  it("survives an option name this engine no longer has", () => {
-    /* A stored name from an older engine. set() answers false and the mod moves
-     * on: the option is gone, so there is nothing to restore. */
-    const prefs = fakePrefs();
-    prefs.set({
-      v: 1,
-      values: { an_option_that_was_removed: true, use_sound: true },
-      hitpointWarn: 3,
-      delayFactor: 40,
-      lazymoveDelay: 0,
-    });
-    const next = new neoCore.OptionState();
-    expect(() =>
-      plugin.register(menuHost([]), ctxFor(next, ON, { prefs, newCharacter: true })),
-    ).not.toThrow();
-    expect(next.get("use_sound")).toBe(true);
-  });
-
-  it("is inert on a host too old to have ctx.prefs", () => {
-    /* The engine range should refuse this pairing outright; if it somehow does
-     * not, the mod must not throw at boot. */
-    const opts = new neoCore.OptionState();
-    expect(plugin.hooks({ flags: ON, core: neoCore }).optionsChanged).toBeUndefined();
-    expect(() =>
-      plugin.register(menuHost([]), {
-        flags: ON,
-        core: neoCore,
-        state: { options: opts },
-        newCharacter: true,
+  function folder(overrides: Record<string, unknown> = {}) {
+    const written: { name: string; text: string }[] = [];
+    let listener: ((file: { name: string; text: string }) => void) | undefined;
+    const backupFolder = {
+      choose: vi.fn(() => Promise.resolve({ ok: true, value: "Dropbox" })),
+      list: vi.fn(() => Promise.resolve({ ok: true, value: [] })),
+      write: vi.fn((name: string, text: string) => {
+        written.push({ name, text });
+        return Promise.resolve({ ok: true, value: true });
       }),
-    ).not.toThrow();
+      onSave: vi.fn((fn: (file: { name: string; text: string }) => void) => {
+        listener = fn;
+        return Promise.resolve({ ok: true, value: { id: "s" } });
+      }),
+      ...overrides,
+    };
+    return { backupFolder, written, save: (file: { name: string; text: string }) => listener?.(file) };
+  }
+
+  it("registers the Game-menu picker", () => {
+    expect(plugin.actions).toHaveLength(1);
+    expect(action).toMatchObject({ menu: "core:game-menu", action: "choose-backup-folder", label: "Choose cloud-backup folder..." });
+  });
+
+  it("writes every save the game makes into the chosen folder", async () => {
+    const f = folder();
+    const { mod } = fakeMod({ flags: {}, backupFolder: f.backupFolder });
+    await plugin.start(mod);
+    plugin.stop();
+    f.save({ name: "hero.sav", text: "data" });
+    expect(f.written).toEqual([{ name: "hero.sav", text: "data" }]);
+  });
+
+  it("does not subscribe on a host with no backup folder", async () => {
+    const { mod, logs } = fakeMod({ flags: {} });
+    await expect(plugin.start(mod)).resolves.toBeUndefined();
+    plugin.stop();
+    expect(logs).toEqual([]);
+  });
+
+  it("names the folder after a pick, and counts the characters already there (#24)", async () => {
+    const f = folder({
+      list: vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          value: [
+            { name: "a.sav", lineage: "L1", characterName: "A", level: 3 },
+            { name: "b.sav", characterName: "B", level: 1 },
+            { name: "c.sav", lineage: "L3", characterName: "C", level: 9 },
+          ],
+        }),
+      ),
+    });
+    const { mod, logs } = fakeMod({ flags: {}, backupFolder: f.backupFolder });
+    await action.run(mod);
+    expect(logs).toEqual(['Using backup folder "Dropbox" (2 characters already there).']);
+  });
+
+  it("names the folder alone when it is empty", async () => {
+    const f = folder();
+    const { mod, logs } = fakeMod({ flags: {}, backupFolder: f.backupFolder });
+    await action.run(mod);
+    expect(logs).toEqual(['Using backup folder "Dropbox".']);
+  });
+
+  it("says nothing for a cancelled pick, and contains a rejected one", async () => {
+    const cancelled = folder({ choose: vi.fn(() => Promise.resolve({ ok: true, value: null })) });
+    const first = fakeMod({ flags: {}, backupFolder: cancelled.backupFolder });
+    await action.run(first.mod);
+    expect(first.logs).toEqual([]);
+
+    const rejected = folder({ choose: vi.fn(() => Promise.reject(new Error("no picker"))) });
+    const second = fakeMod({ flags: {}, backupFolder: rejected.backupFolder });
+    await expect(action.run(second.mod)).resolves.toBeUndefined();
+  });
+
+  it("reports a host that cannot choose, instead of a dead row doing nothing", async () => {
+    const { mod, logs } = fakeMod({ flags: {} });
+    await action.run(mod);
+    expect(logs).toEqual(["this host cannot choose a backup folder"]);
+  });
+});
+
+describe("teardown", () => {
+  it("closes both shortcut panels when the mod stops", async () => {
+    const unmount = vi.fn(() => Promise.resolve({ ok: true, value: null }));
+    const { mod } = fakeMod({
+      flags: { "qol.accessibilityRepeatShortcuts": true },
+    });
+    (mod.ui as { unmount: unknown }).unmount = unmount;
+    await plugin.start(mod);
+    plugin.stop();
+    expect(unmount).toHaveBeenCalledWith("repeated-action-shortcuts");
   });
 });

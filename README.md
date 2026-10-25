@@ -19,56 +19,25 @@ behaviour Angband does not have.
 ## Available toggles
 
 ```mermaid
-sequenceDiagram
-  participant H as Host
-  participant Q as plugin.ts
-  participant C as Core and live game
-  participant P as ctx.prefs
-  participant B as backupFolder
-  H->>Q: hooks before startGame
-  opt backupFolder exists
-    Q->>B: Subscribe onSave to write each saved file
+flowchart TD
+  M["The game asks the mod for its hooks and policies<br/>with the switches you set"] --> D
+  subgraph D["Declared: the game applies these itself"]
+    A1["qol.autoDig: walk-blocked-by-diggable"]
+    A2["qol.forgivingPrefFiles: pref-errors"]
+    A3["qol.ignoreTorches and qol.ignoreLanterns: ignore"]
+    A4["qol.miscNiceties: display-options and message wording"]
+    A5["qol.purgeQueuedInput: purge-input on F2"]
   end
-  opt qol.autoDig is true
-    Q-->>H: Supply walkBlockedByDiggable
-  end
-  opt qol.forgivingPrefFiles is true
-    Q->>C: setPrefErrorPolicy when available
-    Note over Q,C: The policy continues after errors and reports at most 20.
-  end
-  opt qol.accessibilityMacroWizard is true
-    Q-->>H: Supply abilityGained = offerAbilityMacro
-  end
-  opt qol.rememberSettings is true and ctx.prefs exists
-    Q-->>H: Supply optionsChanged
-  end
-  opt qol.miscNiceties is true
-    Q-->>H: Supply messageText = upstreamWordingFix
-  end
-  H->>C: startGame with composed hooks
-  H->>Q: register with the live game
-  Q->>C: Install misc niceties and the light-ignore wrapper
-  Note over Q,C: Feature flags gate the wrappers and optional macro, repeat and purge controls.
-  opt backupFolder exists
-    Q->>H: Add Choose cloud-backup folder... to the Game menu
-  end
-  opt qol.rememberSettings is true and newCharacter is true
-    Q->>P: Read remembered settings
-    P-->>Q: Return the stored option snapshot
-    Q->>C: Apply the same option filter and restore settings
-  end
-  opt The player changes options and qol.rememberSettings is true
-    H->>Q: optionsChanged with an option snapshot
-    Q->>P: Store filtered remembered settings
-  end
-  Note over Q,P: Both filters exclude birth options and allow cheat and score options only with qol.rememberCheats.
-  opt A later save succeeds
-    H->>B: Deliver the saved file to onSave
-    B->>B: Write the importable backup
-  end
+  M --> H["Hooks: abilityGained for the shortcut helper,<br/>optionsChanged for remembered settings"]
+  G["The game is ready: start runs"] --> S1["Backup folder: copy every save"]
+  G --> S2["Shortcut cards open as host panels"]
+  G --> S3{"qol.rememberSettings and a new character?"}
+  S3 -->|"Yes"| S4["Read the stored settings,<br/>apply the filtered set to the character's options"]
+  H -->|"The player closes the options menu"| W["Store the filtered settings"]
+  S4 --- W
 ```
 
-*Source of truth: `plugin.ts`, `preferences.ts`, and `core-adapter.ts`.*
+*Source of truth: `plugin.ts`, `remember.ts`, and `preferences.ts`.*
 
 See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
 
@@ -96,7 +65,7 @@ Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pi
 
 On a build that also watches for new arrivals, opening the character-select screen offers any character in that folder that this machine does not have yet. It is a plain yes/no question and goes through the same import as Shift-M, so a character that died on this machine is still refused, just as a manual import would refuse it. Saying no leaves the file alone, and it is offered again the next time the screen opens.
 
-The mod needs engine 1.8.0 or later (`"engine": ">=1.8.0"`). The activation shortcut helper relies on two things older engines lack: a notice when you gain a new ability, and a way for a mod to add keymaps with your consent.
+The mod runs on mod API 2 and needs engine 1.22.0 or later (`"engine": ">=1.22.0"`), the first game build that runs API 2 mods from a mod folder.
 
 ### Accessibility accommodations
 
@@ -110,7 +79,7 @@ The repeated-action helper offers `R&[Enter]` for conditional rest, the one comm
 
 Angband keeps a character's options inside that character's save and nowhere else, so they die with the character and every new life starts by setting them all again. Upstream's answer is the pref file (`s` / `r` in the options menu), which you have to know about and remember to write. That is how Angband works rather than a bug, so the game keeps it and the convenience lives here.
 
-The mod uses three general engine features, none of them specific to this mod: a notice when you finish changing settings (`ModHooks.optionsChanged`), a place to keep data that outlives a character (`ctx.prefs`, since a mod's save bag is inside the save and dies with it), and a way to tell whether a character was just created (`ctx.newCharacter`, which a mod cannot work out for itself because the game autosaves the moment a character is born).
+The mod uses three general features of the mod API, none of them specific to this mod: a notice when you finish changing settings (the `optionsChanged` hook), a place to keep data that outlives a character (`store.prefs`, since a mod's save bag is inside the save and dies with it), and a way to tell whether a character was just created (`meta.newCharacter`, which a mod cannot work out for itself because the game autosaves the moment a character is born). Putting the stored settings back onto the new character reads the game's live option store, which only a first-party mod can reach today; a mod without that access keeps the capture half and says in its log that it cannot restore.
 
 There are two exclusions. **Birth options** are fixed at creation and the engine will not change them later, and they already carry forward by the game's own route, because the birth options editor starts from your last character's choices. **Cheat and score options** are left out unless you turn on the second toggle: switching a cheat option on forces its `score_` twin, which permanently bars that character from the high score list, and inheriting that without being asked is the one case where remembering a setting does real damage. The filter applies when settings are read back as well as when they are stored, so turning the toggle off also affects what is already saved.
 ### Why pref-file error handling belongs in a mod
@@ -119,25 +88,27 @@ Angband 4.2.6 stops at the first line of a pref file it cannot parse: it prints 
 
 The engine used to carry its own cap of twenty errors, with an environment variable to change it. Angband 4.2.6 has nothing like that, so the cap was something the port had added rather than reproduced, and the port adds nothing. It was removed from the engine and rebuilt here with one improvement: the old cap still threw away everything after the twentieth error, while this toggle applies the entire file and only limits how many mistakes you are **told** about.
 
-For mod authors: the mod uses one general engine setting, `setPrefErrorPolicy`. It is a module-level policy rather than a `ModHooks` member because the three readers it governs (the `=` menu's "Load a user pref file", a mod's own `prefs` resource and the graphics pack loader) have no game state to hang a hook on, and two of them run before there is a game at all.
+For mod authors: the mod declares one policy table, `prefErrors`, with `continueAfterError` and a `reportLimit`. It is a table the game applies itself rather than a hook because the three readers it governs (the `=` menu's "Load a user pref file", a mod's own `prefs` resource and the graphics pack loader) have no game state to hang a hook on, and two of them run before there is a game at all.
+
 ### Why auto-dig belongs in a mod
 
 ```mermaid
 flowchart TD
-  F{"Is qol.autoDig true when hooks are composed?"}
-  F -->|"No"| ABSENT["The mod supplies no walkBlockedByDiggable hook"]
-  F -->|"Yes"| H["The host calls walkBlockedByDiggable<br/>for a blocked walk"]
-  H --> T{"Does movementTunnelTest accept the grid?"}
-  T -->|"No"| DECLINE["The hook returns null<br/>The decision draws no random number"]
-  T -->|"Yes"| DIG["tunnelAux makes one real digging attempt<br/>The attempt can draw random numbers"]
-  DIG --> E["The hook returns moveEnergy<br/>The player spends a full move<br/>and does not step onto the grid"]
+  F{"Is qol.autoDig true when the mod declares its policies?"}
+  F -->|"No"| ABSENT["No walk-blocked-by-diggable table is declared"]
+  F -->|"Yes"| H["The game consults the table<br/>for a blocked walk"]
+  H --> T{"Is the grid known, diggable,<br/>and diggable with this digger?"}
+  T -->|"No"| DECLINE["The game takes its ordinary bump<br/>The decision draws no random number"]
+  T -->|"Yes"| DIG["The game's own tunnel command makes one attempt<br/>The attempt can draw random numbers"]
+  DIG --> E["The player spends a full move<br/>and does not step onto the grid"]
 ```
 
 *Source of truth: `plugin.ts` and `README.md`. The decision uses no random draws and makes one dig attempt per step.*
 
 In Angband 4.2.6, walking into diggable terrain spends no energy: you bump it and nothing happens. That is what the original C code does, and Neo Angband keeps behaviour like that in the base game, so auto-dig lives entirely in this mod. The engine has no auto-dig setting and no dig-on-walk code, so deleting this mod deletes the feature's code with it.
 
-For mod authors: the mod calls two of the engine's public functions instead of reimplementing them, `movementTunnelTest` to decide and `tunnelAux` to make the attempt, so its dig roll cannot drift from the tunnel command's. The decision step uses no randomness, so when the mod declines a walk, the random number stream is exactly where the unmodded game would leave it, which makes the toggle safe to enable partway through a character.
+For mod authors: the mod declares one policy table, `walkBlockedByDiggable` (`attempt: "tunnel"`, `energy: "move"`, `step: false`), and the game runs its own tunnel decision and attempt for it, so the dig roll cannot drift from the tunnel command's. The decision step uses no randomness, so when the game declines a walk, the random number stream is exactly where the unmodded game would leave it, which makes the toggle safe to enable partway through a character.
+
 ## Installing
 
 Two files: `manifest.json` and `plugin.js`. Any of:
@@ -158,7 +129,7 @@ reading it to decide whether to trust it, that is exactly why it ships unminifie
 
 ## Building and testing the mod
 
-The source and the tests live in this repository. The tests boot a real game against the published engine (`@rpgm-tools/neo-angband-core`) instead of a hand-built test cave.
+The source and the tests live in this repository. The tests check what the mod declares to the game for each switch, and what it does with a live game, using the published engine (`@rpgm-tools/neo-angband-core`) for the option store.
 
 ```bash
 pnpm install --frozen-lockfile

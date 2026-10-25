@@ -25,9 +25,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function storedRememberedSettings(raw: unknown): RememberedSettings | null {
   if (!isRecord(raw)) return null;
   const candidate = raw.v === 2 ? raw.options : raw.v === 1 ? raw : undefined;
-  return isRecord(candidate) && candidate.v === 1 && isRecord(candidate.values)
-    ? candidate as unknown as RememberedSettings
-    : null;
+  if (!isRecord(candidate) || candidate.v !== 1 || !isRecord(candidate.values)) return null;
+  /* Only the fields this mod owns come forward; anything else a past version wrote is dropped. */
+  const { values, hitpointWarn, delayFactor, lazymoveDelay } = candidate;
+  return { v: 1, values, hitpointWarn, delayFactor, lazymoveDelay } as unknown as RememberedSettings;
 }
 
 /** Preserve the remaining preference groups while upgrading the former v1
@@ -58,4 +59,19 @@ export function readHideRepeatShortcuts(raw: unknown): boolean {
 
 export function withHideRepeatShortcuts(raw: unknown, hidden: boolean): QolPreferences {
   return { v: 2, ...preservedPreferences(raw), hideRepeatShortcuts: hidden };
+}
+
+/** The version of the shape `store.prefs` holds now (the host's migration counter, not the `v` inside). */
+export const PREFS_VERSION = 1;
+
+/**
+ * Bring a value stored before the host versioned preferences (version 0) up to
+ * the current envelope. Those blobs are the 1.0 direct options shape or the
+ * `{ v: 2 }` envelope; both read back through the same helper, and anything
+ * else is dropped rather than guessed at.
+ */
+export function migratePreferences(value: unknown, fromVersion: number): QolPreferences | null {
+  if (fromVersion >= PREFS_VERSION) return isRecord(value) && value.v === 2 ? (value as unknown as QolPreferences) : null;
+  const kept = preservedPreferences(value);
+  return Object.keys(kept).length > 0 ? { v: 2, ...kept } : null;
 }

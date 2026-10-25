@@ -5,11 +5,11 @@
     "id": "qol",
     "name": "Quality of Life",
     "version": "1.13.0",
-    "api": ">=1.0.0 <2.0.0",
+    "api": ">=2.0.0 <3.0.0",
     "runtime": "in-process",
     "engine": {
-      "range": ">=1.8.0",
-      "because": "The optionsChanged snapshot includes hitpointWarn, delayFactor and lazymoveDelay for remembered settings."
+      "range": ">=1.22.0",
+      "because": "The mod needs the game build that runs mod API 2 definitions from a mod folder."
     },
     "dependencies": {
       "required": {
@@ -22,7 +22,10 @@
       "backup:folder",
       "ui:panel.mount",
       "keymap:write",
-      "registry:menu"
+      "registry:menu",
+      "registry:command",
+      "registry:ui-entry",
+      "registry:message"
     ],
     "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
     "author": "neostryder",

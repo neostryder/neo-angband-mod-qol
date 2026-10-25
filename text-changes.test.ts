@@ -13,7 +13,7 @@ import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { recordKey } from "@rpgm-tools/neo-angband-mod-sdk";
 
-import { UPSTREAM_MESSAGE_WORDING, upstreamWordingFix } from "./misc-niceties";
+import { UPSTREAM_MESSAGE_WORDING, upstreamWordingFix } from "./wording";
 import data from "./text-changes.json";
 
 const require = createRequire(import.meta.url);
