@@ -23,7 +23,7 @@ describe("the two version sites", () => {
 
   it("are the version the changelog's newest released section names", () => {
     const changelog = readFileSync(new URL("./CHANGELOG.md", import.meta.url), "utf8");
-    const newest = /^## (\d+\.\d+\.\d+) - /mu.exec(changelog);
+    const newest = /^## (\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?) - /mu.exec(changelog);
     expect(newest?.[1]).toBe(read("./manifest.json"));
   });
 });

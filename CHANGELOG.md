@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.14.0-beta.1 - 2026-10-30
+
 ### Changed
 
 - [Visible] [Modding-API] **Quality of Life now runs on mod API 2.** The mod declares auto-dig, the pref file policy, torch and lantern ignoring, the display niceties, the reworded message, and the F2 purge as policy tables the game applies itself, and keeps code only for remembering settings, the backup folder, and the two shortcut cards. It needs game version 1.22.0 or later. The shortcut cards are drawn by the game as ordinary panels now, in the game's own style, and every setting, stored preference, and backup behaves as before. Restoring remembered settings onto a new character needs the game's option store, which only a first-party mod can reach for now.
