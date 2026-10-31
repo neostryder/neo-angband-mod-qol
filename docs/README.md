@@ -31,7 +31,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 ## What it needs
 
 - **Mod API:** `>=2.0.0 <3.0.0`
-- **Engine:** `>=1.22.0`
+- **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
 - **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`
