@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.14.0-beta.2 - 2026-10-30
+
 ### Changed
 
 - [Visible] [Compatibility] **Quality of Life now needs Neo Angband 1.23.0-beta.1 or later.** The earlier 1.22.0 floor named a game that offers only mod API 1, so a player on it could be offered this mod and fail to load it.
