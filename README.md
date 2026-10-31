@@ -65,7 +65,7 @@ Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pi
 
 On a build that also watches for new arrivals, opening the character-select screen offers any character in that folder that this machine does not have yet. It is a plain yes/no question and goes through the same import as Shift-M, so a character that died on this machine is still refused, just as a manual import would refuse it. Saying no leaves the file alone, and it is offered again the next time the screen opens.
 
-The mod runs on mod API 2 and needs engine 1.22.0 or later (`"engine": ">=1.22.0"`), the first game build that runs API 2 mods from a mod folder.
+The mod runs on mod API 2 and needs engine 1.23.0-beta.1 or later (`"engine": ">=1.23.0-beta.1"`), the first game build that runs API 2 mods from a mod folder.
 
 ### Accessibility accommodations
 
