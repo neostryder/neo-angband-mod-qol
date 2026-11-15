@@ -30,6 +30,12 @@ const allRuleFlags = (): Record<string, boolean> =>
   Object.fromEntries((manifest.rules ?? []).map((rule) => [rule.flag, true]));
 const hooksFor = (flags: Readonly<Record<string, boolean>>): Api2Hooks => plugin.hooks({ id: "qol", flags }) ?? {};
 const policiesFor = (flags: Readonly<Record<string, boolean>>): Api2Policies => plugin.policies({ id: "qol", flags }) ?? {};
+const engineHooksFor = (flags: Readonly<Record<string, boolean>>) =>
+  plugin.engineHooks?.({
+    id: "qol",
+    flags,
+    engine: { api: "test", core: neoCore, state: undefined, registries: undefined, registry: undefined },
+  });
 
 describe("the qol mod's entry point", () => {
   it("is a schema 2 manifest on API 2, run in process", () => {
@@ -61,6 +67,7 @@ describe("the qol mod's entry point", () => {
       "input:intent",
       "state:floor.read",
       "state:stores.read",
+      "engine:access",
     ]);
     for (const capability of manifest.capabilities ?? []) {
       expect(matchCapability(capability), capability).not.toBeNull();
@@ -83,6 +90,8 @@ describe("the qol mod's entry point", () => {
     expect(hooksFor({ "qol.rememberSettings": false, "qol.accessibilityMacroWizard": false })).toEqual({});
     expect(policiesFor({})).toEqual({});
     expect(policiesFor({ "qol.autoDig": false, "qol.miscNiceties": false })).toEqual({});
+    expect(engineHooksFor({})).toBeUndefined();
+    expect(engineHooksFor({ "qol.noTownLava": false })).toBeUndefined();
   });
 
   it("ignores flags that are not its own", () => {
@@ -183,6 +192,13 @@ describe("hooks", () => {
   it("installs optionsChanged only for remembered settings", () => {
     expect(Object.keys(hooksFor({ "qol.rememberSettings": true }))).toEqual(["optionsChanged"]);
     expect(hooksFor({ "qol.rememberSettings": false }).optionsChanged).toBeUndefined();
+  });
+
+  it("installs levelGenerated only while No lava in town is on", () => {
+    expect(engineHooksFor({ "qol.gearComparison": true })).toBeUndefined();
+    const installed = engineHooksFor({ "qol.noTownLava": true });
+    expect(typeof installed?.["levelGenerated"]).toBe("function");
+    expect(Object.keys(installed ?? {})).toEqual(["levelGenerated"]);
   });
 });
 

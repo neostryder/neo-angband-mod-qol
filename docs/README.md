@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| No lava in town | `qol.noTownLava` | off | Generated towns contain no lava. Squares that would have been lava are granite. Dungeon lava is left alone. |
 | Gear comparison | `qol.gearComparison` | off | Gear comparison shows how wearing a known item in a slot would change your character, with before, after, and delta values from the game. |
 | Loadouts | `qol.loadouts` | off | Loadouts save named sets of worn gear in this character's save and put them back on with ordinary wear and take-off commands. |
 | Auto-dig on walk | `qol.autoDig` | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging automatically, instead of just bumping into it. |
@@ -36,7 +37,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `engine:access`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle
