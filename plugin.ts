@@ -46,6 +46,7 @@ import { GearComparisonManager } from "./gear-comparison";
 import { LoadoutManager } from "./loadouts";
 import { clearTownLava, type TownCore, type TownLevel } from "./town-lava";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
+import { rejoinProse, rejoinScreenProse } from "./rejoin-prose";
 
 /**
  * How many parse errors one pref file may report before the rest go unmentioned.
@@ -84,6 +85,11 @@ export default {
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};
+    if (flags["qol.rejoinProse"] === true) {
+      hooks.screenText = rejoinScreenProse;
+      hooks.characterBackground = rejoinProse;
+      hooks.objectInfoText = (text, site) => site.section === "flavor" ? rejoinProse(text) : text;
+    }
     if (flags["qol.loadouts"] === true) hooks.monsterBecameVisible = () => loadouts?.disturb();
 
     if (flags["qol.accessibilityMacroWizard"] === true) hooks.abilityGained = offerAbilityMacro;

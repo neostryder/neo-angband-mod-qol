@@ -852,6 +852,21 @@ var UPSTREAM_MESSAGE_WORDING = {
 };
 var UPSTREAM_MESSAGE_RULES = Object.entries(UPSTREAM_MESSAGE_WORDING).map(([find, replace]) => ({ find, replace }));
 
+// rejoin-prose.ts
+function plainLine(line) {
+  return /^[A-Za-z"'][^\t]*\S$/u.test(line) && /[A-Za-z]+ [A-Za-z]+/u.test(line) && !/ {2,}|[|+_\\]|^(?:[A-Za-z0-9?]|\^[A-Za-z])(?:[).:]|\s)|^(?:ESC|Enter|Return|Tab|Space|F\d+|Ctrl[-+]|Alt[-+])\b|^[A-Za-z]+\s*:/u.test(line);
+}
+function rejoinProse(text) {
+  return text.split(/(\r?\n(?:[ \t]*\r?\n)+)/u).map((paragraph, index) => {
+    if (index % 2 !== 0) return paragraph;
+    const lines = paragraph.split(/\r?\n/u);
+    return lines.length > 1 && lines.every(plainLine) ? lines.join(" ") : paragraph;
+  }).join("");
+}
+function rejoinScreenProse(text, site) {
+  return site.part === "prose" || site.part === "detail" ? rejoinProse(text) : text;
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 var PURGE_ESCAPE_COUNT = 3;
@@ -866,6 +881,11 @@ var plugin_default = {
   api: ">=2.0.0 <3.0.0",
   hooks({ flags }) {
     const hooks = {};
+    if (flags["qol.rejoinProse"] === true) {
+      hooks.screenText = rejoinScreenProse;
+      hooks.characterBackground = rejoinProse;
+      hooks.objectInfoText = (text, site) => site.section === "flavor" ? rejoinProse(text) : text;
+    }
     if (flags["qol.loadouts"] === true) hooks.monsterBecameVisible = () => loadouts?.disturb();
     if (flags["qol.accessibilityMacroWizard"] === true) hooks.abilityGained = offerAbilityMacro;
     if (flags["qol.rememberSettings"] === true) {
