@@ -107,6 +107,16 @@ describe("item context help", () => {
     expect(h.transform(unknown, "core:keypress-command:items")[0]).toBe(unknown[0]);
   });
 
+  it("keeps an action's help when an earlier transformer remaps its key", () => {
+    const h = harness({});
+    h.menus.register("core:keypress-command-table", (_id, input) => input.map((row) => ({ ...row, semantic: { ...row.semantic, data: { ...row.semantic.data, originalKey: "r" } } })));
+    installContextHelp(h.mod);
+    const table: MenuTransformRow[] = [{ id: "core:keypress-command:7", label: "Use a staff", semantic: { kind: "keypress-command", ref: 7, data: { originalKey: "u" } } }];
+    h.transform(table, "core:keypress-command-table");
+    const input: MenuTransformRow[] = [{ id: table[0]!.id, label: "Use a staff (r)", semantic: { kind: "keypress-command", ref: table[0]!.id } }];
+    expect(h.transform(input, "core:keypress-command:items")[0]?.hint).toBe("Use the staff, spending one of its charges.");
+  });
+
   it("does nothing without the first-party registry seam", () => {
     expect(() => installContextHelp({} as ModApi2)).not.toThrow();
     expect(() => installContextHelp({ engine: { registry: undefined } } as unknown as ModApi2)).not.toThrow();

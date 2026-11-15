@@ -34,6 +34,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] Command-browser help stays with the action when another mod changes its key.
+
 - [Visible] [UI] Gear comparison labels learned spell rows by name and uses "fail chance (%)" for the failure row.
 
 - [Visible] [Modding-API] Loadouts now put a saved ring back on the second ring finger when the first is empty, instead of reporting that slot as incomplete.

@@ -79,7 +79,7 @@ export function installContextHelp(mod: ModApi2): void {
     const current = previousTable ? previousTable(id, rows) : rows;
     commandHints.clear();
     for (const row of current) {
-      const key = row.semantic.data?.originalKey;
+      const key = rows.find((source) => source.id === row.id)?.semantic.data?.originalKey;
       if (row.semantic.kind !== "keypress-command" || typeof key !== "string") continue;
       const hint = Object.hasOwn(COMMAND_HELP, key) ? COMMAND_HELP[key] : undefined;
       if (hint !== undefined) commandHints.set(row.id, hint);

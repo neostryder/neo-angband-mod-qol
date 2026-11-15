@@ -982,7 +982,7 @@ function installContextHelp(mod2) {
     const current = previousTable ? previousTable(id, rows) : rows;
     commandHints.clear();
     for (const row of current) {
-      const key = row.semantic.data?.originalKey;
+      const key = rows.find((source) => source.id === row.id)?.semantic.data?.originalKey;
       if (row.semantic.kind !== "keypress-command" || typeof key !== "string") continue;
       const hint = Object.hasOwn(COMMAND_HELP, key) ? COMMAND_HELP[key] : void 0;
       if (hint !== void 0) commandHints.set(row.id, hint);
