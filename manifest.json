@@ -31,7 +31,8 @@
       "state:interaction.read",
       "input:intent",
       "state:floor.read",
-      "state:stores.read"
+      "state:stores.read",
+      "engine:access"
     ],
     "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
     "author": "neostryder",
@@ -43,6 +44,13 @@
       "plugin"
     ],
     "rules": [
+      {
+        "flag": "qol.noTownLava",
+        "title": "No lava in town",
+        "description": "Generated towns contain no lava. Squares that would have been lava are granite, and nothing else about the town or the random number sequence changes. Dungeon lava is left alone.",
+        "default": false,
+        "requiresReload": true
+      },
       {
         "flag": "qol.gearComparison",
         "title": "Gear comparison",

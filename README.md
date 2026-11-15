@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### No lava in town
+
+Turn on No lava in town and a generated town has no lava. Squares that would have been lava are granite instead. The rest of the town, and the random numbers used after the town, stay the same. Dungeon lava is unchanged. With the setting off, towns are generated exactly as in Angband 4.2.6.
+
 ### Gear comparison
 
 Turn on the Gear comparison setting to add "Compare gear..." to the Game menu and a "compare gear" command. Pick an item from your known carried gear, the floor under you, or known store stock, then pick a worn slot it can go in. Rings offer both hands. The screen shows the game's own before, after, and delta values for speed (110 is normal), armor, global to-hit and to-dam, blows and shots per turn, extra movement, hit points, spell points, carried weight and weight limit in pounds, stats, skills, resistances, and object and player flags.

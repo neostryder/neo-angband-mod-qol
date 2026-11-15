@@ -830,6 +830,21 @@ var LoadoutManager = class {
   }
 };
 
+// town-lava.ts
+function clearTownLava(gen, core) {
+  const cave = gen.c;
+  if (cave.depth !== 0) return true;
+  const lava = core.FEAT.LAVA;
+  const granite = core.FEAT.GRANITE;
+  for (let y = 0; y < cave.height; y++) {
+    for (let x = 0; x < cave.width; x++) {
+      const grid = core.loc(x, y);
+      if (cave.feat(grid) === lava) cave.setFeat(grid, granite);
+    }
+  }
+  return true;
+}
+
 // wording.ts
 var UPSTREAM_MESSAGE_WORDING = {
   /* cmd-cave.c, ordering an immobile monster to move (command monster). */
@@ -917,6 +932,17 @@ var plugin_default = {
           escapeCount: PURGE_ESCAPE_COUNT
         }
       } : {}
+    };
+  },
+  /*
+   * "No lava in town" (qol.noTownLava). API 2 has no table for a finished
+   * level, so this is the game's own levelGenerated member, and only while
+   * the switch is on. town-lava.ts does the pass. It draws nothing.
+   */
+  engineHooks({ flags, engine }) {
+    if (flags["qol.noTownLava"] !== true) return void 0;
+    return {
+      levelGenerated: (gen) => clearTownLava(gen, engine.core)
     };
   },
   /*

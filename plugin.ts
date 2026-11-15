@@ -24,8 +24,9 @@
  * Most of what this mod does is DECLARED rather than coded: auto-dig, the pref
  * file policy, light ignoring, the display niceties, the purge key and the one
  * reworded message are policy tables the game applies itself. What stays code
- * is what needs the player or storage: the two shortcut cards (host panels),
- * the backup folder, and remembering and restoring settings.
+ * is what needs the player, storage, or a finished level: the two shortcut
+ * cards (host panels), the backup folder, remembering and restoring settings,
+ * and taking lava out of a generated town.
  */
 
 import type {
@@ -43,6 +44,7 @@ import { offerAbilityMacro, startMacroWizard, stopMacroWizard } from "./macro-wi
 import { startRepeatShortcuts, stopRepeatShortcuts } from "./repeat-shortcuts";
 import { GearComparisonManager } from "./gear-comparison";
 import { LoadoutManager } from "./loadouts";
+import { clearTownLava, type TownCore, type TownLevel } from "./town-lava";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
 
 /**
@@ -182,6 +184,18 @@ export default {
             } as const,
           }
         : {}),
+    };
+  },
+
+  /*
+   * "No lava in town" (qol.noTownLava). API 2 has no table for a finished
+   * level, so this is the game's own levelGenerated member, and only while
+   * the switch is on. town-lava.ts does the pass. It draws nothing.
+   */
+  engineHooks({ flags, engine }) {
+    if (flags["qol.noTownLava"] !== true) return undefined;
+    return {
+      levelGenerated: (gen: unknown): boolean => clearTownLava(gen as TownLevel, engine.core as TownCore),
     };
   },
 

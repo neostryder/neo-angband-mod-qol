@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.noTownLava` | off | Replaces lava in generated towns with granite. Dungeon lava is left alone. | Yes. |
 | `qol.gearComparison` | off | Adds "Compare gear..." to the Game menu to show how an item would change your character in a worn slot. | Yes. |
 | `qol.loadouts` | off | Adds "Loadouts..." to the Game menu for saving named sets of worn gear and putting them back on. | Yes. |
 | `qol.autoDig` | on | Starts digging when walking into diggable rubble or a vein. | No. |
