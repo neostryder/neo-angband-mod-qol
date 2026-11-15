@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { loadPackFile, loadPackRecords } from "@rpgm-tools/neo-angband-content/pack";
+import { createAgentView, invenCarry, OBJ_NOTICE, objectPrep, playerLearnCombat, PY_SPELL, startGame, TV } from "@rpgm-tools/neo-angband-core";
+import type { GamePack } from "@rpgm-tools/neo-angband-core";
 import type { Api2Panel, Api2PanelNode, Api2Result, LoadoutItemRef, LoadoutSlotsResult, DerivedStatsView, KnownItem, KnownWorldData, LoadoutDelta, LoadoutSimulation, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { comparisonCandidates, comparisonPanel, comparisonRows, GearComparisonManager } from "./gear-comparison";
 
@@ -14,7 +17,7 @@ function simulation(before: Partial<DerivedStatsView> = {}, after: Partial<Deriv
   const beforeStats = stats(before);
   const afterStats = stats(after);
   const deltas = Object.fromEntries(Object.entries(beforeStats).map(([key, value]) => [key, typeof value === "number" ? (afterStats[key as keyof DerivedStatsView] as number) - value : Array.isArray(value) && value.every((v) => typeof v === "number") ? value.map((n, i) => (afterStats[key as keyof DerivedStatsView] as readonly number[])[i]! - n) : value]));
-  return { before: { stats: beforeStats }, after: { stats: afterStats }, placements: [], unresolved: [], delta: {
+  return { before: { stats: beforeStats, combat: { blows: Math.trunc(beforeStats.blows / 10) / 10, damage: null } }, after: { stats: afterStats, combat: { blows: Math.trunc(afterStats.blows / 10) / 10, damage: null } }, placements: [], unresolved: [], delta: {
     ...deltas, changed: false, unknownRunes: false, objectFlagsGained: [], objectFlagsLost: [], playerFlagsGained: [], playerFlagsLost: [], ...delta,
   } } as unknown as LoadoutSimulation;
 }
@@ -50,10 +53,57 @@ function harness(known = world()) {
 
 const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
 
+function gamePack(): GamePack {
+  const records = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([key, file]) => [key, loadPackRecords(file)]));
+  return {
+    constants: loadPackFile("constants"),
+    ...records({ store: "store", terrain: "terrain", roomTemplates: "room_template", vaults: "vault", dungeonProfiles: "dungeon_profile" }),
+    obj: Object.fromEntries(Object.entries({ objectBase: "object_base", object: "object", egoItem: "ego_item", artifact: "artifact", curse: "curse", brand: "brand", slay: "slay", activation: "activation", objectProperty: "object_property", flavor: "flavor" }).map(([key, file]) => [key, loadPackFile(file)])),
+    mon: records({ pain: "pain", blowMethods: "blow_methods", blowEffects: "blow_effects", monsterSpells: "monster_spell", monsterBases: "monster_base", monsters: "monster", summons: "summon", pits: "pit" }),
+    player: records({ races: "p_race", classes: "class", properties: "player_property", timed: "player_timed", shapes: "shape", bodies: "body", history: "history", realms: "realm" }),
+  } as unknown as GamePack;
+}
+
+describe("comparison rows from the pinned Core", () => {
+  it("keeps unknown weapon damage out of the rows until the character learns it", () => {
+    const game = startGame(gamePack(), { seed: 4242, depth: 1 });
+    const { state } = game;
+    const { objects: reg, constants } = game.booted.registries;
+    const p = state.actor.player;
+    p.objKnown.toD = 0;
+    const weapon = objectPrep(state.rng, reg, constants, reg.kinds.find((kind) => kind.tval === TV.SWORD)!, 0, "minimise");
+    weapon.notice |= OBJ_NOTICE.ASSESSED;
+    const handle = invenCarry(state.gear, p, weapon, constants);
+    const view = createAgentView(state);
+    const change = { wield: [{ from: "gear" as const, handle }] };
+    const plain = comparisonRows(view.simulateLoadout!(change)! as unknown as LoadoutSimulation);
+    weapon.toD = 40;
+    const beforeRng = state.rng.getState();
+    const beforePlayer = structuredClone(p);
+    expect(comparisonRows(view.simulateLoadout!(change)! as unknown as LoadoutSimulation)).toEqual(plain);
+    expect(state.rng.getState()).toEqual(beforeRng);
+    expect(p).toEqual(beforePlayer);
+    playerLearnCombat(p, state.runeEnv, "toD", false);
+    const learned = comparisonRows(view.simulateLoadout!(change)! as unknown as LoadoutSimulation);
+    expect(Number(learned.find((row) => row.label === "Damage per round")!.after)).toBeGreaterThan(Number(plain.find((row) => row.label === "Damage per round")!.after));
+  });
+
+  it("shows learned spell summaries only with Core's spell read grant", () => {
+    const { state } = startGame(gamePack(), { seed: 909, depth: 1, className: "Mage" });
+    state.actor.player.spellFlags[0] = PY_SPELL.LEARNED;
+    const view = (spells: boolean) => createAgentView(state, undefined, {}, { has: (cap: string) => ["state:player.read", "state:inventory.read", ...(spells ? ["state:spells.read"] : [])].includes(cap) });
+    expect(comparisonRows(view(false).simulateLoadout!({})! as unknown as LoadoutSimulation).some((row) => row.label.startsWith("Spell "))).toBe(false);
+    const sim = view(true).simulateLoadout!({})!;
+    const rows = comparisonRows(sim as unknown as LoadoutSimulation);
+    expect(rows.find((row) => row.label === "Spell 0 mana cost")).toMatchObject({ before: String(sim.before.spells![0]!.mana), after: String(sim.after.spells![0]!.mana), delta: "0" });
+    expect(rows.filter((row) => row.label.startsWith("Spell "))).toHaveLength(2);
+  });
+});
+
 describe("known comparison rows", () => {
   it("shows every scalar and unchanged values", () => {
     const rows = comparisonRows(simulation());
-    for (const label of ["Speed (110 is normal)", "Base armor class", "Armor bonus", "Total armor class", "Global to-hit", "Global to-dam", "Blows per turn", "Shots per turn", "Extra movement", "Ammo multiplier", "Ammo type (tval)", "Flat damage reduction", "Damage reduction (%)", "Infravision (grids)", "Light radius (grids)", "Comfortable weapon weight (lb)", "Weapon too heavy", "Launcher too heavy", "Blessed weapon rule met", "Armor reduces spell points", "Max hit points", "Max spell points", "Carried weight (lb)", "Weight limit (lb)"]) expect(rows.some((row) => row.label === label), label).toBe(true);
+    for (const label of ["Speed (110 is normal)", "Base armor class", "Armor bonus", "Total armor class", "Global to-hit", "Global to-dam", "Blows per round", "Shots per turn", "Extra movement", "Ammo multiplier", "Ammo type (tval)", "Flat damage reduction", "Damage reduction (%)", "Infravision (grids)", "Light radius (grids)", "Comfortable weapon weight (lb)", "Weapon too heavy", "Launcher too heavy", "Blessed weapon rule met", "Armor reduces spell points", "Max hit points", "Max spell points", "Carried weight (lb)", "Weight limit (lb)"]) expect(rows.some((row) => row.label === label), label).toBe(true);
     expect(rows.find((row) => row.label.startsWith("Speed"))).toEqual({ label: "Speed (110 is normal)", before: "110", after: "110", delta: "0" });
   });
 
@@ -63,7 +113,7 @@ describe("known comparison rows", () => {
 
   it("formats blows, shots, and weight in the documented units", () => {
     const rows = comparisonRows(simulation({ blows: 125, shots: 12, totalWeight: 125 }, { blows: 175, shots: 15, totalWeight: 140 }));
-    expect(rows.find((row) => row.label === "Blows per turn")).toMatchObject({ before: "1.25", after: "1.75", delta: "+0.5" });
+    expect(rows.find((row) => row.label === "Blows per round")).toMatchObject({ before: "1.2", after: "1.7", delta: "+0.5" });
     expect(rows.find((row) => row.label === "Shots per turn")).toMatchObject({ before: "1.2", after: "1.5", delta: "+0.3" });
     expect(rows.find((row) => row.label === "Carried weight (lb)")).toMatchObject({ before: "12.5", after: "14", delta: "+1.5" });
   });
@@ -78,6 +128,44 @@ describe("known comparison rows", () => {
     expect(rows.find((row) => row.label === "Resistance level: ACID")).toMatchObject({ before: "1", after: "0", delta: "-1" });
     expect(rows.find((row) => row.label === "Resistance level: FIRE")).toMatchObject({ delta: "+1" });
     expect(rows.find((row) => row.label === "Resistance level: COLD")).toMatchObject({ delta: "-1" });
+  });
+
+  it("shows the supplied known combat summaries and matches brand and slay lines by name", () => {
+    const sim = simulation();
+    const rows = comparisonRows({ ...sim,
+      before: { ...sim.before, combat: { blows: 1.3, damage: { normal: 12.4, offWeapon: false, vs: [{ kind: "brand", name: "fire", damage: 20.1 }] } } },
+      after: { ...sim.after, combat: { blows: 2.1, damage: { normal: 17.8, offWeapon: true, vs: [{ kind: "slay", name: "orcs", damage: 33.6 }, { kind: "brand", name: "fire", damage: 28.2 }] } } },
+    });
+    expect(rows.find((row) => row.label === "Blows per round")).toMatchObject({ before: "1.3", after: "2.1", delta: "+0.8" });
+    expect(rows.find((row) => row.label === "Damage per round")).toMatchObject({ before: "12.4", after: "17.8", delta: "+5.4" });
+    expect(rows.find((row) => row.label === "Damage per round (brand: fire)")).toMatchObject({ before: "20.1", after: "28.2", delta: "+8.1" });
+    expect(rows.find((row) => row.label === "Damage per round (slay: orcs)")).toMatchObject({ before: "12.4", after: "33.6", delta: "+21.2" });
+  });
+
+  it("shows unarmed damage as unavailable without inventing a numeric delta", () => {
+    const sim = simulation();
+    const rows = comparisonRows({ ...sim, after: { ...sim.after, combat: { blows: 1, damage: { normal: 12, vs: [], offWeapon: false } } } });
+    expect(rows.find((row) => row.label === "Damage per round")).toMatchObject({ before: "unknown", after: "12", delta: "unknown" });
+    expect(comparisonRows(sim).find((row) => row.label === "Damage per round")).toMatchObject({ before: "unknown", after: "unknown", delta: "unknown" });
+  });
+
+  it("matches learned spells by index and shows mana costs and failure percentages", () => {
+    const sim = simulation();
+    const rows = comparisonRows({ ...sim,
+      before: { ...sim.before, spells: [{ index: 7, mana: 3, failChance: 5 }, { index: 2, mana: 1, failChance: 20 }] },
+      after: { ...sim.after, spells: [{ index: 2, mana: 2, failChance: 8 }, { index: 7, mana: 3, failChance: 10 }] },
+    });
+    expect(rows.find((row) => row.label === "Spell 2 mana cost")).toMatchObject({ before: "1", after: "2", delta: "+1" });
+    expect(rows.find((row) => row.label === "Spell 2 failure (%)")).toMatchObject({ before: "20", after: "8", delta: "-12" });
+    expect(rows.find((row) => row.label === "Spell 7 mana cost")).toMatchObject({ before: "3", after: "3", delta: "0" });
+    expect(rows.find((row) => row.label === "Spell 7 failure (%)")).toMatchObject({ before: "5", after: "10", delta: "+5" });
+  });
+
+  it("omits spells without the read grant and leaves missing summaries unknown", () => {
+    const sim = simulation();
+    expect(comparisonRows(sim).some((row) => row.label.startsWith("Spell "))).toBe(false);
+    const rows = comparisonRows({ ...sim, after: { ...sim.after, spells: [{ index: 4, mana: 3, failChance: 15 }] } });
+    expect(rows.find((row) => row.label === "Spell 4 mana cost")).toMatchObject({ before: "unknown", after: "3", delta: "unknown" });
   });
 
   it("shows gained, lost, and unchanged flags with both sides", () => {
@@ -105,7 +193,7 @@ describe("known comparison rows", () => {
     const panel = comparisonPanel({ ...sim, unresolved: [{ from: "gear", handle: 9 }] }, "Unknown sword", "weapon");
     const text = texts(panel.root).join(" ");
     expect(text).toContain("Unknown runes are not counted"); expect(text).toContain("zero delta can still hide an effect");
-    expect(text).toContain("comparison is incomplete"); expect(text).toContain("Spell failure, spell costs, and attack damage are not available");
+    expect(text).toContain("comparison is incomplete"); expect(text).not.toContain("are not available");
   });
 
   it("keeps every panel group within the host's limits", () => {

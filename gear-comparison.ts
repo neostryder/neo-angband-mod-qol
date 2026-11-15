@@ -10,7 +10,7 @@ export interface ComparisonRow {
 const NUMBERS = [
   ["speed", "Speed (110 is normal)", 1], ["baseAc", "Base armor class", 1], ["toA", "Armor bonus", 1],
   ["ac", "Total armor class", 1], ["toH", "Global to-hit", 1], ["toD", "Global to-dam", 1],
-  ["blows", "Blows per turn", 100], ["shots", "Shots per turn", 10], ["moves", "Extra movement", 1],
+  ["shots", "Shots per turn", 10], ["moves", "Extra movement", 1],
   ["ammoMult", "Ammo multiplier", 1], ["damRed", "Flat damage reduction", 1], ["percDamRed", "Damage reduction (%)", 1],
   ["seeInfra", "Infravision (grids)", 1], ["light", "Light radius (grids)", 1], ["hold", "Comfortable weapon weight (lb)", 1],
   ["maxHp", "Max hit points", 1], ["maxSp", "Max spell points", 1], ["totalWeight", "Carried weight (lb)", 10],
@@ -30,12 +30,37 @@ function number(value: number | undefined, scale = 1, signed = false): string {
   return signed && value > 0 ? "+" + formatted : formatted;
 }
 
+function summaryRow(label: string, before: number | undefined, after: number | undefined): ComparisonRow {
+  return { label, before: number(before), after: number(after), delta: number(before === undefined || after === undefined ? undefined : after - before, 1, true) };
+}
+
 /** Core's known-only calc_bonuses, calc_hitpoints, and calc_mana avoid learning unknown runes. */
 export function comparisonRows(simulation: LoadoutSimulation): ComparisonRow[] {
   const before = simulation.before.stats;
   const after = simulation.after.stats;
   const delta = simulation.delta;
   const rows: ComparisonRow[] = NUMBERS.map(([key, label, scale]) => ({ label, before: number(before[key], scale), after: number(after[key], scale), delta: number(delta[key], scale, true) }));
+  const beforeCombat = simulation.before.combat;
+  const afterCombat = simulation.after.combat;
+  rows.push(summaryRow("Blows per round", beforeCombat.blows, afterCombat.blows));
+  rows.push(summaryRow("Damage per round", beforeCombat.damage?.normal, afterCombat.damage?.normal));
+  const damageLines = [...(beforeCombat.damage?.vs ?? []), ...(afterCombat.damage?.vs ?? [])];
+  const seen = new Set<string>();
+  for (const line of damageLines) {
+    const key = line.kind + ": " + line.name;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const damage = (combat: typeof beforeCombat): number | undefined => combat.damage?.vs.find((entry) => entry.kind === line.kind && entry.name === line.name)?.damage ?? combat.damage?.normal;
+    rows.push(summaryRow("Damage per round (" + key + ")", damage(beforeCombat), damage(afterCombat)));
+  }
+  const beforeSpells = simulation.before.spells ?? [];
+  const afterSpells = simulation.after.spells ?? [];
+  for (const index of [...new Set([...beforeSpells, ...afterSpells].map((spell) => spell.index))].sort((a, b) => a - b)) {
+    const had = beforeSpells.find((spell) => spell.index === index);
+    const has = afterSpells.find((spell) => spell.index === index);
+    rows.push(summaryRow("Spell " + String(index) + " mana cost", had?.mana, has?.mana));
+    rows.push(summaryRow("Spell " + String(index) + " failure (%)", had?.failChance, has?.failChance));
+  }
   rows.push({ label: "Ammo type (tval)", before: String(before.ammoTval), after: String(after.ammoTval), delta: before.ammoTval === after.ammoTval ? "same" : "changed" });
   for (const [key, label] of BOOLEANS) {
     rows.push({ label, before: before[key] ? "yes" : "no", after: after[key] ? "yes" : "no", delta: before[key] === after[key] ? "same" : after[key] ? "set" : "cleared" });
@@ -72,7 +97,7 @@ export function comparisonPanel(simulation: LoadoutSimulation, title: string, sl
     { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
     ...(simulation.delta.unknownRunes ? [{ type: "text" as const, text: "Unknown runes are not counted, so a zero delta can still hide an effect." }] : []),
     ...(simulation.unresolved.length ? [{ type: "text" as const, text: "Some items could not be found, so this comparison is incomplete." }] : []),
-    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses. Spell failure, spell costs, and attack damage are not available for hypothetical gear." },
+    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses." },
     ...grouped(rows),
     { type: "button", label: "Choose another item", action: "items" },
   ] } };

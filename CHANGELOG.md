@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [Modding-API] Gear comparison shows known weapon damage, blows per round, and learned spell costs and failure rates before and after a gear change, with deltas.
+
 ### Fixed
 
 - [Visible] [Modding-API] Loadouts restore a ring to the second ring finger while the first is empty.

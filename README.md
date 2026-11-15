@@ -85,9 +85,9 @@ No lava in town fills every grid where the town would have had lava with granite
 
 ### Gear comparison
 
-Turn on the Gear comparison setting to add "Compare gear..." to the Game menu and a "compare gear" command. Pick an item from your known carried gear, the floor under you, or known store stock, then pick a worn slot it can go in. Rings offer both hands. The screen shows the game's own before, after, and delta values for speed (110 is normal), armor, global to-hit and to-dam, blows and shots per turn, extra movement, hit points, spell points, carried weight and weight limit in pounds, stats, skills, resistances, and object and player flags.
+Turn on the Gear comparison setting to add "Compare gear..." to the Game menu and a "compare gear" command. Pick an item from your known carried gear, the floor under you, or known store stock, then pick a worn slot it can go in. Rings offer both hands. The screen shows the game's own before, after, and delta values for speed (110 is normal), armor, global to-hit and to-dam, blows per round, known weapon damage per round, learned spell failure rates and mana costs, shots per turn, extra movement, hit points, spell points, carried weight and weight limit in pounds, stats, skills, resistances, and object and player flags.
 
-The comparison uses only runes your character has learned. When unknown runes are present, a zero delta can still hide an effect, and the screen tells you so. Global to-hit and to-dam leave out the weapon's own bonuses. Stats above 18 appear in the game's internal encoding, so 18/50 shows as 68, and the stat table index has its own row. Spell failure rates, spell costs, and attack damage for hypothetical gear are not available yet. Comparing never wears, removes, or buys anything.
+The comparison uses only runes your character has learned. When unknown runes are present, a zero delta can still hide an effect, and the screen tells you so. Global to-hit and to-dam leave out the weapon's own bonuses. Stats above 18 appear in the game's internal encoding, so 18/50 shows as 68, and the stat table index has its own row. Damage includes known brand and slay lines. Spell rows use the learned spell index and require permission to read spells. Comparing never wears, removes, or buys anything.
 
 ### Loadouts
 

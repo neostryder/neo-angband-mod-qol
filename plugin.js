@@ -285,7 +285,6 @@ var NUMBERS = [
   ["ac", "Total armor class", 1],
   ["toH", "Global to-hit", 1],
   ["toD", "Global to-dam", 1],
-  ["blows", "Blows per turn", 100],
   ["shots", "Shots per turn", 10],
   ["moves", "Extra movement", 1],
   ["ammoMult", "Ammo multiplier", 1],
@@ -313,11 +312,35 @@ function number(value, scale = 1, signed = false) {
   const formatted = String(Number((value / scale).toFixed(4)));
   return signed && value > 0 ? "+" + formatted : formatted;
 }
+function summaryRow(label, before, after) {
+  return { label, before: number(before), after: number(after), delta: number(before === void 0 || after === void 0 ? void 0 : after - before, 1, true) };
+}
 function comparisonRows(simulation) {
   const before = simulation.before.stats;
   const after = simulation.after.stats;
   const delta = simulation.delta;
   const rows = NUMBERS.map(([key, label, scale]) => ({ label, before: number(before[key], scale), after: number(after[key], scale), delta: number(delta[key], scale, true) }));
+  const beforeCombat = simulation.before.combat;
+  const afterCombat = simulation.after.combat;
+  rows.push(summaryRow("Blows per round", beforeCombat.blows, afterCombat.blows));
+  rows.push(summaryRow("Damage per round", beforeCombat.damage?.normal, afterCombat.damage?.normal));
+  const damageLines = [...beforeCombat.damage?.vs ?? [], ...afterCombat.damage?.vs ?? []];
+  const seen = /* @__PURE__ */ new Set();
+  for (const line of damageLines) {
+    const key = line.kind + ": " + line.name;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const damage = (combat) => combat.damage?.vs.find((entry) => entry.kind === line.kind && entry.name === line.name)?.damage ?? combat.damage?.normal;
+    rows.push(summaryRow("Damage per round (" + key + ")", damage(beforeCombat), damage(afterCombat)));
+  }
+  const beforeSpells = simulation.before.spells ?? [];
+  const afterSpells = simulation.after.spells ?? [];
+  for (const index of [...new Set([...beforeSpells, ...afterSpells].map((spell) => spell.index))].sort((a, b) => a - b)) {
+    const had = beforeSpells.find((spell) => spell.index === index);
+    const has = afterSpells.find((spell) => spell.index === index);
+    rows.push(summaryRow("Spell " + String(index) + " mana cost", had?.mana, has?.mana));
+    rows.push(summaryRow("Spell " + String(index) + " failure (%)", had?.failChance, has?.failChance));
+  }
   rows.push({ label: "Ammo type (tval)", before: String(before.ammoTval), after: String(after.ammoTval), delta: before.ammoTval === after.ammoTval ? "same" : "changed" });
   for (const [key, label] of BOOLEANS) {
     rows.push({ label, before: before[key] ? "yes" : "no", after: after[key] ? "yes" : "no", delta: before[key] === after[key] ? "same" : after[key] ? "set" : "cleared" });
@@ -353,7 +376,7 @@ function comparisonPanel(simulation, title, slot) {
     { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
     ...simulation.delta.unknownRunes ? [{ type: "text", text: "Unknown runes are not counted, so a zero delta can still hide an effect." }] : [],
     ...simulation.unresolved.length ? [{ type: "text", text: "Some items could not be found, so this comparison is incomplete." }] : [],
-    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses. Spell failure, spell costs, and attack damage are not available for hypothetical gear." },
+    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses." },
     ...grouped(rows),
     { type: "button", label: "Choose another item", action: "items" }
   ] } };

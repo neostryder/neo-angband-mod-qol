@@ -42,7 +42,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `engine:access`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `state:spells.read`, `engine:access`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle

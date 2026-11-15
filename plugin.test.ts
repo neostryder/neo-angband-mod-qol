@@ -67,6 +67,7 @@ describe("the qol mod's entry point", () => {
       "input:intent",
       "state:floor.read",
       "state:stores.read",
+      "state:spells.read",
       "engine:access",
     ]);
     for (const capability of manifest.capabilities ?? []) {
