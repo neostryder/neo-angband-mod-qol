@@ -9,20 +9,20 @@ export interface ComparisonRow {
 
 const NUMBERS = [
   ["speed", "Speed (110 is normal)", 1], ["baseAc", "Base armor class", 1], ["toA", "Armor bonus", 1],
-  ["ac", "Total armor class", 1], ["toH", "Global hit bonus", 1], ["toD", "Global damage bonus", 1],
-  ["blows", "Blows per turn", 100], ["shots", "Shots per turn", 10], ["moves", "Extra movement actions", 1],
+  ["ac", "Total armor class", 1], ["toH", "Global to-hit", 1], ["toD", "Global to-dam", 1],
+  ["blows", "Blows per turn", 100], ["shots", "Shots per turn", 10], ["moves", "Extra movement", 1],
   ["ammoMult", "Ammo multiplier", 1], ["damRed", "Flat damage reduction", 1], ["percDamRed", "Damage reduction (%)", 1],
   ["seeInfra", "Infravision (grids)", 1], ["light", "Light radius (grids)", 1], ["hold", "Comfortable weapon weight (lb)", 1],
-  ["maxHp", "Maximum hit points", 1], ["maxSp", "Maximum spell points", 1], ["totalWeight", "Carried weight (lb)", 10],
+  ["maxHp", "Max hit points", 1], ["maxSp", "Max spell points", 1], ["totalWeight", "Carried weight (lb)", 10],
   ["weightLimit", "Weight limit (lb)", 10],
 ] as const;
 const BOOLEANS = [
   ["heavyWield", "Weapon too heavy"], ["heavyShoot", "Launcher too heavy"],
-  ["blessWield", "Blessed-weapon class satisfied"], ["cumberArmor", "Armor reduces spell points"],
+  ["blessWield", "Blessed weapon rule met"], ["cumberArmor", "Armor reduces spell points"],
 ] as const;
 const STATS = ["STR", "INT", "WIS", "DEX", "CON"];
 const SKILLS = ["Physical disarming", "Magical disarming", "Magic devices", "Saving throw", "Searching", "Stealth", "Melee accuracy", "Shooting accuracy", "Throwing accuracy", "Digging"];
-const VECTORS = [["statAdd", "Equipment modifier"], ["statUse", "Stat in play (encoded)"], ["statTop", "Undrained stat (encoded)"], ["statInd", "Stat table index"], ["skills", "Skill"], ["resists", "Resistance level"]] as const;
+const VECTORS = [["statAdd", "Equipment modifier"], ["statUse", "Current stat (encoded)"], ["statTop", "Undrained stat (encoded)"], ["statInd", "Stat table index"], ["skills", "Skill"], ["resists", "Resistance level"]] as const;
 
 function number(value: number | undefined, scale = 1, signed = false): string {
   if (value === undefined) return "unknown";
@@ -69,10 +69,10 @@ export function comparisonPanel(simulation: LoadoutSimulation, title: string, sl
     ...comparisonRows(simulation).map((row): Api2PanelNode => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) })),
   ];
   return { id: "gear-comparison", title, modal: true, root: { type: "column", children: [
-    { type: "text", text: "Compare in " + slot + ". These values use only learned runes." },
-    ...(simulation.delta.unknownRunes ? [{ type: "text" as const, text: "Unknown runes remain unknown. A zero delta does not rule out an unknown effect." }] : []),
-    ...(simulation.unresolved.length ? [{ type: "text" as const, text: "Some item references could not be resolved. This comparison is incomplete." }] : []),
-    { type: "text", text: "Global hit and damage bonuses exclude the weapon's own bonuses. Spell failure, spell costs, and attack damage are unavailable for hypothetical gear." },
+    { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
+    ...(simulation.delta.unknownRunes ? [{ type: "text" as const, text: "Unknown runes are not counted, so a zero delta can still hide an effect." }] : []),
+    ...(simulation.unresolved.length ? [{ type: "text" as const, text: "Some items could not be found, so this comparison is incomplete." }] : []),
+    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses. Spell failure, spell costs, and attack damage are not available for hypothetical gear." },
     ...grouped(rows),
     { type: "button", label: "Choose another item", action: "items" },
   ] } };
@@ -142,7 +142,7 @@ export class GearComparisonManager {
       page = Math.max(0, Math.min(page, Math.ceil(candidates.length / 16) - 1));
       const start = page * 16;
       await show({ id: "gear-comparison", title: "Compare gear", modal: true, root: { type: "column", children: [
-        { type: "text", text: message || (!read.ok ? read.message : candidates.length ? "Choose an item, then a worn slot." : "No known items are available for comparison.") },
+        { type: "text", text: message || (!read.ok ? read.message : candidates.length ? "Choose an item, then a slot to compare it in." : "No known items to compare. Carry an item, stand on one, or visit a store.") },
         ...candidates.slice(start, start + 16).map((candidate, index): Api2PanelNode => ({ type: "button", label: candidate.label, action: "item-" + String(start + index) })),
         { type: "row", children: [
           { type: "button", label: "Previous page", action: "previous", disabled: page === 0 },
@@ -175,7 +175,7 @@ export class GearComparisonManager {
           slots = [...result.value.slots];
           comparedToken = result.value.token;
           title = candidate.label;
-          if (!slots.length) { await items("This item has no worn-slot comparison."); return; }
+          if (!slots.length) { await items("This item has no worn slot to compare."); return; }
           if (slots.length === 1) { await show(comparisonPanel(slots[0]!.comparison, title, slots[0]!.name)); return; }
           // Core owns slot legality through wield_slot, including both ring hands.
           await show({ id: "gear-comparison", title, modal: true, root: { type: "column", children: [
@@ -191,10 +191,10 @@ export class GearComparisonManager {
           if (!fresh.ok || !fresh.value) { await items("The game changed. Choose the item again."); return; }
           if (slot) await show(comparisonPanel(slot.comparison, title, slot.name));
         }
-      } catch { if (current()) await items("The comparison could not be read."); }
+      } catch { if (current()) await items("Could not read the comparison."); }
       finally { busy = false; }
     };
     try { await items(); }
-    catch { this.openPanel = false; this.mod.meta.log("The comparison could not be opened."); }
+    catch { this.openPanel = false; this.mod.meta.log("Could not open the comparison."); }
   }
 }

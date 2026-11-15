@@ -4,8 +4,8 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
-| `qol.gearComparison` | off | Compares known gear with before, after, and delta values from the game. | Yes. |
-| `qol.loadouts` | off | Saves and restores named worn-gear sets through ordinary commands. | Yes. |
+| `qol.gearComparison` | off | Adds "Compare gear..." to the Game menu to show how an item would change your character in a worn slot. | Yes. |
+| `qol.loadouts` | off | Adds "Loadouts..." to the Game menu for saving named sets of worn gear and putting them back on. | Yes. |
 | `qol.autoDig` | on | Starts digging when walking into diggable rubble or a vein. | No. |
 | `qol.rememberSettings` | on | Saves options menu choices and restores them for new characters. | Yes. |
 | `qol.forgivingPrefFiles` | on | Continues reading a pref file after invalid lines. | Yes. |

@@ -15,8 +15,8 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
-| Gear comparison | `qol.gearComparison` | off | Shows before, after, and delta values for known gear in each legal worn slot. |
-| Loadouts | `qol.loadouts` | off | Saves named worn-gear sets on this character and restores them through ordinary commands. |
+| Gear comparison | `qol.gearComparison` | off | Gear comparison shows how wearing a known item in a slot would change your character, with before, after, and delta values from the game. |
+| Loadouts | `qol.loadouts` | off | Loadouts save named sets of worn gear in this character's save and put them back on with ordinary wear and take-off commands. |
 | Auto-dig on walk | `qol.autoDig` | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging automatically, instead of just bumping into it. |
 | Remember my settings | `qol.rememberSettings` | on | Changes you make in the '=' options menu are kept, and every new character starts with them. |
 | Keep reading a pref file past a mistake | `qol.forgivingPrefFiles` | on | Angband stops reading a pref file at the first line it cannot understand, so one typo near the top silently throws away everything below it, such as a whole graphics pack or the rest of your keymaps. |

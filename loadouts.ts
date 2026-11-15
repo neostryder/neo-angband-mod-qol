@@ -92,7 +92,7 @@ export class LoadoutManager {
     const world = await this.world();
     if (!stored.ok || !world) {
       this.menuOpen = false;
-      await this.report("Loadouts are unavailable for this character.");
+      await this.report("Loadouts are not available for this character.");
       return;
     }
     let sets = readLoadouts(stored.value);
@@ -101,9 +101,9 @@ export class LoadoutManager {
     const panel = (message = ""): Api2Panel => ({
       id: PANEL, title: "Loadouts", modal: true,
       root: { type: "column", children: [
-        { type: "text", text: "Save worn gear, including empty slots. Quiver contents stay under the game's control. Pack overflow can drop items during a swap." },
+        { type: "text", text: "Save what you are wearing, empty slots included. The game manages the quiver. A full pack can drop an item during a swap." },
         { type: "input", label: "Loadout name", action: "name", value: name },
-        { type: "button", label: "Save worn gear", action: "save" },
+        { type: "button", label: "Save loadout", action: "save" },
         { type: "text", text: message },
         ...sets.map((set, index): Api2PanelNode => ({ type: "row", children: [
           { type: "text", text: set.name },
@@ -120,15 +120,15 @@ export class LoadoutManager {
       try {
         if (action === "save" || action.startsWith("delete-")) {
           const bag = await this.mod.store.character.get();
-          if (!bag.ok) { await refresh("The loadouts could not be read."); return; }
+          if (!bag.ok) { await refresh("Could not read the loadouts."); return; }
           const current = readLoadouts(bag.value);
           let next: Loadout[];
           if (action === "save") {
             const clean = name.trim();
-            if (!clean || clean.length > 64) { await refresh("Use a name from 1 to 64 characters."); return; }
+            if (!clean || clean.length > 64) { await refresh("Use a name of 1 to 64 characters."); return; }
             const now = await this.world();
             if (!now) return;
-            if (current.length >= LIMIT && !current.some((set) => set.name === clean)) { await refresh("Delete a loadout before saving another. The limit is 20."); return; }
+            if (current.length >= LIMIT && !current.some((set) => set.name === clean)) { await refresh("This character has 20 loadouts, the limit. Delete one to save another."); return; }
             next = [...current.filter((set) => set.name !== clean), captureLoadout(clean, now.equipment)];
           } else {
             const chosen = sets[Number(action.slice(7))];
@@ -138,7 +138,7 @@ export class LoadoutManager {
           const saved = await this.mod.store.character.set(withLoadouts(bag.value, next));
           if (this.stopped) return;
           if (saved.ok) sets = next;
-          await refresh(saved.ok ? "The loadouts were saved." : "The loadouts could not be saved.");
+          await refresh(saved.ok ? "The loadouts are saved." : "Could not save the loadouts.");
         } else if (action.startsWith("restore-")) {
           const set = sets[Number(action.slice(8))];
           if (!set) return;
@@ -171,8 +171,8 @@ export class LoadoutManager {
       const yes = await new Promise<boolean>((resolve) => {
         this.confirming = resolve;
         void this.mod.ui.mount({ id: PANEL, title: "Loadouts", modal: true, root: { type: "column", children: [
-          { type: "text", text: "Really " + (key === "w" ? "wear " : "take off ") + (item.name ?? item.label) + "?" },
-          { type: "button", label: "Yes", action: "yes" },
+          { type: "text", text: (key === "w" ? "Wear " : "Take off ") + (item.name ?? item.label) + "?" },
+          { type: "button", label: "Continue swap", action: "yes" },
           { type: "button", label: "Cancel swap", action: "cancel" },
         ] } }, (action) => resolve(action === "yes"), () => resolve(false)).then((opened) => { if (!opened.ok) resolve(false); });
       });
@@ -192,7 +192,7 @@ export class LoadoutManager {
     try {
       const first = await this.world();
       let hp = first?.player?.hp;
-      if (!first || first.equipment.length !== set.slots.length) { notes.push("The saved body slots are unavailable."); return; }
+      if (!first || first.equipment.length !== set.slots.length) { notes.push("The saved body slots are not available."); return; }
       // do_cmd_wield and do_cmd_takeoff own energy, sticky checks, and pack_overflow.
       for (let attempt = 0; attempt < set.slots.length * 3; attempt++) {
         const input = await this.mod.view.input();
@@ -202,7 +202,7 @@ export class LoadoutManager {
         }
         hp = world.player?.hp;
         if (input.value.phase !== "play" || input.value.prompt || input.value.messagePending || input.value.driver.kind !== "player") {
-          notes.push("The swap stopped because the game is waiting for other input."); break;
+          notes.push("The swap stopped because the game needs other input."); break;
         }
         let command: { code: string; args: { handle: number; slot?: number } } | null = null;
         let target = -1;
@@ -216,7 +216,7 @@ export class LoadoutManager {
             if ((piece === null) !== empty) continue;
             const worn = world.equipment[slot] ?? null;
             const found = piece && locatePiece(world, piece, this.identities);
-            if (piece && !found) { notes.push(piece.name + ": not carried."); blocked.add(slot); continue; }
+            if (piece && !found) { notes.push(piece.name + ": you are not carrying it."); blocked.add(slot); continue; }
             if (piece && found && worn?.handle === found.handle) continue;
             if (!piece && !worn) continue;
             target = slot;
@@ -231,11 +231,11 @@ export class LoadoutManager {
               } else {
                 const simulation = await this.mod.view.simulateLoadout({ wield: [{ from: "gear", handle: found.handle }] });
                 if (!simulation.ok || !simulation.value.placements.some((p) => p.slot === slot) && world.equipmentSlots?.[slot]?.type !== "RING") {
-                  notes.push(piece!.name + ": the game cannot place this item in the saved slot."); blocked.add(slot); continue;
+                  notes.push(piece!.name + ": the game cannot put this in the saved slot."); blocked.add(slot); continue;
                 }
                 // An empty second ring slot cannot override wield_slot's first empty slot.
                 if (world.equipmentSlots?.[slot]?.type === "RING" && !simulation.value.placements.some((p) => p.slot === slot) && simulation.value.placements.some((p) => p.displaced === null)) {
-                  notes.push(piece!.name + ": the game cannot target this empty ring slot."); blocked.add(slot); continue;
+                  notes.push(piece!.name + ": the game cannot fill this ring slot while the first ring slot is empty."); blocked.add(slot); continue;
                 }
                 command = { code: "wield", args: { handle: found.handle, slot } };
                 subject = found;
@@ -252,8 +252,8 @@ export class LoadoutManager {
         }
         const fresh = await this.mod.view.input();
         if (!fresh.ok || this.stopped || this.interrupted) break;
-        if (fresh.value.token.epoch !== input.value.token.epoch || fresh.value.token.revision !== input.value.token.revision) { notes.push("The swap stopped because the game changed during confirmation."); break; }
-        if (fresh.value.phase !== "play" || fresh.value.prompt || fresh.value.messagePending) { notes.push("The swap stopped because the game is waiting for other input."); break; }
+        if (fresh.value.token.epoch !== input.value.token.epoch || fresh.value.token.revision !== input.value.token.revision) { notes.push("The swap stopped because the game changed while you were confirming."); break; }
+        if (fresh.value.phase !== "play" || fresh.value.prompt || fresh.value.messagePending) { notes.push("The swap stopped because the game needs other input."); break; }
         const result = await this.mod.act.submit(fresh.value.token, { kind: "command", command });
         if (!result.ok) { notes.push(subject.label + ": " + result.message); blocked.add(target); continue; }
         let settled = false;
@@ -267,17 +267,17 @@ export class LoadoutManager {
         const after = await this.world();
         const moved = command.code === "wield" ? after?.equipment[target]?.handle === subject.handle : !after?.equipment.some((item) => item?.handle === subject!.handle);
         if (!settled) { notes.push("The swap stopped while the game was waiting."); break; }
-        if (!moved) { notes.push(subject.label + ": the game did not move this item."); blocked.add(target); }
+        if (!moved) { notes.push(subject.label + ": the game did not move it."); blocked.add(target); }
       }
       const last = await this.world();
       if (last) {
         const lost = carried(first).filter((item) => !carried(last).some((now) => now.handle === item.handle));
-        for (const item of lost) notes.push(item.label + ": no longer carried after the swap.");
+        for (const item of lost) notes.push(item.label + ": you no longer carry it after the swap.");
         const complete = set.slots.every((piece, slot) => piece ? !!last.equipment[slot] && last.equipment[slot]?.handle === locatePiece(last, piece, this.identities)?.handle : !last.equipment[slot]);
-        notes.unshift(complete ? "The loadout is restored." : "The loadout is incomplete.");
+        notes.unshift(complete ? "The loadout is restored." : "The loadout is only partly restored.");
       }
     } catch {
-      notes.push("The swap stopped because a game API call failed.");
+      notes.push("The swap stopped because of a game error.");
     } finally {
       this.running = false;
       await this.report(set.name + ": " + notes.join(" "));
