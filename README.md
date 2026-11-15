@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Context help
+
+Context help adds a help line for the selected action in the item context menu. Existing hints stay as they are, and the help reads no unknown item properties. The command browser does not support this help line. The setting is off by default and takes effect after a reload.
+
 ### Rejoin wrapped prose
 
 Rejoin wrapped prose joins hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. The game wraps the joined text to the current width. Tables, key hints, ASCII art, aligned lines, and indented text keep their layout. Raw help-page lines, message text, and protected mod-management screens stay as they are. The setting is off by default and takes effect after a reload.

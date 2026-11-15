@@ -47,6 +47,7 @@ import { LoadoutManager } from "./loadouts";
 import { clearTownLava, type TownCore, type TownLevel } from "./town-lava";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
 import { rejoinProse, rejoinScreenProse } from "./rejoin-prose";
+import { installContextHelp } from "./context-help";
 
 /**
  * How many parse errors one pref file may report before the rest go unmentioned.
@@ -265,6 +266,7 @@ export default {
   async start(mod: ModApi2): Promise<void> {
     live = mod;
     const { flags, log } = mod.meta;
+    if (flags["qol.contextHelp"] === true) installContextHelp(mod);
 
     /* Every save the game writes is copied to the backup folder, when one is set. */
     const backupFolder = mod.backupFolder;
