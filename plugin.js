@@ -748,14 +748,9 @@ var LoadoutManager = class {
                 command = { code: "takeoff", args: { handle: worn.handle } };
                 subject = worn;
               } else {
-                const simulation = await this.mod.view.simulateLoadout({ wield: [{ from: "gear", handle: found.handle }] });
-                if (!simulation.ok || !simulation.value.placements.some((p) => p.slot === slot) && world.equipmentSlots?.[slot]?.type !== "RING") {
+                const simulation = await this.mod.view.simulateLoadout({ wieldAt: [{ item: { from: "gear", handle: found.handle }, slot }] });
+                if (!simulation.ok || !simulation.value.placements.some((p) => p.slot === slot)) {
                   notes.push(piece.name + ": the game cannot put this in the saved slot.");
-                  blocked.add(slot);
-                  continue;
-                }
-                if (world.equipmentSlots?.[slot]?.type === "RING" && !simulation.value.placements.some((p) => p.slot === slot) && simulation.value.placements.some((p) => p.displaced === null)) {
-                  notes.push(piece.name + ": the game cannot fill this ring slot while the first ring slot is empty.");
                   blocked.add(slot);
                   continue;
                 }

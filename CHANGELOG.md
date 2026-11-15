@@ -22,6 +22,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [Modding-API] Loadouts restore a ring to the second ring finger while the first is empty.
+
 - [Visible] [Modding-API] **You can now compare gear, manage loadouts, and cancel a loadout swap with QoL commands during play.** The game skipped these three commands because of how they were named, though the Game-menu entries "Compare gear..." and "Loadouts..." were not affected by this. Mod authors can find them as `qol:compare-gear`, `qol:loadouts`, and `qol:cancel-loadout` (neostryder/neo-angband#505).
 
 ## 1.14.0-beta.2 - 2026-10-30

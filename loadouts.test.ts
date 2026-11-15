@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Api2Panel, Api2Result, JsonValue, KnownItem, KnownWorldData, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Panel, Api2Result, JsonValue, LoadoutChange, KnownItem, KnownWorldData, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { captureLoadout, inscriptionChecks, LoadoutManager, locatePiece, readLoadouts, withLoadouts } from "./loadouts";
 
 function item(handle: number, extra: Partial<KnownItem> & { objectId?: number } = {}): KnownItem {
@@ -33,7 +33,10 @@ function harness(equipment: (KnownItem | null)[] = [item(1)], inventory: KnownIt
     state.token = { ...state.token, revision: state.token.revision + 1 };
     return { ok: true as const, value: null };
   });
-  const simulate = vi.fn(async () => ({ ok: true as const, value: { placements: [{ slot: 0, displaced: state.equipment[0] ?? null }] } }));
+  const simulate = vi.fn(async (change: LoadoutChange) => {
+    const slot = change.wieldAt?.[0]?.slot ?? 0;
+    return { ok: true as const, value: { placements: [{ slot, displaced: state.equipment[slot] ?? null }] } };
+  });
   const mount = vi.fn(async (panel: Api2Panel, onAction?: typeof action) => { panels.push(panel); action = onAction; return { ok: true, value: { panelId: panel.id } }; });
   const set = vi.fn(async (value: JsonValue | null): Promise<Api2Result<null>> => { bag = value; return { ok: true, value: null }; });
   const input = vi.fn(async () => ({ ok: true, value: { token: { ...state.token }, phase, prompt, messagePending: false, driver: { kind: "player" } } }));
@@ -175,8 +178,10 @@ describe("loadout swaps", () => {
   });
 
   it("stops when a monster becomes visible", async () => {
-    const h = harness(); h.delay.mockImplementationOnce(async () => { h.manager.disturb(); });
-    await h.manager.restore(captureLoadout("danger", [item(2)]));
+    const h = harness([null, null], [item(2), item(4)]);
+    h.state.equipmentSlots = [{ type: "RING", name: "left" }, { type: "RING", name: "right" }];
+    h.delay.mockImplementationOnce(async () => { h.manager.disturb(); });
+    await h.manager.restore(captureLoadout("danger", [item(2), item(4)]));
     expect(h.submit).toHaveBeenCalledTimes(1); expect(h.report()).toContain("stopped");
   });
 
@@ -208,16 +213,29 @@ describe("loadout swaps", () => {
     expect(h.submit).toHaveBeenCalledTimes(1);
   });
 
-  it("reports the empty second-ring targeting limitation without moving gear", async () => {
+  it("restores the second ring finger while the first stays empty", async () => {
     const h = harness([null, null]); h.state.equipmentSlots = [{ type: "RING", name: "left" }, { type: "RING", name: "right" }];
-    h.simulate.mockResolvedValueOnce({ ok: true, value: { placements: [{ slot: 0, displaced: null }] } });
     await h.manager.restore(captureLoadout("right", [null, item(2)]));
-    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("cannot fill this ring slot");
+    expect(h.simulate).toHaveBeenCalledExactlyOnceWith({ wieldAt: [{ item: { from: "gear", handle: 2 }, slot: 1 }] });
+    expect(h.submit).toHaveBeenCalledExactlyOnceWith({ epoch: 1, revision: 0 }, { kind: "command", command: { code: "wield", args: { handle: 2, slot: 1 } } });
+    expect(h.state.equipment).toEqual([null, item(2)]);
+    expect(h.report()).toContain("The loadout is restored.");
+  });
+
+  it("leaves a sticky ring on the second finger when the wear command refuses to move it", async () => {
+    const h = harness([null, item(1)]);
+    h.state.equipmentSlots = [{ type: "RING", name: "left" }, { type: "RING", name: "right" }];
+    h.submit.mockImplementationOnce(async () => { h.state.token.revision++; return { ok: true, value: null }; });
+    await h.manager.restore(captureLoadout("sticky right", [null, item(2)]));
+    expect(h.submit).toHaveBeenCalledTimes(1);
+    expect(h.submit.mock.calls[0]?.[1].command.args.slot).toBe(1);
+    expect(h.state.equipment).toEqual([null, item(1)]);
+    expect(h.report()).toContain("only partly restored");
+    expect(h.report()).toContain("did not move");
   });
 
   it("takes misplaced rings off before filling their saved slots", async () => {
     const h = harness([item(1), item(2)], []); h.state.equipmentSlots = [{ type: "RING", name: "left" }, { type: "RING", name: "right" }];
-    h.simulate.mockImplementation(async () => ({ ok: true, value: { placements: [{ slot: h.state.equipment[0] ? 1 : 0, displaced: null }] } }));
     await h.manager.restore(captureLoadout("hands", [item(2), item(1)]));
     expect(h.submit.mock.calls.map((call) => call[1].command.code)).toEqual(["takeoff", "takeoff", "wield", "wield"]);
     expect(h.state.equipment.map((it) => it?.handle)).toEqual([2, 1]);
