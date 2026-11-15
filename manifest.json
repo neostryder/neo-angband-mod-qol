@@ -45,6 +45,13 @@
     ],
     "rules": [
       {
+        "flag": "qol.contextHelp",
+        "title": "Context help",
+        "description": "Show a help line for the selected action in the item context menu.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "flag": "qol.rejoinProse",
         "title": "Rejoin wrapped prose",
         "description": "Join wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, art, and aligned lines keep their layout.",

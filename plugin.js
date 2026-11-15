@@ -867,6 +867,45 @@ function rejoinScreenProse(text, site) {
   return site.part === "prose" || site.part === "detail" ? rejoinProse(text) : text;
 }
 
+// context-help.ts
+var MENU_ID = "core:context-object";
+var ITEM_HELP = {
+  inspect: "Read the item's known properties.",
+  equip: "Wear or wield this item in a matching slot.",
+  takeoff: "Remove this item from its worn slot.",
+  drop: "Leave this item on the floor.",
+  throw: "Throw this item at a target.",
+  fire: "Fire this ammunition with your launcher.",
+  inscribe: "Write a note on this item.",
+  uninscribe: "Remove this item's note.",
+  ignore: "Change whether this item is ignored.",
+  browse: "Read the spells in this book.",
+  cast: "Choose a spell from this book to cast.",
+  study: "Choose a spell from this book to learn.",
+  aim: "Use this wand.",
+  zap: "Use this rod.",
+  "use-staff": "Use this staff.",
+  read: "Read this scroll.",
+  quaff: "Drink this potion.",
+  eat: "Eat this food or mushroom.",
+  activate: "Use this item's activation.",
+  refill: "Refill your light from this item."
+};
+function installContextHelp(mod2) {
+  const registry = mod2.engine?.registry;
+  if (!registry) return;
+  const previous = registry.menus.handlerFor(MENU_ID);
+  registry.menus.register(MENU_ID, (id, rows) => {
+    const current = previous ? previous(id, rows) : rows;
+    return current.map((row) => {
+      const ref = row.semantic.ref;
+      if (row.hint !== void 0 || row.semantic.kind !== "command" || typeof ref !== "string") return row;
+      const hint = Object.hasOwn(ITEM_HELP, ref) ? ITEM_HELP[ref] : void 0;
+      return hint === void 0 ? row : { ...row, hint };
+    });
+  });
+}
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 var PURGE_ESCAPE_COUNT = 3;
@@ -1015,6 +1054,7 @@ var plugin_default = {
   async start(mod2) {
     live2 = mod2;
     const { flags, log } = mod2.meta;
+    if (flags["qol.contextHelp"] === true) installContextHelp(mod2);
     const backupFolder = mod2.backupFolder;
     if (backupFolder) {
       await backupFolder.onSave((file) => void backupFolder.write(file.name, file.text));
