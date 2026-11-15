@@ -41,6 +41,7 @@ import { migratePreferences, PREFS_VERSION, readRememberedSettings, withRemember
 import { applyRemembered, rememberedFrom, type OptionStoreLike } from "./remember";
 import { offerAbilityMacro, startMacroWizard, stopMacroWizard } from "./macro-wizard";
 import { startRepeatShortcuts, stopRepeatShortcuts } from "./repeat-shortcuts";
+import { LoadoutManager } from "./loadouts";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
 
 /**
@@ -62,6 +63,7 @@ const PURGE_ESCAPE_COUNT = 3;
 
 /** The live API once the game is ready; the hooks below are built before it exists. */
 let live: ModApi2 | null = null;
+let loadouts: LoadoutManager | null = null;
 
 /**
  * The option store of the live game, for restoring remembered settings. This is
@@ -78,6 +80,7 @@ export default {
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};
+    if (flags["qol.loadouts"] === true) hooks.monsterBecameVisible = () => loadouts?.disturb();
 
     if (flags["qol.accessibilityMacroWizard"] === true) hooks.abilityGained = offerAbilityMacro;
 
@@ -247,6 +250,18 @@ export default {
       await backupFolder.onSave((file) => void backupFolder.write(file.name, file.text));
     }
 
+    if (flags["qol.loadouts"] === true) {
+      const manager = new LoadoutManager(mod);
+      loadouts = manager;
+      for (const result of [
+        await mod.ui.gameMenu.register("loadouts", "Loadouts...", () => manager.open()),
+        await mod.ui.commands.register("loadouts", "manage loadouts", () => manager.open()),
+        await mod.ui.commands.register("cancel-loadout", "cancel loadout swap", () => manager.disturb()),
+      ]) {
+        if (!result.ok) log(result.message);
+      }
+    }
+
     if (flags["qol.accessibilityMacroWizard"] === true) startMacroWizard(mod);
     if (flags["qol.accessibilityRepeatShortcuts"] === true) await startRepeatShortcuts(mod);
 
@@ -271,6 +286,8 @@ export default {
 
   stop(): void {
     live = null;
+    loadouts?.stop();
+    loadouts = null;
     stopMacroWizard();
     stopRepeatShortcuts();
   },

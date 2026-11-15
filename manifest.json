@@ -25,7 +25,11 @@
       "registry:menu",
       "registry:command",
       "registry:ui-entry",
-      "registry:message"
+      "registry:message",
+      "state:player.read",
+      "state:inventory.read",
+      "state:interaction.read",
+      "input:intent"
     ],
     "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
     "author": "neostryder",
@@ -37,6 +41,13 @@
       "plugin"
     ],
     "rules": [
+      {
+        "flag": "qol.loadouts",
+        "title": "Loadouts",
+        "description": "Save named worn-gear sets on this character and restore them through ordinary wear and takeoff commands. Each command spends its normal game time. Pack overflow can drop items.",
+        "default": false,
+        "requiresReload": true
+      },
       {
         "flag": "qol.autoDig",
         "title": "Auto-dig on walk",

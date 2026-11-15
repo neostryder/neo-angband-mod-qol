@@ -55,6 +55,10 @@ describe("the qol mod's entry point", () => {
       "registry:command",
       "registry:ui-entry",
       "registry:message",
+      "state:player.read",
+      "state:inventory.read",
+      "state:interaction.read",
+      "input:intent",
     ]);
     for (const capability of manifest.capabilities ?? []) {
       expect(matchCapability(capability), capability).not.toBeNull();

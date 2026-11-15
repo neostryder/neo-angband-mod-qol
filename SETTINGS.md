@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.loadouts` | off | Saves and restores named worn-gear sets through ordinary commands. | Yes. |
 | `qol.autoDig` | on | Starts digging when walking into diggable rubble or a vein. | No. |
 | `qol.rememberSettings` | on | Saves options menu choices and restores them for new characters. | Yes. |
 | `qol.forgivingPrefFiles` | on | Continues reading a pref file after invalid lines. | Yes. |

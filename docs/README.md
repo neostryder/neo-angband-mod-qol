@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Loadouts | `qol.loadouts` | off | Saves named worn-gear sets on this character and restores them through ordinary commands. |
 | Auto-dig on walk | `qol.autoDig` | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging automatically, instead of just bumping into it. |
 | Remember my settings | `qol.rememberSettings` | on | Changes you make in the '=' options menu are kept, and every new character starts with them. |
 | Keep reading a pref file past a mistake | `qol.forgivingPrefFiles` | on | Angband stops reading a pref file at the first line it cannot understand, so one typo near the top silently throws away everything below it, such as a whole graphics pack or the rest of your keymaps. |
@@ -34,7 +35,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle
