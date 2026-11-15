@@ -42,7 +42,7 @@ describe("the qol mod's entry point", () => {
     expect((manifestDocument as { schemaVersion: number }).schemaVersion).toBe(2);
     expect(manifest.manifestSchema).toBe(2);
     expect(manifest.api).toBe(plugin.api);
-    expect(manifest.api).toBe(">=2.2.0 <3.0.0");
+    expect(manifest.api).toBe(">=2.3.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
     expect(manifest.dependencies).toEqual({ core: "*" });
