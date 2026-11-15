@@ -61,23 +61,23 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 ### Context help
 
-Context help adds a help line for the selected action in the item context menu. Existing hints stay as they are, and the help reads no unknown item properties. The command browser does not support this help line. The setting is off by default and takes effect after a reload.
+Context help shows a help line under the selected action in the item context menu. Existing hints stay as they are, and the help line never reveals item properties you have not learned. The command browser has no help line. The setting is off by default and takes effect after a reload.
 
 ### Rejoin wrapped prose
 
-Rejoin wrapped prose joins hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. The game wraps the joined text to the current width. Tables, key hints, ASCII art, aligned lines, and indented text keep their layout. Raw help-page lines, message text, and protected mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
+Rejoin wrapped prose joins hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions, then wraps the joined text to the current width. Tables, key hints, ASCII art, aligned and indented lines, raw help-page lines, message text, and mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
 
 ### Richer weapon and armor shops
 
-Richer weapon and armor shops raises the poorest Armoury and Weaponsmith owners' payment limits from 5000 to 10000 gold per item. Other owners and shops keep their limits. The setting is off by default and takes effect after a reload.
+Richer weapon and armor shops raises the most an item can sell for to the poorest Armoury owner and the poorest Weaponsmith owner from 5000 to 10000 gold. Other owners and shops keep their limits. The setting is off by default and takes effect after a reload.
 
 ### Fragile town books
 
-Fragile town books lets acid destroy the spell books sold in town; fire already destroys those books. Dungeon-only books keep their protection from acid, fire, cold, and lightning. Each class's book data defines which books are town books. The setting is off by default and takes effect after a reload.
+With Fragile town books on, acid destroys the spell books sold in town, as fire already does in Angband 4.2.6. Dungeon-only books keep their protection from acid, fire, cold, and lightning. Each class's book list sets which of its books count as town books. The setting is off by default and takes effect after a reload.
 
 ### Fragile food
 
-Fragile food lets fire and acid destroy food and mushrooms. It applies to carried items and floor piles. The setting is off by default and takes effect after a reload.
+Fragile food lets fire and acid destroy food and mushrooms, both in your pack and in floor piles. The setting is off by default and takes effect after a reload.
 
 ### No lava in town
 
