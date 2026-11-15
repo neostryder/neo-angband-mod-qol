@@ -59,6 +59,8 @@ describe("the qol mod's entry point", () => {
       "state:inventory.read",
       "state:interaction.read",
       "input:intent",
+      "state:floor.read",
+      "state:stores.read",
     ]);
     for (const capability of manifest.capabilities ?? []) {
       expect(matchCapability(capability), capability).not.toBeNull();
@@ -500,5 +502,28 @@ describe("teardown", () => {
     await plugin.start(mod);
     plugin.stop();
     expect(unmount).toHaveBeenCalledWith("repeated-action-shortcuts");
+  });
+});
+
+
+describe("gear menu registration", () => {
+  function modFor(flags: Record<string, boolean>) {
+    const { mod } = fakeMod({ flags });
+    const menu = vi.fn(async () => ({ ok: true, value: null }));
+    const command = vi.fn(async () => ({ ok: true, value: null }));
+    return { mod: { ...mod, ui: { ...mod.ui, gameMenu: { register: menu }, commands: { register: command } } } as ModApi2, menu, command };
+  }
+
+  it("adds loadout and comparison rows and commands only for their flags", async () => {
+    const h = modFor({ "qol.loadouts": true, "qol.gearComparison": true });
+    await plugin.start(h.mod);
+    expect(h.menu.mock.calls.map((call) => (call as unknown[])[0])).toEqual(["compare-gear", "loadouts"]);
+    expect(h.command.mock.calls.map((call) => (call as unknown[])[0])).toEqual(["compare-gear", "loadouts", "cancel-loadout"]);
+    plugin.stop();
+  });
+
+  it("adds no gear rows or commands when their settings are off", async () => {
+    const h = modFor({}); await plugin.start(h.mod);
+    expect(h.menu).not.toHaveBeenCalled(); expect(h.command).not.toHaveBeenCalled(); plugin.stop();
   });
 });

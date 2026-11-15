@@ -59,6 +59,12 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Gear comparison
+
+The opt-in Gear comparison setting adds Compare gear... to the Game menu and a compare gear command. It lists known carried gear, items at your feet, and known store stock, then asks which legal worn slot to compare. The screen shows the game's own before, after, and delta values for armor, global combat bonuses, blows, shots, movement, hit points, spell points, weight, stats, skills, resistances, and flags. Both sides use only learned runes, and the screen warns when unknown runes can change the result.
+
+Blows and shots use actions per turn, and weights use pounds. Stat values above 18 use the game's encoded values; stat table indices appear separately. Global hit and damage bonuses exclude the weapon's own bonuses. Hypothetical spell failure rates, spell costs, and attack damage are unavailable through the public comparison API. The screen compares stats without wearing, removing, or buying anything.
+
 ### Loadouts
 
 The opt-in Loadouts setting adds Loadouts... to the Game menu and a manage loadouts command. A named loadout records every worn slot, including empty slots, in this character's save. Saving the same name replaces that loadout. The limit is 20 loadouts. Quiver contents follow the game's ordinary inventory rules.

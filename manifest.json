@@ -29,7 +29,9 @@
       "state:player.read",
       "state:inventory.read",
       "state:interaction.read",
-      "input:intent"
+      "input:intent",
+      "state:floor.read",
+      "state:stores.read"
     ],
     "description": "Conveniences that faithful Angband does not have. Angband's own options belong to core, and this mod leaves them alone.\n\nLooking for zoom, hover cards or the high-contrast and colourblind displays? Those visual features, along with the other display options, now live in the AnybandUI mod.\n\nEnable it and you get the tweaks that start on, and each tweak has its own toggle you can switch on or off separately. Turn the mod off and the base game is exactly as it was.",
     "author": "neostryder",
@@ -41,6 +43,13 @@
       "plugin"
     ],
     "rules": [
+      {
+        "flag": "qol.gearComparison",
+        "title": "Gear comparison",
+        "description": "Compare known gear in each legal worn slot with before, after, and delta values from the game. Unknown runes remain unknown.",
+        "default": false,
+        "requiresReload": true
+      },
       {
         "flag": "qol.loadouts",
         "title": "Loadouts",
