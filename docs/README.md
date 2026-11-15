@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Memorial epigraphs | `qol.memorialEpigraphs` | off | Adds an epigraph to end screens and the character dump. |
 | Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
 | Context help | `qol.contextHelp` | off | Explains the selected action in the item context menu. |
 | Rejoin wrapped prose | `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text. |

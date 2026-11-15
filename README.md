@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Memorial epigraphs
+
+Memorial epigraphs adds one of 16 lines for each ending: death, retirement, or victory. The character name, ending, turn, and seed select the same line for the screen and character dump without using game randomness. The lists are in epigraphs.json. The setting is off by default and takes effect after a reload.
+
 ### Pause after object feeling
 
 Pause after object feeling waits for a key after the object part of a level feeling. Auto-more still skips the wait. The setting is off by default and takes effect after a reload.

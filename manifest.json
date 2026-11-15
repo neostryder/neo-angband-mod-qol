@@ -46,6 +46,13 @@
     ],
     "rules": [
       {
+        "flag": "qol.memorialEpigraphs",
+        "title": "Memorial epigraphs",
+        "description": "Add a deterministic epigraph to death, retirement, and victory screens and the character dump.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "flag": "qol.pauseObjectFeeling",
         "title": "Pause after object feeling",
         "description": "Wait for a key after the object part of a level feeling. Auto-more still skips the wait.",

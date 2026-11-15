@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.memorialEpigraphs` | off | Adds the same epigraph to the end screen and character dump, chosen for the ending. | Yes. |
 | `qol.pauseObjectFeeling` | off | Waits after the object part of a level feeling, unless Auto-more skips the wait. | Yes. |
 | `qol.contextHelp` | off | Shows a help line under the selected action in the item context menu. | Yes. |
 | `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text, and leaves tables, art, and aligned lines as laid out. | Yes. |

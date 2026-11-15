@@ -48,6 +48,7 @@ import { clearTownLava, type TownCore, type TownLevel } from "./town-lava";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
 import { rejoinProse, rejoinScreenProse } from "./rejoin-prose";
 import { installContextHelp } from "./context-help";
+import { memorialLine } from "./memorial";
 
 /**
  * How many parse errors one pref file may report before the rest go unmentioned.
@@ -86,6 +87,7 @@ export default {
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};
+    if (flags["qol.memorialEpigraphs"] === true) hooks.runEndLine = memorialLine;
     if (flags["qol.rejoinProse"] === true) {
       hooks.screenText = rejoinScreenProse;
       hooks.characterBackground = rejoinProse;
