@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Rejoin wrapped prose
+
+Rejoin wrapped prose joins hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. The game wraps the joined text to the current width. Tables, key hints, ASCII art, aligned lines, and indented text keep their layout. Raw help-page lines, message text, and protected mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
+
 ### Richer weapon and armor shops
 
 Richer weapon and armor shops raises the poorest Armoury and Weaponsmith owners' payment limits from 5000 to 10000 gold per item. Other owners and shops keep their limits. The setting is off by default and takes effect after a reload.

@@ -45,6 +45,13 @@
     ],
     "rules": [
       {
+        "flag": "qol.rejoinProse",
+        "title": "Rejoin wrapped prose",
+        "description": "Join wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, art, and aligned lines keep their layout.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "flag": "qol.noTownLava",
         "title": "No lava in town",
         "description": "Puts granite wherever the town would have had lava, and lava in the dungeon stays as it is. Takes effect after a reload.",
