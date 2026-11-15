@@ -89,6 +89,7 @@ export default {
     const hooks: Api2Hooks = {};
     if (flags["qol.memorialEpigraphs"] === true) hooks.runEndLine = memorialLine;
     if (flags["qol.rejoinProse"] === true) {
+      hooks.helpText = (text, site) => site.kind === "paragraph" ? rejoinProse(text) : null;
       hooks.screenText = rejoinScreenProse;
       hooks.characterBackground = rejoinProse;
       hooks.objectInfoText = (text, site) => site.section === "flavor" ? rejoinProse(text) : text;

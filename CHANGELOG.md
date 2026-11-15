@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] Rejoin wrapped prose now reflows classified help paragraphs to the current width and preserves tables, key hints, art, and aligned groups.
+
 - [Visible] [UI] An optional setting adds memorial epigraphs to death, retirement, and victory screens and the character dump.
 
 - [Visible] [UI] An optional setting pauses after the object part of a level feeling. Auto-more still skips the wait.

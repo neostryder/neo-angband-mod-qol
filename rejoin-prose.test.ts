@@ -29,10 +29,23 @@ describe("rejoining prose", () => {
   it("installs no text hooks with the setting off", () => {
     for (const flags of [{}, { "qol.rejoinProse": false }]) {
       const hooks = plugin.hooks({ id: "qol", flags });
+      expect(hooks.helpText).toBeUndefined();
       expect(hooks.screenText).toBeUndefined();
       expect(hooks.characterBackground).toBeUndefined();
       expect(hooks.objectInfoText).toBeUndefined();
     }
+  });
+
+  it("opts classified help paragraphs into wrapping and preserves every layout group", () => {
+    const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } });
+    const paragraph = Object.freeze({ sourceBlock: 0, kind: "paragraph" as const, text: prose.replace("\n", " "), lines: Object.freeze(prose.split("\n").map((text) => Object.freeze({ text }))) });
+    const page = Object.freeze([paragraph]);
+    expect(hooks.helpText?.(paragraph.text, { screen: "core:help-guide", kind: "paragraph", index: 0, page })).toBe(paragraph.text);
+    expect(hooks.helpText?.("", { screen: "core:help-guide", kind: "paragraph", index: 1, page })).toBe("");
+    for (const kind of ["table", "key-hints", "art", "aligned"] as const) {
+      expect(hooks.helpText?.(prose, { screen: "core:help-guide", kind, index: 1, page })).toBeNull();
+    }
+    expect(page[0]).toBe(paragraph);
   });
 
   it("transforms only semantic prose and flavor descriptions through the plugin", () => {

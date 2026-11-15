@@ -69,7 +69,7 @@
       {
         "flag": "qol.rejoinProse",
         "title": "Rejoin wrapped prose",
-        "description": "Join hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, ASCII art, and aligned lines keep their layout.",
+        "description": "Join hard-wrapped paragraphs in classified help pages, semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, ASCII art, and aligned lines keep their layout.",
         "default": false,
         "requiresReload": true
       },
