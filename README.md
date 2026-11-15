@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Fragile town books
+
+Fragile town books lets acid destroy the spell books sold in town; fire already destroys those books. Dungeon-only books keep their protection from acid, fire, cold, and lightning. Each class's book data defines which books are town books. The setting is off by default and takes effect after a reload.
+
 ### Fragile food
 
 Fragile food lets fire and acid destroy food and mushrooms. It applies to carried items and floor piles. The setting is off by default and takes effect after a reload.

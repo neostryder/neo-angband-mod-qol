@@ -46,12 +46,12 @@ function records(file: string, sections: readonly string[] = []): JsonRecord[] {
   return [...composePacks(units.map((unit) => unit.content)).get(file)!.values()].map((record) => record.value);
 }
 
-function registry(sections: readonly string[] = []): ObjRegistry {
+function registry(sections: readonly string[] = [], withMod = true): ObjRegistry {
   const reg = new ObjRegistry(Object.fromEntries(Object.entries({
     objectBase: "object_base", object: "object", egoItem: "ego_item", artifact: "artifact",
     curse: "curse", brand: "brand", slay: "slay", activation: "activation",
     objectProperty: "object_property", flavor: "flavor",
-  }).map(([key, file]) => [key, file === "object_base"
+  }).map(([key, file]) => [key, file === "object_base" && withMod
     ? { ...loadPackFile(file) as object, records: records(file, sections) }
     : loadPackFile(file)])) as unknown as ObjPackJson);
   registerBookKinds(reg, players.classes);
@@ -90,7 +90,7 @@ describe("fragile food", () => {
   for (const tval of [TV.FOOD, TV.MUSHROOM]) {
     for (const element of [ELEM.FIRE, ELEM.ACID]) {
       it(`destroys ${String(tval)} with element ${String(element)} through inven_damage only when enabled`, () => {
-        const faithful = registry();
+        const faithful = registry([], false);
         const patched = registry(["qol-fragile-food"]);
         const kind = faithful.kinds.find((k) => k.tval === tval)!;
         const before = attack(faithful, kind, element);
@@ -106,4 +106,44 @@ describe("fragile food", () => {
       });
     }
   }
+});
+
+describe("fragile town books", () => {
+  it("defaults off and changes only the four book bases", () => {
+    expect(manifest.sections?.find((s) => s.id === "qol-fragile-town-books")?.default).toBe(false);
+    const base = loadPackRecords("object_base") as JsonRecord[];
+    const patched = records("object_base", ["qol-fragile-town-books"]);
+    const changed = patched.filter((record, index) => JSON.stringify(record) !== JSON.stringify(base[index]));
+    expect(changed.map((record) => (record.name as JsonRecord).tval).sort()).toEqual(
+      ["magic book", "prayer book", "nature book", "shadow book"].sort(),
+    );
+  });
+
+  for (const element of [ELEM.FIRE, ELEM.ACID]) {
+    it(`uses class book quality to keep dungeon books safe from element ${String(element)}`, () => {
+      const faithful = registry([], false);
+      const off = registry();
+      const on = registry(["qol-fragile-town-books"]);
+      const books = new Map(players.classes.flatMap((cls) => cls.magic.books.map((book) => [book.name, book])));
+      expect(books.size).toBe(20);
+      for (const book of books.values()) {
+        const beforeKind = faithful.kinds.find((kind) => kind.name === book.name)!;
+        const before = attack(faithful, beforeKind, element);
+        expect(attack(off, off.kinds[beforeKind.kidx]!, element), book.name).toEqual(before);
+        const after = attack(on, on.kinds[beforeKind.kidx]!, element);
+        expect(after.killed, book.name).toBe(book.dungeon ? 0 : 5);
+        expect(before.killed, book.name).toBe(book.dungeon || element === ELEM.ACID ? 0 : 5);
+        if (book.dungeon || element === ELEM.FIRE) expect(after, book.name).toEqual(before);
+      }
+    });
+  }
+
+  it("keeps the food and book sections independent", () => {
+    const on = registry(["qol-fragile-town-books"]);
+    const food = on.kinds.find((kind) => kind.tval === TV.FOOD)!;
+    expect(attack(on, food, ELEM.FIRE).killed).toBe(0);
+    const foodOnly = registry(["qol-fragile-food"]);
+    const townBook = foodOnly.kinds.find((kind) => kind.name === "[First Spells]")!;
+    expect(attack(foodOnly, townBook, ELEM.ACID).killed).toBe(0);
+  });
 });

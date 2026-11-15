@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.fragileTownBooks` | off | Lets acid destroy town spell books and keeps dungeon books protected. | Yes. |
 | `qol.fragileFood` | off | Lets fire and acid destroy food and mushrooms. | Yes. |
 | `qol.noTownLava` | off | Turns lava in the town into granite. | Yes. |
 | `qol.gearComparison` | off | Adds "Compare gear..." to the Game menu to show how an item would change your character in a worn slot. | Yes. |

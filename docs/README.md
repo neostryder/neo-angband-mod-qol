@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Fragile town books | `qol.fragileTownBooks` | off | Fire and acid can destroy town spell books; dungeon books stay protected. |
 | Fragile food | `qol.fragileFood` | off | Fire and acid can destroy food and mushrooms. |
 | No lava in town | `qol.noTownLava` | off | An optional setting that turns town lava into granite and leaves the rest of the town and the dungeon alone. |
 | Gear comparison | `qol.gearComparison` | off | Gear comparison shows how wearing a known item in a slot would change your character, with before, after, and delta values from the game. |
