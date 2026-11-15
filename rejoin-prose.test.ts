@@ -48,6 +48,14 @@ describe("rejoining prose", () => {
     expect(page[0]).toBe(paragraph);
   });
 
+  it("preserves layout markers in raw rows even when the help classifier calls them paragraphs", () => {
+    const hook = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } }).helpText!;
+    for (const lines of [["Name | Weight", "Sword | 10 lb"], ["  This paragraph is indented.", "  Its indentation carries layout."], ["- The first list item", "- The second list item"]]) {
+      const group = { sourceBlock: 0, kind: "paragraph" as const, text: lines.map((line) => line.trim()).join(" "), lines: lines.map((text) => ({ text })) };
+      expect(hook(group.text, { screen: "core:text", kind: "paragraph", index: 0, page: [group] })).toBeNull();
+    }
+  });
+
   it("transforms only semantic prose and flavor descriptions through the plugin", () => {
     const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } });
     for (const part of ["prose", "detail"] as const) {

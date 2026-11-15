@@ -882,6 +882,12 @@ function rejoinProse(text) {
     return lines.length > 1 && lines.every(plainLine) ? lines.join(" ") : paragraph;
   }).join("");
 }
+function rejoinHelpProse(text, site) {
+  if (site.kind !== "paragraph") return null;
+  const group = site.page[site.index];
+  if (group?.lines.some((line) => line.text.trim() !== "" && !plainLine(line.text))) return null;
+  return rejoinProse(text);
+}
 function rejoinScreenProse(text, site) {
   return site.part === "prose" || site.part === "detail" ? rejoinProse(text) : text;
 }
@@ -1097,7 +1103,7 @@ var plugin_default = {
     const hooks = {};
     if (flags["qol.memorialEpigraphs"] === true) hooks.runEndLine = memorialLine;
     if (flags["qol.rejoinProse"] === true) {
-      hooks.helpText = (text, site) => site.kind === "paragraph" ? rejoinProse(text) : null;
+      hooks.helpText = rejoinHelpProse;
       hooks.screenText = rejoinScreenProse;
       hooks.characterBackground = rejoinProse;
       hooks.objectInfoText = (text, site) => site.section === "flavor" ? rejoinProse(text) : text;

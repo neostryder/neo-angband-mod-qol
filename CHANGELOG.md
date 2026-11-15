@@ -34,6 +34,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] Rejoin wrapped prose preserves layout markers in raw help rows even when the host classifies them as paragraphs.
+
 - [Visible] [UI] Command-browser help stays with the action when another mod changes its key.
 
 - [Visible] [UI] Gear comparison labels learned spell rows by name and uses "fail chance (%)" for the failure row.

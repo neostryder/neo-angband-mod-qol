@@ -46,7 +46,7 @@ import { GearComparisonManager } from "./gear-comparison";
 import { LoadoutManager } from "./loadouts";
 import { clearTownLava, type TownCore, type TownLevel } from "./town-lava";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
-import { rejoinProse, rejoinScreenProse } from "./rejoin-prose";
+import { rejoinHelpProse, rejoinProse, rejoinScreenProse } from "./rejoin-prose";
 import { installContextHelp } from "./context-help";
 import { memorialLine } from "./memorial";
 
@@ -89,7 +89,7 @@ export default {
     const hooks: Api2Hooks = {};
     if (flags["qol.memorialEpigraphs"] === true) hooks.runEndLine = memorialLine;
     if (flags["qol.rejoinProse"] === true) {
-      hooks.helpText = (text, site) => site.kind === "paragraph" ? rejoinProse(text) : null;
+      hooks.helpText = rejoinHelpProse;
       hooks.screenText = rejoinScreenProse;
       hooks.characterBackground = rejoinProse;
       hooks.objectInfoText = (text, site) => site.section === "flavor" ? rejoinProse(text) : text;

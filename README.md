@@ -73,7 +73,7 @@ Context help shows a help line under the selected action in the item context men
 
 ### Rejoin wrapped prose
 
-Rejoin wrapped prose joins hard-wrapped paragraphs in classified help pages, semantic prose blocks, character backgrounds, and item flavor descriptions, then wraps the joined text to the current width. Tables, key hints, ASCII art, aligned and indented lines, message text, and mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
+Rejoin wrapped prose joins hard-wrapped paragraphs in classified help pages, semantic prose blocks, character backgrounds, and item flavor descriptions, then wraps the joined text to the current width. Help paragraphs with layout markers keep their original rows. Tables, key hints, ASCII art, aligned and indented lines, message text, and mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
 
 ### Richer weapon and armor shops
 

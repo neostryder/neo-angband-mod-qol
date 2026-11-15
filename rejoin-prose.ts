@@ -1,4 +1,4 @@
-import type { Api2ScreenTextSite } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2HelpTextSite, Api2ScreenTextSite } from "@rpgm-tools/neo-angband-mod-sdk";
 
 function plainLine(line: string): boolean {
   return /^[A-Za-z"'][^\t]*\S$/u.test(line)
@@ -13,6 +13,14 @@ export function rejoinProse(text: string): string {
     // A paragraph with layout markers stays intact because its line breaks can carry meaning.
     return lines.length > 1 && lines.every(plainLine) ? lines.join(" ") : paragraph;
   }).join("");
+}
+
+export function rejoinHelpProse(text: string, site: Api2HelpTextSite): string | null {
+  if (site.kind !== "paragraph") return null;
+  const group = site.page[site.index];
+  // The original rows protect layouts that the host classifies as prose.
+  if (group?.lines.some((line) => line.text.trim() !== "" && !plainLine(line.text))) return null;
+  return rejoinProse(text);
 }
 
 export function rejoinScreenProse(text: string, site: Api2ScreenTextSite): string {
