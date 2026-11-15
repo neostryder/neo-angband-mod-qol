@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [Modding-API] **Gear comparison and loadout commands now register under the QoL mod's owned ids.** The API 2 host rejected the unprefixed ids, leaving these commands unavailable (neostryder/neo-angband#505).
+
 ## 1.14.0-beta.2 - 2026-10-30
 
 ### Changed
