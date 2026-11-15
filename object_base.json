@@ -1,0 +1,32 @@
+{
+  "sections": {
+    "qol-fragile-food": {
+      "fieldPatches": {
+        "core:food": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_FIRE"
+          },
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ],
+        "core:mushroom": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_FIRE"
+          },
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ]
+      }
+    }
+  }
+}

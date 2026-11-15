@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Fragile food
+
+Fragile food lets fire and acid destroy food and mushrooms. It applies to carried items and floor piles. The setting is off by default and takes effect after a reload.
+
 ### No lava in town
 
 No lava in town fills every grid where the town would have had lava with granite, the same rock that fills the rest of the town and sits beside the stairs. Buildings, monsters, items, your starting spot, and every level generated afterward come out as they would have without it, and dungeon lava is untouched. The setting is off by default and takes effect after a reload. With it off, towns generate exactly as in Angband 4.2.6.
