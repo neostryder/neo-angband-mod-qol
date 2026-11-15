@@ -43,7 +43,7 @@ describe("item context help", () => {
     expect(h.menus.register).toHaveBeenCalledWith(MENU_ID, expect.any(Function));
     const result = h.transform();
     expect(result.map((row) => row.hint)).toEqual([
-      "Read the item's known properties.", "Wear or wield this item in a matching slot.", "Drink this potion.",
+      "Show what you have learned about this item so far.", "Wear or wield it in the matching equipment slot.", "Drink the potion.",
     ]);
     expect(result.map(({ hint: _hint, ...row }) => row)).toEqual(rows);
   });
@@ -66,7 +66,7 @@ describe("item context help", () => {
     const previous = vi.fn((_id: string, input: readonly MenuTransformRow[]) => input.map((row) => ({ ...row, label: `Known: ${row.label}`, disabled: true })));
     const h = harness({}, previous);
     installContextHelp(h.mod);
-    expect(h.transform()[0]).toMatchObject({ id: "inspect", label: "Known: Inspect", disabled: true, hint: "Read the item's known properties." });
+    expect(h.transform()[0]).toMatchObject({ id: "inspect", label: "Known: Inspect", disabled: true, hint: "Show what you have learned about this item so far." });
     expect(previous).toHaveBeenCalledWith(MENU_ID, rows);
   });
 
@@ -79,7 +79,7 @@ describe("item context help", () => {
       },
     });
     installContextHelp(mod);
-    expect(h.transform()[0]?.hint).toBe("Read the item's known properties.");
+    expect(h.transform()[0]?.hint).toBe("Show what you have learned about this item so far.");
     expect(h.menus.register).toHaveBeenCalledTimes(1);
   });
 

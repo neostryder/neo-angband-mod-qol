@@ -15,10 +15,10 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
-| Context help | `qol.contextHelp` | off | Adds help for the selected action in the item context menu. |
-| Rejoin wrapped prose | `qol.rejoinProse` | off | Joins wrapped semantic prose, character backgrounds, and item flavor text. |
+| Context help | `qol.contextHelp` | off | Explains the selected action in the item context menu. |
+| Rejoin wrapped prose | `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text. |
 | Richer weapon and armor shops | `qol.richerShops` | off | The poorest Armoury and Weaponsmith owners pay up to 10000 gold per item. |
-| Fragile town books | `qol.fragileTownBooks` | off | Fire and acid can destroy town spell books; dungeon books stay protected. |
+| Fragile town books | `qol.fragileTownBooks` | off | Fire and acid can destroy town spell books, while dungeon books stay protected. |
 | Fragile food | `qol.fragileFood` | off | Fire and acid can destroy food and mushrooms. |
 | No lava in town | `qol.noTownLava` | off | An optional setting that turns town lava into granite and leaves the rest of the town and the dungeon alone. |
 | Gear comparison | `qol.gearComparison` | off | Gear comparison shows how wearing a known item in a slot would change your character, with before, after, and delta values from the game. |

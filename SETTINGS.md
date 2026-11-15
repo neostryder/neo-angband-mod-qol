@@ -4,10 +4,10 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
-| `qol.contextHelp` | off | Adds a help line for the selected action in the item context menu. | Yes. |
-| `qol.rejoinProse` | off | Joins wrapped semantic prose, character backgrounds, and item flavor text while preserving layout markers. | Yes. |
-| `qol.richerShops` | off | Raises the poorest Armoury and Weaponsmith owners' payment limits to 10000 gold per item. | Yes. |
-| `qol.fragileTownBooks` | off | Lets acid destroy town spell books and keeps dungeon books protected. | Yes. |
+| `qol.contextHelp` | off | Shows a help line under the selected action in the item context menu. | Yes. |
+| `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text, and leaves tables, art, and aligned lines as laid out. | Yes. |
+| `qol.richerShops` | off | Raises the poorest Armoury and Weaponsmith owners' limits from 5000 to 10000 gold per item. | Yes. |
+| `qol.fragileTownBooks` | off | Lets acid destroy town spell books, while dungeon books stay protected. | Yes. |
 | `qol.fragileFood` | off | Lets fire and acid destroy food and mushrooms. | Yes. |
 | `qol.noTownLava` | off | Turns lava in the town into granite. | Yes. |
 | `qol.gearComparison` | off | Adds "Compare gear..." to the Game menu to show how an item would change your character in a worn slot. | Yes. |

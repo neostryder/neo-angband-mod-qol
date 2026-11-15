@@ -47,14 +47,14 @@
       {
         "flag": "qol.contextHelp",
         "title": "Context help",
-        "description": "Show a help line for the selected action in the item context menu.",
+        "description": "Show a help line under the selected action in the item context menu.",
         "default": false,
         "requiresReload": true
       },
       {
         "flag": "qol.rejoinProse",
         "title": "Rejoin wrapped prose",
-        "description": "Join wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, art, and aligned lines keep their layout.",
+        "description": "Join hard-wrapped paragraphs in semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, ASCII art, and aligned lines keep their layout.",
         "default": false,
         "requiresReload": true
       },
@@ -147,7 +147,7 @@
         "id": "qol-richer-shops",
         "flag": "qol.richerShops",
         "title": "Richer weapon and armor shops",
-        "description": "The poorest Armoury and Weaponsmith owners can each pay up to 10000 gold per item.",
+        "description": "The poorest Armoury owner and the poorest Weaponsmith owner each pay up to 10000 gold per item, up from 5000.",
         "default": false,
         "requiresReload": true
       },
@@ -155,7 +155,7 @@
         "id": "qol-fragile-town-books",
         "flag": "qol.fragileTownBooks",
         "title": "Fragile town books",
-        "description": "Fire and acid can destroy town spell books. Dungeon books keep their elemental protection.",
+        "description": "Acid can destroy town spell books, as fire already does. Dungeon books keep their protection from acid, fire, cold, and lightning.",
         "default": false,
         "requiresReload": true
       },
