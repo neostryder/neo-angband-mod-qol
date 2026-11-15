@@ -1,5 +1,37 @@
 {
   "sections": {
+    "qol-fragile-town-books": {
+      "fieldPatches": {
+        "core:magic-book": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ],
+        "core:prayer-book": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ],
+        "core:nature-book": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ],
+        "core:shadow-book": [
+          {
+            "op": "addFlag",
+            "path": "flags",
+            "flag": "HATES_ACID"
+          }
+        ]
+      }
+    },
     "qol-fragile-food": {
       "fieldPatches": {
         "core:food": [

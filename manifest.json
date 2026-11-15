@@ -130,6 +130,14 @@
     ],
     "sections": [
       {
+        "id": "qol-fragile-town-books",
+        "flag": "qol.fragileTownBooks",
+        "title": "Fragile town books",
+        "description": "Fire and acid can destroy town spell books. Dungeon books keep their elemental protection.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "id": "qol-fragile-food",
         "flag": "qol.fragileFood",
         "title": "Fragile food",
