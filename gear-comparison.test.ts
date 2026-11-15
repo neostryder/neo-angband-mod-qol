@@ -53,7 +53,7 @@ const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
 describe("known comparison rows", () => {
   it("shows every scalar and unchanged values", () => {
     const rows = comparisonRows(simulation());
-    for (const label of ["Speed (110 is normal)", "Base armor class", "Armor bonus", "Total armor class", "Global hit bonus", "Global damage bonus", "Blows per turn", "Shots per turn", "Extra movement actions", "Ammo multiplier", "Ammo type (tval)", "Flat damage reduction", "Damage reduction (%)", "Infravision (grids)", "Light radius (grids)", "Comfortable weapon weight (lb)", "Weapon too heavy", "Launcher too heavy", "Blessed-weapon class satisfied", "Armor reduces spell points", "Maximum hit points", "Maximum spell points", "Carried weight (lb)", "Weight limit (lb)"]) expect(rows.some((row) => row.label === label), label).toBe(true);
+    for (const label of ["Speed (110 is normal)", "Base armor class", "Armor bonus", "Total armor class", "Global to-hit", "Global to-dam", "Blows per turn", "Shots per turn", "Extra movement", "Ammo multiplier", "Ammo type (tval)", "Flat damage reduction", "Damage reduction (%)", "Infravision (grids)", "Light radius (grids)", "Comfortable weapon weight (lb)", "Weapon too heavy", "Launcher too heavy", "Blessed weapon rule met", "Armor reduces spell points", "Max hit points", "Max spell points", "Carried weight (lb)", "Weight limit (lb)"]) expect(rows.some((row) => row.label === label), label).toBe(true);
     expect(rows.find((row) => row.label.startsWith("Speed"))).toEqual({ label: "Speed (110 is normal)", before: "110", after: "110", delta: "0" });
   });
 
@@ -71,7 +71,7 @@ describe("known comparison rows", () => {
   it("labels all stats, skills, and resistance entries", () => {
     const rows = comparisonRows(simulation({ resists: [1, 0, 0] }, { resists: [0, 1, -1] }));
     expect(rows.filter((row) => row.label.startsWith("Equipment modifier:"))).toHaveLength(5);
-    expect(rows.filter((row) => row.label.startsWith("Stat in play"))).toHaveLength(5);
+    expect(rows.filter((row) => row.label.startsWith("Current stat"))).toHaveLength(5);
     expect(rows.filter((row) => row.label.startsWith("Undrained stat"))).toHaveLength(5);
     expect(rows.filter((row) => row.label.startsWith("Stat table index"))).toHaveLength(5);
     expect(rows.filter((row) => row.label.startsWith("Skill:"))).toHaveLength(10);
@@ -90,7 +90,7 @@ describe("known comparison rows", () => {
 
   it("shows armor mana loss, boolean transitions, and ammo type changes", () => {
     const rows = comparisonRows(simulation({}, { maxSp: 10, cumberArmor: true, heavyWield: true, ammoTval: 17 }));
-    expect(rows.find((row) => row.label === "Maximum spell points")).toMatchObject({ delta: "-10" });
+    expect(rows.find((row) => row.label === "Max spell points")).toMatchObject({ delta: "-10" });
     expect(rows.find((row) => row.label === "Armor reduces spell points")).toMatchObject({ before: "no", after: "yes", delta: "set" });
     expect(rows.find((row) => row.label === "Ammo type (tval)")).toMatchObject({ before: "0", after: "17", delta: "changed" });
   });
@@ -104,8 +104,8 @@ describe("known comparison rows", () => {
     const sim = simulation({}, {}, { unknownRunes: true });
     const panel = comparisonPanel({ ...sim, unresolved: [{ from: "gear", handle: 9 }] }, "Unknown sword", "weapon");
     const text = texts(panel.root).join(" ");
-    expect(text).toContain("Unknown runes remain unknown"); expect(text).toContain("zero delta does not rule out");
-    expect(text).toContain("comparison is incomplete"); expect(text).toContain("Spell failure, spell costs, and attack damage are unavailable");
+    expect(text).toContain("Unknown runes are not counted"); expect(text).toContain("zero delta can still hide an effect");
+    expect(text).toContain("comparison is incomplete"); expect(text).toContain("Spell failure, spell costs, and attack damage are not available");
   });
 
   it("keeps every panel group within the host's limits", () => {
@@ -139,7 +139,7 @@ describe("comparison panel flow", () => {
   it("requests Core's slot comparison and shows it without submitting actions", async () => {
     const h = harness(); await h.manager.open(); h.action("item-0"); await flush();
     expect(h.inspect).toHaveBeenCalledExactlyOnceWith({ from: "gear", handle: 1 });
-    expect(h.text()).toContain("Before After Delta"); expect(h.text()).toContain("Maximum spell points");
+    expect(h.text()).toContain("Before After Delta"); expect(h.text()).toContain("Max spell points");
     expect(h.mount).toHaveBeenCalledTimes(1); expect(h.patch).toHaveBeenCalledTimes(1);
   });
 
@@ -148,7 +148,7 @@ describe("comparison panel flow", () => {
     h.inspect.mockResolvedValueOnce({ ok: true, value: { token: { epoch: 1, revision: 1 }, slots: [{ slot: 2, name: "left hand", comparison: simulation({}, { speed: 115 }) }, { slot: 3, name: "right hand", comparison: simulation({}, { speed: 105 }) }] } });
     await h.manager.open(); h.action("item-0"); await flush();
     expect(h.panels.at(-1)?.root).toMatchObject({ children: expect.arrayContaining([expect.objectContaining({ type: "column", children: expect.arrayContaining([expect.objectContaining({ action: "slot-0", label: "left hand" }), expect.objectContaining({ action: "slot-1", label: "right hand" })]) })]) });
-    h.action("slot-1"); await flush(); expect(h.text()).toContain("Compare in right hand"); expect(h.text()).toContain("-5");
+    h.action("slot-1"); await flush(); expect(h.text()).toContain("Comparing in right hand"); expect(h.text()).toContain("-5");
   });
 
   it("refreshes stale choices before calling the simulator", async () => {
@@ -159,7 +159,7 @@ describe("comparison panel flow", () => {
 
   it("reports non-wearable items without displaying invented stats", async () => {
     const h = harness(); h.inspect.mockResolvedValueOnce({ ok: true, value: { token: { epoch: 1, revision: 1 }, slots: [] } });
-    await h.manager.open(); h.action("item-0"); await flush(); expect(h.text()).toContain("no worn-slot comparison");
+    await h.manager.open(); h.action("item-0"); await flush(); expect(h.text()).toContain("no worn slot to compare");
   });
 
   it("paginates a pack and returns to refreshed item choices", async () => {

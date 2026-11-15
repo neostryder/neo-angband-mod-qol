@@ -46,14 +46,14 @@
       {
         "flag": "qol.gearComparison",
         "title": "Gear comparison",
-        "description": "Compare known gear in each legal worn slot with before, after, and delta values from the game. Unknown runes remain unknown.",
+        "description": "See how an item would change your character in any slot it fits, using the game's own before, after, and delta values. The comparison counts only runes your character has learned.",
         "default": false,
         "requiresReload": true
       },
       {
         "flag": "qol.loadouts",
         "title": "Loadouts",
-        "description": "Save named worn-gear sets on this character and restore them through ordinary wear and takeoff commands. Each command spends its normal game time. Pack overflow can drop items.",
+        "description": "Save named sets of worn gear for this character and put them back on with ordinary wear and take-off commands, each taking normal game time. A full pack can drop an item during a swap.",
         "default": false,
         "requiresReload": true
       },

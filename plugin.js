@@ -283,31 +283,31 @@ var NUMBERS = [
   ["baseAc", "Base armor class", 1],
   ["toA", "Armor bonus", 1],
   ["ac", "Total armor class", 1],
-  ["toH", "Global hit bonus", 1],
-  ["toD", "Global damage bonus", 1],
+  ["toH", "Global to-hit", 1],
+  ["toD", "Global to-dam", 1],
   ["blows", "Blows per turn", 100],
   ["shots", "Shots per turn", 10],
-  ["moves", "Extra movement actions", 1],
+  ["moves", "Extra movement", 1],
   ["ammoMult", "Ammo multiplier", 1],
   ["damRed", "Flat damage reduction", 1],
   ["percDamRed", "Damage reduction (%)", 1],
   ["seeInfra", "Infravision (grids)", 1],
   ["light", "Light radius (grids)", 1],
   ["hold", "Comfortable weapon weight (lb)", 1],
-  ["maxHp", "Maximum hit points", 1],
-  ["maxSp", "Maximum spell points", 1],
+  ["maxHp", "Max hit points", 1],
+  ["maxSp", "Max spell points", 1],
   ["totalWeight", "Carried weight (lb)", 10],
   ["weightLimit", "Weight limit (lb)", 10]
 ];
 var BOOLEANS = [
   ["heavyWield", "Weapon too heavy"],
   ["heavyShoot", "Launcher too heavy"],
-  ["blessWield", "Blessed-weapon class satisfied"],
+  ["blessWield", "Blessed weapon rule met"],
   ["cumberArmor", "Armor reduces spell points"]
 ];
 var STATS = ["STR", "INT", "WIS", "DEX", "CON"];
 var SKILLS = ["Physical disarming", "Magical disarming", "Magic devices", "Saving throw", "Searching", "Stealth", "Melee accuracy", "Shooting accuracy", "Throwing accuracy", "Digging"];
-var VECTORS = [["statAdd", "Equipment modifier"], ["statUse", "Stat in play (encoded)"], ["statTop", "Undrained stat (encoded)"], ["statInd", "Stat table index"], ["skills", "Skill"], ["resists", "Resistance level"]];
+var VECTORS = [["statAdd", "Equipment modifier"], ["statUse", "Current stat (encoded)"], ["statTop", "Undrained stat (encoded)"], ["statInd", "Stat table index"], ["skills", "Skill"], ["resists", "Resistance level"]];
 function number(value, scale = 1, signed = false) {
   if (value === void 0) return "unknown";
   const formatted = String(Number((value / scale).toFixed(4)));
@@ -350,10 +350,10 @@ function comparisonPanel(simulation, title, slot) {
     ...comparisonRows(simulation).map((row) => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) }))
   ];
   return { id: "gear-comparison", title, modal: true, root: { type: "column", children: [
-    { type: "text", text: "Compare in " + slot + ". These values use only learned runes." },
-    ...simulation.delta.unknownRunes ? [{ type: "text", text: "Unknown runes remain unknown. A zero delta does not rule out an unknown effect." }] : [],
-    ...simulation.unresolved.length ? [{ type: "text", text: "Some item references could not be resolved. This comparison is incomplete." }] : [],
-    { type: "text", text: "Global hit and damage bonuses exclude the weapon's own bonuses. Spell failure, spell costs, and attack damage are unavailable for hypothetical gear." },
+    { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
+    ...simulation.delta.unknownRunes ? [{ type: "text", text: "Unknown runes are not counted, so a zero delta can still hide an effect." }] : [],
+    ...simulation.unresolved.length ? [{ type: "text", text: "Some items could not be found, so this comparison is incomplete." }] : [],
+    { type: "text", text: "Global to-hit and to-dam leave out the weapon's own bonuses. Spell failure, spell costs, and attack damage are not available for hypothetical gear." },
     ...grouped(rows),
     { type: "button", label: "Choose another item", action: "items" }
   ] } };
@@ -425,7 +425,7 @@ var GearComparisonManager = class {
       page = Math.max(0, Math.min(page, Math.ceil(candidates.length / 16) - 1));
       const start = page * 16;
       await show({ id: "gear-comparison", title: "Compare gear", modal: true, root: { type: "column", children: [
-        { type: "text", text: message || (!read.ok ? read.message : candidates.length ? "Choose an item, then a worn slot." : "No known items are available for comparison.") },
+        { type: "text", text: message || (!read.ok ? read.message : candidates.length ? "Choose an item, then a slot to compare it in." : "No known items to compare. Carry an item, stand on one, or visit a store.") },
         ...candidates.slice(start, start + 16).map((candidate, index) => ({ type: "button", label: candidate.label, action: "item-" + String(start + index) })),
         { type: "row", children: [
           { type: "button", label: "Previous page", action: "previous", disabled: page === 0 },
@@ -466,7 +466,7 @@ var GearComparisonManager = class {
           comparedToken = result.value.token;
           title = candidate.label;
           if (!slots.length) {
-            await items("This item has no worn-slot comparison.");
+            await items("This item has no worn slot to compare.");
             return;
           }
           if (slots.length === 1) {
@@ -490,7 +490,7 @@ var GearComparisonManager = class {
           if (slot) await show(comparisonPanel(slot.comparison, title, slot.name));
         }
       } catch {
-        if (current()) await items("The comparison could not be read.");
+        if (current()) await items("Could not read the comparison.");
       } finally {
         busy = false;
       }
@@ -499,7 +499,7 @@ var GearComparisonManager = class {
       await items();
     } catch {
       this.openPanel = false;
-      this.mod.meta.log("The comparison could not be opened.");
+      this.mod.meta.log("Could not open the comparison.");
     }
   }
 };
@@ -578,7 +578,7 @@ var LoadoutManager = class {
     const world = await this.world();
     if (!stored.ok || !world) {
       this.menuOpen = false;
-      await this.report("Loadouts are unavailable for this character.");
+      await this.report("Loadouts are not available for this character.");
       return;
     }
     let sets = readLoadouts(stored.value);
@@ -589,9 +589,9 @@ var LoadoutManager = class {
       title: "Loadouts",
       modal: true,
       root: { type: "column", children: [
-        { type: "text", text: "Save worn gear, including empty slots. Quiver contents stay under the game's control. Pack overflow can drop items during a swap." },
+        { type: "text", text: "Save what you are wearing, empty slots included. The game manages the quiver. A full pack can drop an item during a swap." },
         { type: "input", label: "Loadout name", action: "name", value: name },
-        { type: "button", label: "Save worn gear", action: "save" },
+        { type: "button", label: "Save loadout", action: "save" },
         { type: "text", text: message },
         ...sets.map((set, index) => ({ type: "row", children: [
           { type: "text", text: set.name },
@@ -614,7 +614,7 @@ var LoadoutManager = class {
         if (action === "save" || action.startsWith("delete-")) {
           const bag = await this.mod.store.character.get();
           if (!bag.ok) {
-            await refresh("The loadouts could not be read.");
+            await refresh("Could not read the loadouts.");
             return;
           }
           const current = readLoadouts(bag.value);
@@ -622,13 +622,13 @@ var LoadoutManager = class {
           if (action === "save") {
             const clean = name.trim();
             if (!clean || clean.length > 64) {
-              await refresh("Use a name from 1 to 64 characters.");
+              await refresh("Use a name of 1 to 64 characters.");
               return;
             }
             const now = await this.world();
             if (!now) return;
             if (current.length >= LIMIT && !current.some((set) => set.name === clean)) {
-              await refresh("Delete a loadout before saving another. The limit is 20.");
+              await refresh("This character has 20 loadouts, the limit. Delete one to save another.");
               return;
             }
             next = [...current.filter((set) => set.name !== clean), captureLoadout(clean, now.equipment)];
@@ -640,7 +640,7 @@ var LoadoutManager = class {
           const saved = await this.mod.store.character.set(withLoadouts(bag.value, next));
           if (this.stopped) return;
           if (saved.ok) sets = next;
-          await refresh(saved.ok ? "The loadouts were saved." : "The loadouts could not be saved.");
+          await refresh(saved.ok ? "The loadouts are saved." : "Could not save the loadouts.");
         } else if (action.startsWith("restore-")) {
           const set = sets[Number(action.slice(8))];
           if (!set) return;
@@ -682,8 +682,8 @@ var LoadoutManager = class {
       const yes = await new Promise((resolve) => {
         this.confirming = resolve;
         void this.mod.ui.mount({ id: PANEL, title: "Loadouts", modal: true, root: { type: "column", children: [
-          { type: "text", text: "Really " + (key === "w" ? "wear " : "take off ") + (item.name ?? item.label) + "?" },
-          { type: "button", label: "Yes", action: "yes" },
+          { type: "text", text: (key === "w" ? "Wear " : "Take off ") + (item.name ?? item.label) + "?" },
+          { type: "button", label: "Continue swap", action: "yes" },
           { type: "button", label: "Cancel swap", action: "cancel" }
         ] } }, (action) => resolve(action === "yes"), () => resolve(false)).then((opened) => {
           if (!opened.ok) resolve(false);
@@ -705,7 +705,7 @@ var LoadoutManager = class {
       const first = await this.world();
       let hp = first?.player?.hp;
       if (!first || first.equipment.length !== set.slots.length) {
-        notes.push("The saved body slots are unavailable.");
+        notes.push("The saved body slots are not available.");
         return;
       }
       for (let attempt = 0; attempt < set.slots.length * 3; attempt++) {
@@ -717,7 +717,7 @@ var LoadoutManager = class {
         }
         hp = world.player?.hp;
         if (input.value.phase !== "play" || input.value.prompt || input.value.messagePending || input.value.driver.kind !== "player") {
-          notes.push("The swap stopped because the game is waiting for other input.");
+          notes.push("The swap stopped because the game needs other input.");
           break;
         }
         let command = null;
@@ -732,7 +732,7 @@ var LoadoutManager = class {
             const worn = world.equipment[slot] ?? null;
             const found = piece && locatePiece(world, piece, this.identities);
             if (piece && !found) {
-              notes.push(piece.name + ": not carried.");
+              notes.push(piece.name + ": you are not carrying it.");
               blocked.add(slot);
               continue;
             }
@@ -750,12 +750,12 @@ var LoadoutManager = class {
               } else {
                 const simulation = await this.mod.view.simulateLoadout({ wield: [{ from: "gear", handle: found.handle }] });
                 if (!simulation.ok || !simulation.value.placements.some((p) => p.slot === slot) && world.equipmentSlots?.[slot]?.type !== "RING") {
-                  notes.push(piece.name + ": the game cannot place this item in the saved slot.");
+                  notes.push(piece.name + ": the game cannot put this in the saved slot.");
                   blocked.add(slot);
                   continue;
                 }
                 if (world.equipmentSlots?.[slot]?.type === "RING" && !simulation.value.placements.some((p) => p.slot === slot) && simulation.value.placements.some((p) => p.displaced === null)) {
-                  notes.push(piece.name + ": the game cannot target this empty ring slot.");
+                  notes.push(piece.name + ": the game cannot fill this ring slot while the first ring slot is empty.");
                   blocked.add(slot);
                   continue;
                 }
@@ -779,11 +779,11 @@ var LoadoutManager = class {
         const fresh = await this.mod.view.input();
         if (!fresh.ok || this.stopped || this.interrupted) break;
         if (fresh.value.token.epoch !== input.value.token.epoch || fresh.value.token.revision !== input.value.token.revision) {
-          notes.push("The swap stopped because the game changed during confirmation.");
+          notes.push("The swap stopped because the game changed while you were confirming.");
           break;
         }
         if (fresh.value.phase !== "play" || fresh.value.prompt || fresh.value.messagePending) {
-          notes.push("The swap stopped because the game is waiting for other input.");
+          notes.push("The swap stopped because the game needs other input.");
           break;
         }
         const result = await this.mod.act.submit(fresh.value.token, { kind: "command", command });
@@ -810,19 +810,19 @@ var LoadoutManager = class {
           break;
         }
         if (!moved) {
-          notes.push(subject.label + ": the game did not move this item.");
+          notes.push(subject.label + ": the game did not move it.");
           blocked.add(target);
         }
       }
       const last = await this.world();
       if (last) {
         const lost = carried(first).filter((item) => !carried(last).some((now) => now.handle === item.handle));
-        for (const item of lost) notes.push(item.label + ": no longer carried after the swap.");
+        for (const item of lost) notes.push(item.label + ": you no longer carry it after the swap.");
         const complete = set.slots.every((piece, slot) => piece ? !!last.equipment[slot] && last.equipment[slot]?.handle === locatePiece(last, piece, this.identities)?.handle : !last.equipment[slot]);
-        notes.unshift(complete ? "The loadout is restored." : "The loadout is incomplete.");
+        notes.unshift(complete ? "The loadout is restored." : "The loadout is only partly restored.");
       }
     } catch {
-      notes.push("The swap stopped because a game API call failed.");
+      notes.push("The swap stopped because of a game error.");
     } finally {
       this.running = false;
       await this.report(set.name + ": " + notes.join(" "));

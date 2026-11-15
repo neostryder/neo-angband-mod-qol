@@ -126,18 +126,18 @@ describe("loadout swaps", () => {
   it("reports a missing item and leaves the existing item worn", async () => {
     const h = harness(); await h.manager.restore(captureLoadout("missing", [item(99)]));
     expect(h.submit).not.toHaveBeenCalled(); expect(h.state.equipment[0]?.handle).toBe(1);
-    expect(h.report()).toContain("not carried"); expect(h.report()).toContain("incomplete");
+    expect(h.report()).toContain("you are not carrying it"); expect(h.report()).toContain("only partly restored");
   });
 
   it("does not mistake a missing item and an empty slot for success", async () => {
     const h = harness([null], []); await h.manager.restore(captureLoadout("missing", [item(99)]));
-    expect(h.report()).toContain("incomplete");
+    expect(h.report()).toContain("only partly restored");
   });
 
   it("reports an unchanged sticky item without retrying the command", async () => {
     const h = harness(); h.submit.mockImplementationOnce(async () => { h.state.token.revision++; return { ok: true, value: null }; });
     await h.manager.restore(captureLoadout("sticky", [item(2)]));
-    expect(h.submit).toHaveBeenCalledTimes(1); expect(h.report()).toContain("did not move"); expect(h.report()).toContain("incomplete");
+    expect(h.submit).toHaveBeenCalledTimes(1); expect(h.report()).toContain("did not move"); expect(h.report()).toContain("only partly restored");
   });
 
   it("keeps a quiver item available as a gear reference", async () => {
@@ -157,7 +157,7 @@ describe("loadout swaps", () => {
     const h = harness(); const ordinary = h.submit.getMockImplementation()!;
     h.submit.mockImplementationOnce(async (token, intent) => { const result = await ordinary(token, intent); h.state.inventory = []; return result; });
     await h.manager.restore(captureLoadout("full", [item(2)]));
-    expect(h.report()).toContain("no longer carried after the swap");
+    expect(h.report()).toContain("no longer carry it after the swap");
   });
 
   it("reports a refused command and does not repeat it", async () => {
@@ -196,7 +196,7 @@ describe("loadout swaps", () => {
   it("honors an inscription cancellation without sending a command", async () => {
     const h = harness([item(1)], [item(2, { inscription: "!w" })]);
     const running = h.manager.restore(captureLoadout("guard", [item(2)])); await flush();
-    expect(h.report()).toContain("Really wear"); h.action("cancel"); await running;
+    expect(h.report()).toContain("Wear "); h.action("cancel"); await running;
     expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("canceled");
   });
 
@@ -204,7 +204,7 @@ describe("loadout swaps", () => {
     const h = harness([item(1, { inscription: "!t" })], [item(2, { inscription: "!w!*" })]);
     const running = h.manager.restore(captureLoadout("guard", [item(2)])); await flush();
     h.action("yes"); await flush(); h.action("yes"); await flush(); h.action("yes"); await running;
-    expect(h.panels.filter((p) => JSON.stringify(p).includes("Really "))).toHaveLength(3);
+    expect(h.panels.filter((p) => JSON.stringify(p).includes("Cancel swap"))).toHaveLength(3);
     expect(h.submit).toHaveBeenCalledTimes(1);
   });
 
@@ -212,7 +212,7 @@ describe("loadout swaps", () => {
     const h = harness([null, null]); h.state.equipmentSlots = [{ type: "RING", name: "left" }, { type: "RING", name: "right" }];
     h.simulate.mockResolvedValueOnce({ ok: true, value: { placements: [{ slot: 0, displaced: null }] } });
     await h.manager.restore(captureLoadout("right", [null, item(2)]));
-    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("cannot target this empty ring slot");
+    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("cannot fill this ring slot");
   });
 
   it("takes misplaced rings off before filling their saved slots", async () => {
@@ -227,7 +227,7 @@ describe("loadout swaps", () => {
   it("defers incompatible and two-handed slot decisions to the game's simulator", async () => {
     const h = harness(); h.simulate.mockResolvedValueOnce({ ok: true, value: { placements: [] } });
     await h.manager.restore(captureLoadout("incompatible", [item(2)]));
-    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("cannot place");
+    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("cannot put this");
   });
 
   it("stops if the character changes while the command is pending", async () => {
@@ -240,12 +240,12 @@ describe("loadout swaps", () => {
     const h = harness([item(1)], [item(2, { inscription: "!w" })]);
     const running = h.manager.restore(captureLoadout("guard", [item(2)])); await flush();
     h.state.token.revision++; h.action("yes"); await running;
-    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("changed during confirmation");
+    expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("changed while you were confirming");
   });
 
   it("closes a confirmation and sends no more commands after stop", async () => {
     const h = harness([item(1)], [item(2, { inscription: "!w" })]);
     const running = h.manager.restore(captureLoadout("guard", [item(2)])); await flush();
-    h.manager.stop(); await running; expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("Really wear");
+    h.manager.stop(); await running; expect(h.submit).not.toHaveBeenCalled(); expect(h.report()).toContain("Wear ");
   });
 });
