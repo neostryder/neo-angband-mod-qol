@@ -61,7 +61,7 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 ### No lava in town
 
-Turn on No lava in town and a generated town has no lava. Squares that would have been lava are granite instead. The rest of the town, and the random numbers used after the town, stay the same. Dungeon lava is unchanged. With the setting off, towns are generated exactly as in Angband 4.2.6.
+No lava in town fills every grid where the town would have had lava with granite, the same rock that fills the rest of the town and sits beside the stairs. Buildings, monsters, items, your starting spot, and every level generated afterward come out as they would have without it, and dungeon lava is untouched. The setting is off by default and takes effect after a reload. With it off, towns generate exactly as in Angband 4.2.6.
 
 ### Gear comparison
 
