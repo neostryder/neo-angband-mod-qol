@@ -10,19 +10,25 @@ import {
 import type { FileContribution, JsonRecord, PackContent } from "@rpgm-tools/neo-angband-mod-sdk";
 import {
   ELEM,
+  ArtifactState,
+  FEAT,
+  ObjAllocState,
   ObjRegistry,
   Rng,
   TV,
+  StoreRegistry,
   bindConstants,
   bindPlayer,
+  bindStoreRuntime,
   blankPlayer,
   gearAdd,
   makeRuneEnv,
   newGear,
   objectPrep,
   registerBookKinds,
+  storeSell,
 } from "@rpgm-tools/neo-angband-core";
-import type { GameState, ObjPackJson, ObjectKind, PlayerPackRecords } from "@rpgm-tools/neo-angband-core";
+import type { GameState, MakeDeps, ObjPackJson, ObjectKind, PlayerPackRecords, StoreRecordJson } from "@rpgm-tools/neo-angband-core";
 import { invenDamage } from "./node_modules/@rpgm-tools/neo-angband-core/dist/game/project-obj.js";
 
 const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
@@ -32,7 +38,7 @@ const players = bindPlayer(Object.fromEntries(Object.entries({
   shapes: "shape", bodies: "body", history: "history", realms: "realm",
 }).map(([key, file]) => [key, loadPackRecords(file)])) as unknown as PlayerPackRecords);
 
-function records(file: string, sections: readonly string[] = []): JsonRecord[] {
+function records(file: string, sections: readonly string[] = [], withMod = true): JsonRecord[] {
   const base: PackContent = {
     manifest: { id: "core", name: "Core", version: "1.23.0-beta.4", shape: "content" },
     files: { [file]: { records: loadPackRecords(file) as JsonRecord[] } },
@@ -42,7 +48,7 @@ function records(file: string, sections: readonly string[] = []): JsonRecord[] {
     files: { [file]: JSON.parse(readFileSync(new URL(`./${file}.json`, import.meta.url), "utf8")) as FileContribution },
   };
   const state = resolveSectionState([manifest], { qol: Object.fromEntries(sections.map((id) => [id, true])) }, new Set(["core", "qol"]));
-  const units = expandSections([base, mod], (id, section) => state.get(id)?.get(section) === true);
+  const units = expandSections(withMod ? [base, mod] : [base], (id, section) => state.get(id)?.get(section) === true);
   return [...composePacks(units.map((unit) => unit.content)).get(file)!.values()].map((record) => record.value);
 }
 
@@ -105,6 +111,57 @@ describe("fragile food", () => {
         expect(after.rng).not.toEqual(before.rng);
       });
     }
+  }
+});
+
+describe("richer weapon and armor shops", () => {
+  it("defaults off and changes only the smallest purse at each named store", () => {
+    expect(manifest.sections?.find((s) => s.id === "qol-richer-shops")?.default).toBe(false);
+    const base = loadPackRecords("store") as unknown as StoreRecordJson[];
+    expect(records("store")).toEqual(base);
+    const patched = records("store", ["qol-richer-shops"]) as unknown as StoreRecordJson[];
+    expect(patched).toEqual(base.map((store) => ["STORE_ARMOR", "STORE_WEAPON"].includes(store.store)
+      ? { ...store, owner: store.owner.map((owner) => ({ ...owner, purse: Math.max(owner.purse, 10000) })) }
+      : store));
+  });
+
+  for (const feat of [FEAT.STORE_ARMOR, FEAT.STORE_WEAPON]) {
+    it(`pays the higher cap in a sale at store ${String(feat)} only when enabled`, () => {
+      function sell(sections: readonly string[], withMod: boolean) {
+        const reg = registry([], withMod);
+        const rng = new Rng(41);
+        const deps: MakeDeps = {
+          reg, constants, alloc: new ObjAllocState(reg, constants),
+          artifacts: new ArtifactState(reg.artifacts.length), noArtifacts: false,
+        };
+        const storeReg = new StoreRegistry(records("store", sections, withMod) as unknown as StoreRecordJson[], reg);
+        const store = bindStoreRuntime(storeReg.stores.find((bound) => bound.feat === feat)!, rng, constants.storeInvenMax);
+        const p = player();
+        const gear = newGear();
+        const tval = feat === FEAT.STORE_ARMOR ? TV.DRAG_ARMOR : TV.SWORD;
+        const kind = reg.kinds.filter((entry) => entry.tval === tval).sort((a, b) => b.cost - a.cost)[0]!;
+        const obj = objectPrep(rng, reg, constants, kind, 0, "minimise");
+        obj.toH = 30;
+        obj.toD = 30;
+        obj.toA = 30;
+        const handle = gearAdd(gear, obj);
+        gear.pack.push(handle);
+        p.upkeep.totalWeight = obj.weight;
+        const gold = p.au;
+        const result = storeSell({ rng, deps, maxDepth: 0, stores: [store] }, store, handle, 1, p, gear, {
+          aware: true, noSelling: false, runesKnown: true, flagKnown: () => true,
+        });
+        return { result, gold: p.au - gold, stock: store.stock.map((item) => item.kind.kidx), rng: rng.getState() };
+      }
+      const faithful = sell([], false);
+      expect(sell([], true)).toEqual(faithful);
+      expect(faithful.result.ok).toBe(true);
+      expect(faithful.gold).toBe(5000);
+      const on = sell(["qol-richer-shops"], true);
+      expect(on.result.ok).toBe(true);
+      expect(on.gold).toBe(10000);
+      expect(on.stock).toEqual(faithful.stock);
+    });
   }
 });
 

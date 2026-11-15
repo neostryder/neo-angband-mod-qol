@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Richer weapon and armor shops | `qol.richerShops` | off | The poorest Armoury and Weaponsmith owners pay up to 10000 gold per item. |
 | Fragile town books | `qol.fragileTownBooks` | off | Fire and acid can destroy town spell books; dungeon books stay protected. |
 | Fragile food | `qol.fragileFood` | off | Fire and acid can destroy food and mushrooms. |
 | No lava in town | `qol.noTownLava` | off | An optional setting that turns town lava into granite and leaves the rest of the town and the dungeon alone. |
