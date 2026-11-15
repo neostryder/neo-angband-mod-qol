@@ -22,11 +22,11 @@ were not retagged.
 
 ### Added
 
-- [Visible] [Modding-API] Gear comparison shows known weapon damage, blows per round, and learned spell costs and failure rates before and after a gear change, with deltas.
+- [Visible] [Modding-API] Gear comparison now shows blows per round, known weapon damage per round with a line for each known brand and slay, and the mana cost and failure rate of each learned spell. Each new row has before, after, and delta values.
 
 ### Fixed
 
-- [Visible] [Modding-API] Loadouts restore a ring to the second ring finger while the first is empty.
+- [Visible] [Modding-API] Loadouts now put a saved ring back on the second ring finger when the first is empty, instead of reporting that slot as incomplete.
 
 - [Visible] [Modding-API] **You can now compare gear, manage loadouts, and cancel a loadout swap with QoL commands during play.** The game skipped these three commands because of how they were named, though the Game-menu entries "Compare gear..." and "Loadouts..." were not affected by this. Mod authors can find them as `qol:compare-gear`, `qol:loadouts`, and `qol:cancel-loadout` (neostryder/neo-angband#505).
 
