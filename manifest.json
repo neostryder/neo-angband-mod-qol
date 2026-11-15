@@ -130,6 +130,14 @@
     ],
     "sections": [
       {
+        "id": "qol-fragile-food",
+        "flag": "qol.fragileFood",
+        "title": "Fragile food",
+        "description": "Fire and acid can destroy food and mushrooms in your pack or on the floor.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "id": "qol-misc-niceties",
         "flag": "qol.miscNiceties",
         "title": "Misc. niceties",
