@@ -62,7 +62,7 @@
       {
         "flag": "qol.contextHelp",
         "title": "Context help",
-        "description": "Show a help line under the selected action in the item context menu.",
+        "description": "Show a help line under the selected action in the item context menu and command browser.",
         "default": false,
         "requiresReload": true
       },

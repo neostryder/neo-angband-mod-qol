@@ -69,7 +69,7 @@ Pause after object feeling waits for a key after the object part of a level feel
 
 ### Context help
 
-Context help shows a help line under the selected action in the item context menu. Existing hints stay as they are, and the help line never reveals item properties you have not learned. The command browser has no help line. The setting is off by default and takes effect after a reload.
+Context help shows a help line under the selected action in the item context menu and command browser. Existing hints stay as they are, and the help line never reveals item properties you have not learned. The setting is off by default and takes effect after a reload.
 
 ### Rejoin wrapped prose
 

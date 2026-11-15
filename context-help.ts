@@ -26,6 +26,42 @@ const ITEM_HELP: Readonly<Record<string, string>> = {
   refill: "Refuel your light source from this item.",
 };
 
+const COMMAND_HELP: Readonly<Record<string, string>> = {
+  "{": ITEM_HELP.inscribe!, "}": ITEM_HELP.uninscribe!, w: ITEM_HELP.equip!, t: ITEM_HELP.takeoff!,
+  I: ITEM_HELP.inspect!, d: ITEM_HELP.drop!, f: ITEM_HELP.fire!, u: ITEM_HELP["use-staff"]!,
+  a: ITEM_HELP.aim!, z: ITEM_HELP.zap!, A: ITEM_HELP.activate!, E: ITEM_HELP.eat!,
+  q: ITEM_HELP.quaff!, r: ITEM_HELP.read!, F: ITEM_HELP.refill!, v: ITEM_HELP.throw!,
+  b: ITEM_HELP.browse!, G: ITEM_HELP.study!, m: ITEM_HELP.cast!, k: ITEM_HELP.ignore!,
+  U: "Choose an item and use its ordinary action.",
+  D: "Choose a direction to disarm a trap or chest.",
+  R: "Rest for a turn count or until you recover.",
+  l: "Look at a grid, monster, or item without spending a turn.",
+  "*": "Choose a monster or location as your target.",
+  "'": "Target the nearest visible monster.",
+  T: "Choose a direction to dig through terrain.",
+  "<": "Climb the up staircase under you.",
+  ">": "Descend the down staircase under you.",
+  o: "Choose a direction to open a door or chest.",
+  c: "Choose a direction to close a door.",
+  h: "Fire ammunition at the nearest target.",
+  W: "Step in a direction without automatically disarming a trap.",
+  e: "List your worn equipment.", i: "List the items in your pack.", "|": "List ammunition in your quiver.",
+  g: "Pick up an item from the floor under you.",
+  S: "Show your character's abilities.", M: "Show the map of this level.",
+  K: "Show or hide items marked as ignored.", "]": "List the items you can see.", "[": "List the monsters you can see.",
+  L: "Move the map view to look around the level.", "/": "Explain a map symbol.",
+  C: "Show your character's stats, equipment, and history.", "~": "Browse what your character has learned.",
+  "=": "Review interface options and character settings.", Q: "End this character's run by retiring.",
+  ")": "Save a text or HTML copy of the screen.", ":": "Add a note to your character's history.",
+  V: "Show the game version.", '"': "Apply one preference-file line.",
+  "+": "Alter the adjacent grid in a direction you choose.", s: "Attempt to steal from an adjacent monster.",
+  ";": "Walk one step in a direction you choose.", ".": "Run in a direction until something stops you.",
+  ",": "Wait in place for one turn.", p: "Explore until interrupted or no unexplored route remains.",
+  n: "Repeat the previous command.",
+};
+
+const COMMAND_MENUS = ["items", "action-commands", "manage-items", "information", "utility", "hidden"];
+
 export interface HelpRegistry {
   readonly menus: {
     handlerFor(id: string): MenuTransformer | null;
@@ -36,6 +72,33 @@ export interface HelpRegistry {
 export function installContextHelp(mod: ModApi2): void {
   const registry = mod.engine?.registry as HelpRegistry | undefined;
   if (!registry) return;
+  const commandHints = new Map<string, string>();
+  const tableId = "core:keypress-command-table";
+  const previousTable = registry.menus.handlerFor(tableId);
+  registry.menus.register(tableId, (id, rows) => {
+    const current = previousTable ? previousTable(id, rows) : rows;
+    commandHints.clear();
+    for (const row of current) {
+      const key = row.semantic.data?.originalKey;
+      if (row.semantic.kind !== "keypress-command" || typeof key !== "string") continue;
+      const hint = Object.hasOwn(COMMAND_HELP, key) ? COMMAND_HELP[key] : undefined;
+      if (hint !== undefined) commandHints.set(row.id, hint);
+    }
+    return current;
+  });
+  // The browser references table row ids, so help follows either keyset without label matching.
+  for (const menu of COMMAND_MENUS) {
+    const menuId = "core:keypress-command:" + menu;
+    const previous = registry.menus.handlerFor(menuId);
+    registry.menus.register(menuId, (id, rows) => {
+      const current = previous ? previous(id, rows) : rows;
+      return current.map((row) => {
+        const ref = row.semantic.ref;
+        const hint = row.semantic.kind === "keypress-command" && typeof ref === "string" ? commandHints.get(ref) : undefined;
+        return row.hint !== undefined || hint === undefined ? row : { ...row, hint };
+      });
+    });
+  }
   const previous = registry.menus.handlerFor(MENU_ID);
   registry.menus.register(MENU_ID, (id, rows) => {
     const current = previous ? previous(id, rows) : rows;

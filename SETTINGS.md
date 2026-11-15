@@ -6,7 +6,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 | --- | --- | --- | --- |
 | `qol.memorialEpigraphs` | off | Adds the same epigraph to the end screen and character dump, chosen for the ending. | Yes. |
 | `qol.pauseObjectFeeling` | off | Waits after the object part of a level feeling, unless Auto-more skips the wait. | Yes. |
-| `qol.contextHelp` | off | Shows a help line under the selected action in the item context menu. | Yes. |
+| `qol.contextHelp` | off | Shows a help line under the selected action in the item context menu and command browser. | Yes. |
 | `qol.rejoinProse` | off | Joins wrapped paragraphs in classified help pages, semantic prose, character backgrounds, and item flavor text, and leaves tables, art, and aligned lines as laid out. | Yes. |
 | `qol.richerShops` | off | Raises the poorest Armoury and Weaponsmith owners' limits from 5000 to 10000 gold per item. | Yes. |
 | `qol.fragileTownBooks` | off | Lets acid destroy town spell books, while dungeon books stay protected. | Yes. |

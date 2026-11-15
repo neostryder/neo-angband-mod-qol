@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] Context help now explains selected commands in the command browser.
+
 - [Visible] [UI] Rejoin wrapped prose now reflows classified help paragraphs to the current width and preserves tables, key hints, art, and aligned groups.
 
 - [Visible] [UI] An optional setting adds memorial epigraphs to death, retirement, and victory screens and the character dump.
