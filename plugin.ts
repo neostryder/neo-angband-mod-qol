@@ -137,6 +137,7 @@ export default {
      * tables itself, so none of them calls back into this mod.
      */
     return {
+      ...(flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {}),
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork
        * (do_cmd_movement_tunnel_test / the move_player change): walking into

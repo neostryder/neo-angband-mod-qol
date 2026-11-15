@@ -963,6 +963,7 @@ var plugin_default = {
     if (flags["qol.ignoreTorches"] === true) ignore.push({ tval: "light", kindNameContains: "Torch", ignore: true });
     if (flags["qol.ignoreLanterns"] === true) ignore.push({ tval: "light", kindNameContains: "Lantern", ignore: true });
     return {
+      ...flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {},
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork
        * (do_cmd_movement_tunnel_test / the move_player change): walking into

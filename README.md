@@ -59,6 +59,10 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Pause after object feeling
+
+Pause after object feeling waits for a key after the object part of a level feeling. Auto-more still skips the wait. The setting is off by default and takes effect after a reload.
+
 ### Context help
 
 Context help shows a help line under the selected action in the item context menu. Existing hints stay as they are, and the help line never reveals item properties you have not learned. The command browser has no help line. The setting is off by default and takes effect after a reload.

@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] An optional setting pauses after the object part of a level feeling. Auto-more still skips the wait.
+
 - [Visible] [Modding-API] Gear comparison now shows blows per round, known weapon damage per round with a line for each known brand and slay, and the mana cost and failure rate of each learned spell. Each new row has before, after, and delta values.
 
 ### Fixed

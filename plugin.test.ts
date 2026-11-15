@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   api2PolicyEffects,
+  api2PoliciesToHooks,
   apiRangeVerdict,
   checkApi2Policies,
   matchCapability,
@@ -108,8 +109,22 @@ describe("the qol mod's entry point", () => {
   });
 });
 
+describe("object feeling pause", () => {
+  it("marks the object-only display_feeling message and leaves other messages alone", () => {
+    const hooks = api2PoliciesToHooks(policiesFor({ "qol.pauseObjectFeeling": true }));
+    expect(hooks.messagePauseAfter?.("You feel that there are superb treasures here.")).toBe(true);
+    expect(hooks.messagePauseAfter?.("You feel anxious about this place")).toBe(false);
+    expect(hooks.messagePauseAfter?.("Looks like a typical town.")).toBe(false);
+    expect(hooks.messagePauseAfter?.("This place seems murderous, and there are superb treasures here.")).toBe(false);
+    for (const flags of [{}, { "qol.pauseObjectFeeling": false }]) {
+      expect(api2PoliciesToHooks(policiesFor(flags)).messagePauseAfter).toBeUndefined();
+    }
+  });
+});
+
 describe("policy tables", () => {
   const cases: readonly (readonly [flag: string, tables: readonly string[]])[] = [
+    ["qol.pauseObjectFeeling", ["messagePauseAfter"]],
     ["qol.autoDig", ["walkBlockedByDiggable"]],
     ["qol.forgivingPrefFiles", ["prefErrors"]],
     ["qol.ignoreTorches", ["ignore"]],
@@ -131,7 +146,7 @@ describe("policy tables", () => {
     const policies = policiesFor(all);
     expect(checkApi2Policies(policies)).toBeNull();
     expect(Object.keys(policies).sort()).toEqual(
-      ["displayOptions", "ignore", "messageText", "prefErrors", "purgeInput", "walkBlockedByDiggable"],
+      ["displayOptions", "ignore", "messagePauseAfter", "messageText", "prefErrors", "purgeInput", "walkBlockedByDiggable"],
     );
   });
 

@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.pauseObjectFeeling` | off | Waits after the object part of a level feeling, unless Auto-more skips the wait. | Yes. |
 | `qol.contextHelp` | off | Shows a help line under the selected action in the item context menu. | Yes. |
 | `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text, and leaves tables, art, and aligned lines as laid out. | Yes. |
 | `qol.richerShops` | off | Raises the poorest Armoury and Weaponsmith owners' limits from 5000 to 10000 gold per item. | Yes. |

@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
 | Context help | `qol.contextHelp` | off | Explains the selected action in the item context menu. |
 | Rejoin wrapped prose | `qol.rejoinProse` | off | Joins wrapped paragraphs in semantic prose, character backgrounds, and item flavor text. |
 | Richer weapon and armor shops | `qol.richerShops` | off | The poorest Armoury and Weaponsmith owners pay up to 10000 gold per item. |
