@@ -1,4 +1,4 @@
-import type { Api2Panel, Api2PanelNode, KnownWorldData, LoadoutItemRef, LoadoutSimulation, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Panel, Api2PanelNode, KnownWorldData, KnownSpell, LoadoutItemRef, LoadoutSimulation, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 
 export interface ComparisonRow {
   readonly label: string;
@@ -35,7 +35,7 @@ function summaryRow(label: string, before: number | undefined, after: number | u
 }
 
 /** Core's known-only calc_bonuses, calc_hitpoints, and calc_mana avoid learning unknown runes. */
-export function comparisonRows(simulation: LoadoutSimulation): ComparisonRow[] {
+export function comparisonRows(simulation: LoadoutSimulation, spells: readonly Pick<KnownSpell, "sidx" | "name">[] = []): ComparisonRow[] {
   const before = simulation.before.stats;
   const after = simulation.after.stats;
   const delta = simulation.delta;
@@ -58,8 +58,9 @@ export function comparisonRows(simulation: LoadoutSimulation): ComparisonRow[] {
   for (const index of [...new Set([...beforeSpells, ...afterSpells].map((spell) => spell.index))].sort((a, b) => a - b)) {
     const had = beforeSpells.find((spell) => spell.index === index);
     const has = afterSpells.find((spell) => spell.index === index);
-    rows.push(summaryRow("Spell " + String(index) + " mana cost", had?.mana, has?.mana));
-    rows.push(summaryRow("Spell " + String(index) + " failure (%)", had?.failChance, has?.failChance));
+    const name = spells.find((spell) => spell.sidx === index)?.name ?? "Spell";
+    rows.push(summaryRow(name + " mana cost", had?.mana, has?.mana));
+    rows.push(summaryRow(name + " fail chance (%)", had?.failChance, has?.failChance));
   }
   rows.push({ label: "Ammo type (tval)", before: String(before.ammoTval), after: String(after.ammoTval), delta: before.ammoTval === after.ammoTval ? "same" : "changed" });
   for (const [key, label] of BOOLEANS) {
@@ -89,9 +90,9 @@ function grouped(nodes: Api2PanelNode[]): Api2PanelNode[] {
   return groups;
 }
 
-export function comparisonPanel(simulation: LoadoutSimulation, title: string, slot: string): Api2Panel {
+export function comparisonPanel(simulation: LoadoutSimulation, title: string, slot: string, spells: readonly Pick<KnownSpell, "sidx" | "name">[] = []): Api2Panel {
   const rows: Api2PanelNode[] = [{ type: "row", children: ["Statistic", "Before", "After", "Delta"].map((text) => ({ type: "text", text })) },
-    ...comparisonRows(simulation).map((row): Api2PanelNode => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) })),
+    ...comparisonRows(simulation, spells).map((row): Api2PanelNode => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) })),
   ];
   return { id: "gear-comparison", title, modal: true, root: { type: "column", children: [
     { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
@@ -201,7 +202,7 @@ export class GearComparisonManager {
           comparedToken = result.value.token;
           title = candidate.label;
           if (!slots.length) { await items("This item has no worn slot to compare."); return; }
-          if (slots.length === 1) { await show(comparisonPanel(slots[0]!.comparison, title, slots[0]!.name)); return; }
+          if (slots.length === 1) { await show(comparisonPanel(slots[0]!.comparison, title, slots[0]!.name, world?.spellbooks?.flatMap((book) => book.spells) ?? [])); return; }
           // Core owns slot legality through wield_slot, including both ring hands.
           await show({ id: "gear-comparison", title, modal: true, root: { type: "column", children: [
             { type: "text", text: "Choose the slot to replace." },
@@ -214,7 +215,7 @@ export class GearComparisonManager {
           const fresh = await this.mod.view.isCurrent(comparedToken);
           if (!current()) return;
           if (!fresh.ok || !fresh.value) { await items("The game changed. Choose the item again."); return; }
-          if (slot) await show(comparisonPanel(slot.comparison, title, slot.name));
+          if (slot) await show(comparisonPanel(slot.comparison, title, slot.name, world?.spellbooks?.flatMap((book) => book.spells) ?? []));
         }
       } catch { if (current()) await items("Could not read the comparison."); }
       finally { busy = false; }

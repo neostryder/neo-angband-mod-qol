@@ -94,9 +94,9 @@ describe("comparison rows from the pinned Core", () => {
     const view = (spells: boolean) => createAgentView(state, undefined, {}, { has: (cap: string) => ["state:player.read", "state:inventory.read", ...(spells ? ["state:spells.read"] : [])].includes(cap) });
     expect(comparisonRows(view(false).simulateLoadout!({})! as unknown as LoadoutSimulation).some((row) => row.label.startsWith("Spell "))).toBe(false);
     const sim = view(true).simulateLoadout!({})!;
-    const rows = comparisonRows(sim as unknown as LoadoutSimulation);
-    expect(rows.find((row) => row.label === "Spell 0 mana cost")).toMatchObject({ before: String(sim.before.spells![0]!.mana), after: String(sim.after.spells![0]!.mana), delta: "0" });
-    expect(rows.filter((row) => row.label.startsWith("Spell "))).toHaveLength(2);
+    const rows = comparisonRows(sim as unknown as LoadoutSimulation, view(true).spellbooks().flatMap((book) => book.spells));
+    expect(rows.find((row) => row.label === "Magic Missile mana cost")).toMatchObject({ before: String(sim.before.spells![0]!.mana), after: String(sim.after.spells![0]!.mana), delta: "0" });
+    expect(rows.filter((row) => row.label.startsWith("Magic Missile "))).toHaveLength(2);
   });
 });
 
@@ -149,23 +149,23 @@ describe("known comparison rows", () => {
     expect(comparisonRows(sim).find((row) => row.label === "Damage per round")).toMatchObject({ before: "unknown", after: "unknown", delta: "unknown" });
   });
 
-  it("matches learned spells by index and shows mana costs and failure percentages", () => {
+  it("labels learned spells by name while matching summaries by index", () => {
     const sim = simulation();
     const rows = comparisonRows({ ...sim,
       before: { ...sim.before, spells: [{ index: 7, mana: 3, failChance: 5 }, { index: 2, mana: 1, failChance: 20 }] },
       after: { ...sim.after, spells: [{ index: 2, mana: 2, failChance: 8 }, { index: 7, mana: 3, failChance: 10 }] },
-    });
-    expect(rows.find((row) => row.label === "Spell 2 mana cost")).toMatchObject({ before: "1", after: "2", delta: "+1" });
-    expect(rows.find((row) => row.label === "Spell 2 failure (%)")).toMatchObject({ before: "20", after: "8", delta: "-12" });
-    expect(rows.find((row) => row.label === "Spell 7 mana cost")).toMatchObject({ before: "3", after: "3", delta: "0" });
-    expect(rows.find((row) => row.label === "Spell 7 failure (%)")).toMatchObject({ before: "5", after: "10", delta: "+5" });
+    }, [{ sidx: 7, name: "Phase Door" }, { sidx: 2, name: "Magic Missile" }]);
+    expect(rows.find((row) => row.label === "Magic Missile mana cost")).toMatchObject({ before: "1", after: "2", delta: "+1" });
+    expect(rows.find((row) => row.label === "Magic Missile fail chance (%)")).toMatchObject({ before: "20", after: "8", delta: "-12" });
+    expect(rows.find((row) => row.label === "Phase Door mana cost")).toMatchObject({ before: "3", after: "3", delta: "0" });
+    expect(rows.find((row) => row.label === "Phase Door fail chance (%)")).toMatchObject({ before: "5", after: "10", delta: "+5" });
   });
 
   it("omits spells without the read grant and leaves missing summaries unknown", () => {
     const sim = simulation();
     expect(comparisonRows(sim).some((row) => row.label.startsWith("Spell "))).toBe(false);
     const rows = comparisonRows({ ...sim, after: { ...sim.after, spells: [{ index: 4, mana: 3, failChance: 15 }] } });
-    expect(rows.find((row) => row.label === "Spell 4 mana cost")).toMatchObject({ before: "unknown", after: "3", delta: "unknown" });
+    expect(rows.find((row) => row.label === "Spell mana cost")).toMatchObject({ before: "unknown", after: "3", delta: "unknown" });
   });
 
   it("shows gained, lost, and unchanged flags with both sides", () => {
@@ -229,6 +229,17 @@ describe("comparison panel flow", () => {
     expect(h.inspect).toHaveBeenCalledExactlyOnceWith({ from: "gear", handle: 1 });
     expect(h.text()).toContain("Before After Delta"); expect(h.text()).toContain("Max spell points");
     expect(h.mount).toHaveBeenCalledTimes(1); expect(h.patch).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes known spell names into comparison panels for either ring slot", async () => {
+    const h = harness(world({ spellbooks: [{ tval: 90, name: "Book", realm: "Arcane", spells: [{ sidx: 3, name: "Magic Missile", bidx: 0, level: 1, mana: 1, fail: 20, learned: true, worked: false, forgotten: false, studyEligible: false, infoLine: "" }] }] as KnownWorldData["spellbooks"] }));
+    const sim = simulation();
+    const comparison = { ...sim, before: { ...sim.before, spells: [{ index: 3, mana: 1, failChance: 20 }] }, after: { ...sim.after, spells: [{ index: 3, mana: 1, failChance: 10 }] } };
+    h.inspect.mockResolvedValueOnce({ ok: true, value: { token: { epoch: 1, revision: 1 }, slots: [{ slot: 2, name: "left", comparison }, { slot: 3, name: "right", comparison }] } });
+    await h.manager.open(); h.action("item-0"); await flush(); h.action("slot-1"); await flush();
+    expect(h.text()).toContain("Magic Missile mana cost");
+    expect(h.text()).toContain("Magic Missile fail chance (%)");
+    expect(h.text()).not.toContain("Spell 3");
   });
 
   it("lets the player choose either ring hand from the returned slots", async () => {

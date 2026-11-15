@@ -34,6 +34,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] Gear comparison labels learned spell rows by name and uses "fail chance (%)" for the failure row.
+
 - [Visible] [Modding-API] Loadouts now put a saved ring back on the second ring finger when the first is empty, instead of reporting that slot as incomplete.
 
 - [Visible] [Modding-API] **You can now compare gear, manage loadouts, and cancel a loadout swap with QoL commands during play.** The game skipped these three commands because of how they were named, though the Game-menu entries "Compare gear..." and "Loadouts..." were not affected by this. Mod authors can find them as `qol:compare-gear`, `qol:loadouts`, and `qol:cancel-loadout` (neostryder/neo-angband#505).

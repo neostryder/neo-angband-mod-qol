@@ -315,7 +315,7 @@ function number(value, scale = 1, signed = false) {
 function summaryRow(label, before, after) {
   return { label, before: number(before), after: number(after), delta: number(before === void 0 || after === void 0 ? void 0 : after - before, 1, true) };
 }
-function comparisonRows(simulation) {
+function comparisonRows(simulation, spells = []) {
   const before = simulation.before.stats;
   const after = simulation.after.stats;
   const delta = simulation.delta;
@@ -338,8 +338,9 @@ function comparisonRows(simulation) {
   for (const index of [...new Set([...beforeSpells, ...afterSpells].map((spell) => spell.index))].sort((a, b) => a - b)) {
     const had = beforeSpells.find((spell) => spell.index === index);
     const has = afterSpells.find((spell) => spell.index === index);
-    rows.push(summaryRow("Spell " + String(index) + " mana cost", had?.mana, has?.mana));
-    rows.push(summaryRow("Spell " + String(index) + " failure (%)", had?.failChance, has?.failChance));
+    const name = spells.find((spell) => spell.sidx === index)?.name ?? "Spell";
+    rows.push(summaryRow(name + " mana cost", had?.mana, has?.mana));
+    rows.push(summaryRow(name + " fail chance (%)", had?.failChance, has?.failChance));
   }
   rows.push({ label: "Ammo type (tval)", before: String(before.ammoTval), after: String(after.ammoTval), delta: before.ammoTval === after.ammoTval ? "same" : "changed" });
   for (const [key, label] of BOOLEANS) {
@@ -367,10 +368,10 @@ function grouped(nodes) {
   for (let i = 0; i < nodes.length; i += 24) groups.push({ type: "column", children: nodes.slice(i, i + 24) });
   return groups;
 }
-function comparisonPanel(simulation, title, slot) {
+function comparisonPanel(simulation, title, slot, spells = []) {
   const rows = [
     { type: "row", children: ["Statistic", "Before", "After", "Delta"].map((text) => ({ type: "text", text })) },
-    ...comparisonRows(simulation).map((row) => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) }))
+    ...comparisonRows(simulation, spells).map((row) => ({ type: "row", children: [row.label, row.before, row.after, row.delta].map((text) => ({ type: "text", text })) }))
   ];
   return { id: "gear-comparison", title, modal: true, root: { type: "column", children: [
     { type: "text", text: "Comparing in " + slot + ", using only runes you have learned." },
@@ -493,7 +494,7 @@ var GearComparisonManager = class {
             return;
           }
           if (slots.length === 1) {
-            await show(comparisonPanel(slots[0].comparison, title, slots[0].name));
+            await show(comparisonPanel(slots[0].comparison, title, slots[0].name, world?.spellbooks?.flatMap((book) => book.spells) ?? []));
             return;
           }
           await show({ id: "gear-comparison", title, modal: true, root: { type: "column", children: [
@@ -510,7 +511,7 @@ var GearComparisonManager = class {
             await items("The game changed. Choose the item again.");
             return;
           }
-          if (slot) await show(comparisonPanel(slot.comparison, title, slot.name));
+          if (slot) await show(comparisonPanel(slot.comparison, title, slot.name, world?.spellbooks?.flatMap((book) => book.spells) ?? []));
         }
       } catch {
         if (current()) await items("Could not read the comparison.");
