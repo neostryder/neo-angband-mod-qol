@@ -41,6 +41,7 @@ import { migratePreferences, PREFS_VERSION, readRememberedSettings, withRemember
 import { applyRemembered, rememberedFrom, type OptionStoreLike } from "./remember";
 import { offerAbilityMacro, startMacroWizard, stopMacroWizard } from "./macro-wizard";
 import { startRepeatShortcuts, stopRepeatShortcuts } from "./repeat-shortcuts";
+import { GearComparisonManager } from "./gear-comparison";
 import { LoadoutManager } from "./loadouts";
 import { UPSTREAM_MESSAGE_RULES } from "./wording";
 
@@ -64,6 +65,7 @@ const PURGE_ESCAPE_COUNT = 3;
 /** The live API once the game is ready; the hooks below are built before it exists. */
 let live: ModApi2 | null = null;
 let loadouts: LoadoutManager | null = null;
+let comparison: GearComparisonManager | null = null;
 
 /**
  * The option store of the live game, for restoring remembered settings. This is
@@ -250,6 +252,17 @@ export default {
       await backupFolder.onSave((file) => void backupFolder.write(file.name, file.text));
     }
 
+    if (flags["qol.gearComparison"] === true) {
+      const manager = new GearComparisonManager(mod);
+      comparison = manager;
+      for (const result of [
+        await mod.ui.gameMenu.register("compare-gear", "Compare gear...", () => manager.open()),
+        await mod.ui.commands.register("compare-gear", "compare gear", () => manager.open()),
+      ]) {
+        if (!result.ok) log(result.message);
+      }
+    }
+
     if (flags["qol.loadouts"] === true) {
       const manager = new LoadoutManager(mod);
       loadouts = manager;
@@ -288,6 +301,8 @@ export default {
     live = null;
     loadouts?.stop();
     loadouts = null;
+    comparison?.stop();
+    comparison = null;
     stopMacroWizard();
     stopRepeatShortcuts();
   },
