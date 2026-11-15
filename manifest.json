@@ -47,7 +47,7 @@
       {
         "flag": "qol.noTownLava",
         "title": "No lava in town",
-        "description": "Generated towns contain no lava. Squares that would have been lava are granite, and nothing else about the town or the random number sequence changes. Dungeon lava is left alone.",
+        "description": "Puts granite wherever the town would have had lava, and lava in the dungeon stays as it is. Takes effect after a reload.",
         "default": false,
         "requiresReload": true
       },
