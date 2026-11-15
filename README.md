@@ -59,6 +59,12 @@ The mod exists as its own repository because a mod that is going to grow should 
 need a game release to do it, and because a third-party mod and a first-party one
 should be the same shape, installed by the same code, gated by the same checks.
 
+### Loadouts
+
+The opt-in Loadouts setting adds Loadouts... to the Game menu and a manage loadouts command. A named loadout records every worn slot, including empty slots, in this character's save. Saving the same name replaces that loadout. The limit is 20 loadouts. Quiver contents follow the game's ordinary inventory rules.
+
+Restoring uses ordinary wear and takeoff commands, with their normal turn costs, sticky-item refusals, and pack overflow. Overflow can drop items. Inscriptions ask for confirmation. A missing item leaves its slot unchanged, and the result lists incomplete changes. Damage, a newly visible monster, or the cancel loadout swap command stops further changes. The game cannot target an empty second ring slot while the first is empty; that slot is reported as incomplete. Gear handles persist with the character; session object ids, when supplied by the host, track carried items that move during the session.
+
 ### Cloud backups
 
 Open the Escape **Game menu** and choose **Choose cloud-backup folder...** to pick a folder that a cloud-sync service watches. Once a folder is chosen, every successful save updates that character's importable backup there. The row shows the folder's name and how many characters it already recognises in it, since setting up a second machine often means picking an existing Dropbox folder full of them. Choosing a different folder replaces the old choice, and cancelling the picker changes nothing. If your browser or the desktop app cannot offer a folder picker, the row is hidden.

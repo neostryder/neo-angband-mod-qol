@@ -277,6 +277,332 @@ function stopRepeatShortcuts() {
   void mod2?.ui.unmount(PANEL_ID2);
 }
 
+// loadouts.ts
+var PANEL = "loadouts";
+var LIMIT = 20;
+function readLoadouts(bag) {
+  if (!bag || typeof bag !== "object") return [];
+  const saved = bag.loadouts;
+  if (!saved || saved.v !== 1 || !Array.isArray(saved.sets)) return [];
+  return saved.sets.slice(0, LIMIT).filter((set) => {
+    if (!set || typeof set !== "object" || typeof set.name !== "string" || !set.name.trim() || set.name.length > 64) return false;
+    if (!Array.isArray(set.slots) || set.slots.length > 64) return false;
+    return set.slots.every((piece) => {
+      if (piece === null) return true;
+      if (!piece || typeof piece !== "object") return false;
+      const p = piece;
+      return Number.isSafeInteger(p.handle) && p.handle > 0 && typeof p.kindKey === "string" && typeof p.name === "string";
+    });
+  }).map((set) => ({ name: set.name, slots: set.slots.map((p) => p && { handle: p.handle, kindKey: p.kindKey, name: p.name }) }));
+}
+function withLoadouts(bag, sets) {
+  const base = bag && typeof bag === "object" && !Array.isArray(bag) ? bag : {};
+  return { ...base, loadouts: { v: 1, sets: sets.map((set) => ({ name: set.name, slots: set.slots.map((p) => p && { ...p }) })) } };
+}
+function captureLoadout(name, equipment) {
+  return { name: name.trim(), slots: equipment.map((item) => item && { handle: item.handle, kindKey: item.kindKey, name: item.name ?? item.label }) };
+}
+function carried(world) {
+  return [...world.equipment.filter((item) => item !== null), ...world.inventory, ...world.quiver ?? []];
+}
+function locatePiece(world, piece, identities) {
+  const id = identities.get(piece.handle);
+  return carried(world).find((item) => id === void 0 ? item.handle === piece.handle : item.objectId === id);
+}
+function inscriptionChecks(inscription, key) {
+  return [...(inscription ?? "").matchAll(/!([wt*])/g)].filter((match) => match[1] === key || match[1] === "*").length;
+}
+var LoadoutManager = class {
+  constructor(mod2, delay = () => new Promise((resolve) => setTimeout(resolve, 100))) {
+    this.mod = mod2;
+    this.delay = delay;
+  }
+  mod;
+  delay;
+  stopped = false;
+  running = false;
+  interrupted = false;
+  menuOpen = false;
+  confirming = null;
+  identities = /* @__PURE__ */ new Map();
+  disturb() {
+    this.interrupted = true;
+  }
+  stop() {
+    this.stopped = true;
+    this.interrupted = true;
+    this.confirming?.(false);
+    void this.mod.ui.unmount(PANEL);
+  }
+  async world() {
+    const result = await this.mod.view.world();
+    if (!result.ok || !result.value.equipment || !result.value.inventory) return null;
+    const world = result.value;
+    for (const item of carried(world)) {
+      if (item.objectId !== void 0 && !this.identities.has(item.handle)) this.identities.set(item.handle, item.objectId);
+    }
+    return world;
+  }
+  async open() {
+    if (this.stopped || this.running || this.menuOpen) return;
+    this.menuOpen = true;
+    await this.mod.ui.unmount(PANEL);
+    const stored = await this.mod.store.character.get();
+    const world = await this.world();
+    if (!stored.ok || !world) {
+      this.menuOpen = false;
+      await this.report("Loadouts are unavailable for this character.");
+      return;
+    }
+    let sets = readLoadouts(stored.value);
+    let name = "";
+    let busy = false;
+    const panel = (message = "") => ({
+      id: PANEL,
+      title: "Loadouts",
+      modal: true,
+      root: { type: "column", children: [
+        { type: "text", text: "Save worn gear, including empty slots. Quiver contents stay under the game's control. Pack overflow can drop items during a swap." },
+        { type: "input", label: "Loadout name", action: "name", value: name },
+        { type: "button", label: "Save worn gear", action: "save" },
+        { type: "text", text: message },
+        ...sets.map((set, index) => ({ type: "row", children: [
+          { type: "text", text: set.name },
+          { type: "button", label: "Restore", action: "restore-" + String(index) },
+          { type: "button", label: "Delete", action: "delete-" + String(index) }
+        ] }))
+      ] }
+    });
+    const refresh = async (message) => {
+      if (!this.stopped) await this.mod.ui.patch(PANEL, { root: panel(message).root });
+    };
+    const act = async (action, value) => {
+      if (this.stopped || busy) return;
+      if (action === "name" && typeof value === "string") {
+        name = value;
+        return;
+      }
+      busy = true;
+      try {
+        if (action === "save" || action.startsWith("delete-")) {
+          const bag = await this.mod.store.character.get();
+          if (!bag.ok) {
+            await refresh("The loadouts could not be read.");
+            return;
+          }
+          const current = readLoadouts(bag.value);
+          let next;
+          if (action === "save") {
+            const clean = name.trim();
+            if (!clean || clean.length > 64) {
+              await refresh("Use a name from 1 to 64 characters.");
+              return;
+            }
+            const now = await this.world();
+            if (!now) return;
+            if (current.length >= LIMIT && !current.some((set) => set.name === clean)) {
+              await refresh("Delete a loadout before saving another. The limit is 20.");
+              return;
+            }
+            next = [...current.filter((set) => set.name !== clean), captureLoadout(clean, now.equipment)];
+          } else {
+            const chosen = sets[Number(action.slice(7))];
+            if (!chosen) return;
+            next = current.filter((set) => set.name !== chosen.name);
+          }
+          const saved = await this.mod.store.character.set(withLoadouts(bag.value, next));
+          if (this.stopped) return;
+          if (saved.ok) sets = next;
+          await refresh(saved.ok ? "The loadouts were saved." : "The loadouts could not be saved.");
+        } else if (action.startsWith("restore-")) {
+          const set = sets[Number(action.slice(8))];
+          if (!set) return;
+          this.menuOpen = false;
+          await this.mod.ui.unmount(PANEL);
+          await this.restore(set);
+        }
+      } finally {
+        busy = false;
+      }
+    };
+    if (this.stopped) return;
+    const opened = await this.mod.ui.mount(panel(), (action, value) => {
+      void act(action, value);
+    }, () => {
+      this.menuOpen = false;
+    });
+    if (this.stopped) await this.mod.ui.unmount(PANEL);
+    if (!opened.ok) {
+      this.menuOpen = false;
+      this.mod.meta.log(opened.message);
+    }
+  }
+  async report(text) {
+    if (this.stopped) return;
+    const opened = await this.mod.ui.mount({ id: PANEL, title: "Loadouts", root: { type: "column", children: [
+      { type: "text", text: text.slice(0, 4096) },
+      { type: "button", label: "Close", action: "close" }
+    ] } }, () => {
+      void this.mod.ui.unmount(PANEL);
+    });
+    if (this.stopped) await this.mod.ui.unmount(PANEL);
+    if (!opened.ok) this.mod.meta.log(text);
+  }
+  async confirm(item, key) {
+    const count = inscriptionChecks(item.inscription, key);
+    for (let i = 0; i < count; i++) {
+      if (this.stopped || this.interrupted) return false;
+      const yes = await new Promise((resolve) => {
+        this.confirming = resolve;
+        void this.mod.ui.mount({ id: PANEL, title: "Loadouts", modal: true, root: { type: "column", children: [
+          { type: "text", text: "Really " + (key === "w" ? "wear " : "take off ") + (item.name ?? item.label) + "?" },
+          { type: "button", label: "Yes", action: "yes" },
+          { type: "button", label: "Cancel swap", action: "cancel" }
+        ] } }, (action) => resolve(action === "yes"), () => resolve(false)).then((opened) => {
+          if (!opened.ok) resolve(false);
+        });
+      });
+      this.confirming = null;
+      await this.mod.ui.unmount(PANEL);
+      if (!yes) return false;
+    }
+    return true;
+  }
+  async restore(set) {
+    if (this.stopped || this.running) return;
+    this.running = true;
+    this.interrupted = false;
+    const notes = [];
+    const blocked = /* @__PURE__ */ new Set();
+    try {
+      const first = await this.world();
+      let hp = first?.player?.hp;
+      if (!first || first.equipment.length !== set.slots.length) {
+        notes.push("The saved body slots are unavailable.");
+        return;
+      }
+      for (let attempt = 0; attempt < set.slots.length * 3; attempt++) {
+        const input = await this.mod.view.input();
+        const world = await this.world();
+        if (!input.ok || !world || this.stopped || this.interrupted || world.player?.dead || hp !== void 0 && world.player && world.player.hp < hp) {
+          notes.push("The swap stopped.");
+          break;
+        }
+        hp = world.player?.hp;
+        if (input.value.phase !== "play" || input.value.prompt || input.value.messagePending || input.value.driver.kind !== "player") {
+          notes.push("The swap stopped because the game is waiting for other input.");
+          break;
+        }
+        let command = null;
+        let target = -1;
+        let subject = null;
+        let displaced = null;
+        for (const empty of [false, true]) {
+          for (let slot = 0; slot < set.slots.length; slot++) {
+            if (blocked.has(slot)) continue;
+            const piece = set.slots[slot] ?? null;
+            if (piece === null !== empty) continue;
+            const worn = world.equipment[slot] ?? null;
+            const found = piece && locatePiece(world, piece, this.identities);
+            if (piece && !found) {
+              notes.push(piece.name + ": not carried.");
+              blocked.add(slot);
+              continue;
+            }
+            if (piece && found && worn?.handle === found.handle) continue;
+            if (!piece && !worn) continue;
+            target = slot;
+            if (found) {
+              const otherSlot = world.equipment.findIndex((item) => item?.handle === found.handle);
+              if (otherSlot >= 0) {
+                command = { code: "takeoff", args: { handle: found.handle } };
+                subject = found;
+              } else if (worn && set.slots.some((saved, index) => index !== slot && saved && locatePiece(world, saved, this.identities)?.handle === worn.handle)) {
+                command = { code: "takeoff", args: { handle: worn.handle } };
+                subject = worn;
+              } else {
+                const simulation = await this.mod.view.simulateLoadout({ wield: [{ from: "gear", handle: found.handle }] });
+                if (!simulation.ok || !simulation.value.placements.some((p) => p.slot === slot) && world.equipmentSlots?.[slot]?.type !== "RING") {
+                  notes.push(piece.name + ": the game cannot place this item in the saved slot.");
+                  blocked.add(slot);
+                  continue;
+                }
+                if (world.equipmentSlots?.[slot]?.type === "RING" && !simulation.value.placements.some((p) => p.slot === slot) && simulation.value.placements.some((p) => p.displaced === null)) {
+                  notes.push(piece.name + ": the game cannot target this empty ring slot.");
+                  blocked.add(slot);
+                  continue;
+                }
+                command = { code: "wield", args: { handle: found.handle, slot } };
+                subject = found;
+                displaced = worn;
+              }
+            } else if (worn) {
+              command = { code: "takeoff", args: { handle: worn.handle } };
+              subject = worn;
+            }
+            break;
+          }
+          if (command) break;
+        }
+        if (!command || !subject) break;
+        if (!await this.confirm(subject, command.code === "wield" ? "w" : "t") || displaced && !await this.confirm(displaced, "t")) {
+          notes.push("The swap was canceled.");
+          break;
+        }
+        const fresh = await this.mod.view.input();
+        if (!fresh.ok || this.stopped || this.interrupted) break;
+        if (fresh.value.token.epoch !== input.value.token.epoch || fresh.value.token.revision !== input.value.token.revision) {
+          notes.push("The swap stopped because the game changed during confirmation.");
+          break;
+        }
+        if (fresh.value.phase !== "play" || fresh.value.prompt || fresh.value.messagePending) {
+          notes.push("The swap stopped because the game is waiting for other input.");
+          break;
+        }
+        const result = await this.mod.act.submit(fresh.value.token, { kind: "command", command });
+        if (!result.ok) {
+          notes.push(subject.label + ": " + result.message);
+          blocked.add(target);
+          continue;
+        }
+        let settled = false;
+        for (let wait = 0; wait < 300 && !this.stopped && !this.interrupted; wait++) {
+          await this.delay();
+          const next = await this.mod.view.input();
+          if (!next.ok) break;
+          if (next.value.token.epoch !== fresh.value.token.epoch) break;
+          if (next.value.token.revision !== fresh.value.token.revision && next.value.phase === "play" && !next.value.prompt && !next.value.messagePending) {
+            settled = true;
+            break;
+          }
+        }
+        const after = await this.world();
+        const moved = command.code === "wield" ? after?.equipment[target]?.handle === subject.handle : !after?.equipment.some((item) => item?.handle === subject.handle);
+        if (!settled) {
+          notes.push("The swap stopped while the game was waiting.");
+          break;
+        }
+        if (!moved) {
+          notes.push(subject.label + ": the game did not move this item.");
+          blocked.add(target);
+        }
+      }
+      const last = await this.world();
+      if (last) {
+        const lost = carried(first).filter((item) => !carried(last).some((now) => now.handle === item.handle));
+        for (const item of lost) notes.push(item.label + ": no longer carried after the swap.");
+        const complete = set.slots.every((piece, slot) => piece ? !!last.equipment[slot] && last.equipment[slot]?.handle === locatePiece(last, piece, this.identities)?.handle : !last.equipment[slot]);
+        notes.unshift(complete ? "The loadout is restored." : "The loadout is incomplete.");
+      }
+    } catch {
+      notes.push("The swap stopped because a game API call failed.");
+    } finally {
+      this.running = false;
+      await this.report(set.name + ": " + notes.join(" "));
+    }
+  }
+};
+
 // wording.ts
 var UPSTREAM_MESSAGE_WORDING = {
   /* cmd-cave.c, ordering an immobile monster to move (command monster). */
@@ -288,6 +614,7 @@ var UPSTREAM_MESSAGE_RULES = Object.entries(UPSTREAM_MESSAGE_WORDING).map(([find
 var PREF_ERROR_REPORT_LIMIT = 20;
 var PURGE_ESCAPE_COUNT = 3;
 var live2 = null;
+var loadouts = null;
 function liveOptions(mod2) {
   const state = mod2.engine?.state;
   return state?.options;
@@ -296,6 +623,7 @@ var plugin_default = {
   api: ">=2.0.0 <3.0.0",
   hooks({ flags }) {
     const hooks = {};
+    if (flags["qol.loadouts"] === true) hooks.monsterBecameVisible = () => loadouts?.disturb();
     if (flags["qol.accessibilityMacroWizard"] === true) hooks.abilityGained = offerAbilityMacro;
     if (flags["qol.rememberSettings"] === true) {
       const cheats = flags["qol.rememberCheats"] === true;
@@ -417,6 +745,17 @@ var plugin_default = {
     if (backupFolder) {
       await backupFolder.onSave((file) => void backupFolder.write(file.name, file.text));
     }
+    if (flags["qol.loadouts"] === true) {
+      const manager = new LoadoutManager(mod2);
+      loadouts = manager;
+      for (const result of [
+        await mod2.ui.gameMenu.register("loadouts", "Loadouts...", () => manager.open()),
+        await mod2.ui.commands.register("loadouts", "manage loadouts", () => manager.open()),
+        await mod2.ui.commands.register("cancel-loadout", "cancel loadout swap", () => manager.disturb())
+      ]) {
+        if (!result.ok) log(result.message);
+      }
+    }
     if (flags["qol.accessibilityMacroWizard"] === true) startMacroWizard(mod2);
     if (flags["qol.accessibilityRepeatShortcuts"] === true) await startRepeatShortcuts(mod2);
     if (flags["qol.rememberSettings"] !== true || !mod2.meta.newCharacter) return;
@@ -437,6 +776,8 @@ var plugin_default = {
   },
   stop() {
     live2 = null;
+    loadouts?.stop();
+    loadouts = null;
     stopMacroWizard();
     stopRepeatShortcuts();
   },
