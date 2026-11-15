@@ -534,7 +534,9 @@ describe("gear menu registration", () => {
     const h = modFor({ "qol.loadouts": true, "qol.gearComparison": true });
     await plugin.start(h.mod);
     expect(h.menu.mock.calls.map((call) => (call as unknown[])[0])).toEqual(["compare-gear", "loadouts"]);
-    expect(h.command.mock.calls.map((call) => (call as unknown[])[0])).toEqual(["compare-gear", "loadouts", "cancel-loadout"]);
+    const commandIds = h.command.mock.calls.map((call) => (call as unknown[])[0]);
+    expect(commandIds).toEqual(["qol:compare-gear", "qol:loadouts", "qol:cancel-loadout"]);
+    for (const id of commandIds) expect(id).toMatch(/^qol:[a-z][a-z0-9-]*$/);
     plugin.stop();
   });
 

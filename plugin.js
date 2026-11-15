@@ -1064,7 +1064,7 @@ var plugin_default = {
       comparison = manager;
       for (const result of [
         await mod2.ui.gameMenu.register("compare-gear", "Compare gear...", () => manager.open()),
-        await mod2.ui.commands.register("compare-gear", "compare gear", () => manager.open())
+        await mod2.ui.commands.register("qol:compare-gear", "compare gear", () => manager.open())
       ]) {
         if (!result.ok) log(result.message);
       }
@@ -1074,8 +1074,8 @@ var plugin_default = {
       loadouts = manager;
       for (const result of [
         await mod2.ui.gameMenu.register("loadouts", "Loadouts...", () => manager.open()),
-        await mod2.ui.commands.register("loadouts", "manage loadouts", () => manager.open()),
-        await mod2.ui.commands.register("cancel-loadout", "cancel loadout swap", () => manager.disturb())
+        await mod2.ui.commands.register("qol:loadouts", "manage loadouts", () => manager.open()),
+        await mod2.ui.commands.register("qol:cancel-loadout", "cancel loadout swap", () => manager.disturb())
       ]) {
         if (!result.ok) log(result.message);
       }

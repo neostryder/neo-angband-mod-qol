@@ -279,7 +279,7 @@ export default {
       comparison = manager;
       for (const result of [
         await mod.ui.gameMenu.register("compare-gear", "Compare gear...", () => manager.open()),
-        await mod.ui.commands.register("compare-gear", "compare gear", () => manager.open()),
+        await mod.ui.commands.register("qol:compare-gear", "compare gear", () => manager.open()),
       ]) {
         if (!result.ok) log(result.message);
       }
@@ -290,8 +290,8 @@ export default {
       loadouts = manager;
       for (const result of [
         await mod.ui.gameMenu.register("loadouts", "Loadouts...", () => manager.open()),
-        await mod.ui.commands.register("loadouts", "manage loadouts", () => manager.open()),
-        await mod.ui.commands.register("cancel-loadout", "cancel loadout swap", () => manager.disturb()),
+        await mod.ui.commands.register("qol:loadouts", "manage loadouts", () => manager.open()),
+        await mod.ui.commands.register("qol:cancel-loadout", "cancel loadout swap", () => manager.disturb()),
       ]) {
         if (!result.ok) log(result.message);
       }
