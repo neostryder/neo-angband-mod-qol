@@ -130,6 +130,14 @@
     ],
     "sections": [
       {
+        "id": "qol-richer-shops",
+        "flag": "qol.richerShops",
+        "title": "Richer weapon and armor shops",
+        "description": "The poorest Armoury and Weaponsmith owners can each pay up to 10000 gold per item.",
+        "default": false,
+        "requiresReload": true
+      },
+      {
         "id": "qol-fragile-town-books",
         "flag": "qol.fragileTownBooks",
         "title": "Fragile town books",

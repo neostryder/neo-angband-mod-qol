@@ -1,0 +1,22 @@
+{
+  "sections": {
+    "qol-richer-shops": {
+      "fieldPatches": {
+        "core:store-armor": [
+          {
+            "op": "set",
+            "path": "owner.0.purse",
+            "value": 10000
+          }
+        ],
+        "core:store-weapon": [
+          {
+            "op": "set",
+            "path": "owner.0.purse",
+            "value": 10000
+          }
+        ]
+      }
+    }
+  }
+}

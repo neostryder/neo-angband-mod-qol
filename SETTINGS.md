@@ -4,6 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.richerShops` | off | Raises the poorest Armoury and Weaponsmith owners' payment limits to 10000 gold per item. | Yes. |
 | `qol.fragileTownBooks` | off | Lets acid destroy town spell books and keeps dungeon books protected. | Yes. |
 | `qol.fragileFood` | off | Lets fire and acid destroy food and mushrooms. | Yes. |
 | `qol.noTownLava` | off | Turns lava in the town into granite. | Yes. |
