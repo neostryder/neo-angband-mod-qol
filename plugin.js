@@ -917,7 +917,7 @@ function liveOptions(mod2) {
   return state?.options;
 }
 var plugin_default = {
-  api: ">=2.0.0 <3.0.0",
+  api: ">=2.2.0 <3.0.0",
   hooks({ flags }) {
     const hooks = {};
     if (flags["qol.rejoinProse"] === true) {

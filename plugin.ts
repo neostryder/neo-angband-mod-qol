@@ -82,7 +82,7 @@ function liveOptions(mod: ModApi2): OptionStoreLike | undefined {
 }
 
 export default {
-  api: ">=2.0.0 <3.0.0",
+  api: ">=2.2.0 <3.0.0",
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};
