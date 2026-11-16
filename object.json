@@ -1,5 +1,80 @@
 {
   "sections": {
+    "qol-attunement": {
+      "records": [
+        {
+          "name": "Attunement",
+          "type": "staff",
+          "graphics": {
+            "glyph": "_",
+            "color": "d"
+          },
+          "level": 20,
+          "weight": 50,
+          "cost": 1600,
+          "alloc": {
+            "common": 30,
+            "minmax": "20 to 100"
+          },
+          "attack": {
+            "hd": "1d2",
+            "to-h": "0",
+            "to-d": "0"
+          },
+          "armor": {
+            "ac": 0,
+            "to-a": "0"
+          },
+          "charges": "5+d5",
+          "power": 6,
+          "effect": [
+            {
+              "eff": "ATTUNE"
+            }
+          ],
+          "desc": [
+            "It teaches one unknown rune on a wearable item or identifies an unknown item flavor."
+          ]
+        },
+        {
+          "name": "Attunement",
+          "type": "rod",
+          "graphics": {
+            "glyph": "-",
+            "color": "d"
+          },
+          "level": 30,
+          "weight": 15,
+          "cost": 3000,
+          "alloc": {
+            "common": 15,
+            "minmax": "50 to 100"
+          },
+          "attack": {
+            "hd": "1d1",
+            "to-h": "0",
+            "to-d": "0"
+          },
+          "armor": {
+            "ac": 0,
+            "to-a": "0"
+          },
+          "flags": [
+            "IGNORE_ELEC"
+          ],
+          "power": 10,
+          "effect": [
+            {
+              "eff": "ATTUNE"
+            }
+          ],
+          "time": "100",
+          "desc": [
+            "It teaches one unknown rune on a wearable item or identifies an unknown item flavor."
+          ]
+        }
+      ]
+    },
     "qol-misc-niceties": {
       "fieldPatches": {
         "core:ring--protection": [

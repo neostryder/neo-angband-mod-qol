@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [Content] Optional Attunement devices teach runes or identify flavors and default to dungeon-only (#389).
+
 - [Visible] [UI] Birth option marks, hints, and a changed-options review are optional (#392).
 
 - [Visible] [Balance] Random artifact set size (mod API 2.4.0) builds 1x to 4x the usual number of random artifacts, each proportionally rarer, and defaults to 1x (#390).

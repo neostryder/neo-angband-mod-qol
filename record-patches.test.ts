@@ -2,14 +2,30 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadPackFile, loadPackRecords } from "@rpgm-tools/neo-angband-content/pack";
 import {
+  api2PolicyEffects,
   composePacks,
   expandSections,
   resolveSectionState,
   validateManifest,
+  recordKey,
 } from "@rpgm-tools/neo-angband-mod-sdk";
 import type { FileContribution, JsonRecord, PackContent } from "@rpgm-tools/neo-angband-mod-sdk";
 import {
   ELEM,
+  EffectRegistry,
+  FlavorKnowledge,
+  StoreBehaviourRegistry,
+  NOOP_FLAVOR_AWARE_DEPS,
+  attachGameEnv,
+  basicPlayerActor,
+  buildObjectEffectChain,
+  buildRuneList,
+  objectRunesKnown,
+  registerCoreHandlers,
+  registerItemHandlers,
+  sourcePlayer,
+  storeCreateRandom,
+  tvalFindName,
   ArtifactState,
   FEAT,
   KF,
@@ -61,12 +77,95 @@ function registry(sections: readonly string[] = [], withMod = true): ObjRegistry
     objectBase: "object_base", object: "object", egoItem: "ego_item", artifact: "artifact",
     curse: "curse", brand: "brand", slay: "slay", activation: "activation",
     objectProperty: "object_property", flavor: "flavor",
-  }).map(([key, file]) => [key, file === "object_base" && withMod
+  }).map(([key, file]) => [key, ["object_base", "object"].includes(file) && withMod
     ? { ...loadPackFile(file) as object, records: records(file, sections) }
     : loadPackFile(file)])) as unknown as ObjPackJson);
   registerBookKinds(reg, players.classes);
   return reg;
 }
+
+describe("Attunement devices", () => {
+  const enabled = ["qol-attunement"];
+  const deviceKinds = (reg: ObjRegistry) => reg.kinds.filter((kind) => kind.name === "Attunement");
+
+  it("adds both device records only when their content setting is on", () => {
+    expect(manifest.sections?.find((section) => section.id === "qol-attunement")?.default).toBe(false);
+    expect(records("object")).toEqual(loadPackRecords("object"));
+    expect(deviceKinds(registry())).toEqual([]);
+    expect(deviceKinds(registry(enabled)).map((kind) => kind.tval)).toEqual([TV.STAFF, TV.ROD]);
+    const added = records("object", enabled).filter((record) => record.name === "Attunement");
+    expect(added).toMatchObject([
+      { type: "staff", level: 20, cost: 1600, alloc: { common: 30, minmax: "20 to 100" }, charges: "5+d5", effect: [{ eff: "ATTUNE" }] },
+      { type: "rod", level: 30, cost: 3000, alloc: { common: 15, minmax: "50 to 100" }, time: "100", effect: [{ eff: "ATTUNE" }] },
+    ]);
+  });
+
+  for (const tval of [TV.STAFF, TV.ROD]) {
+    it(`learns one rune per wearable use and a potion flavor through device ${String(tval)}`, () => {
+      const reg = registry(enabled);
+      const rng = new Rng(389);
+      const p = player();
+      p.objKnown.toH = 0;
+      p.objKnown.toD = 0;
+      const runeEnv = makeRuneEnv(() => null, (value) => rng.randcalcVaries(value));
+      const flavor = new FlavorKnowledge(reg.ordinaryKindCount);
+      const state = { rng, actor: { player: p }, gear: newGear(), floor: new Map(), runeEnv,
+        isAware: (kind: ObjectKind) => flavor.isAware(kind) } as GameState;
+      const effects = new EffectRegistry();
+      registerCoreHandlers(effects);
+      registerItemHandlers(effects);
+      state.effectInject = { lookupEffect: (name) => effects.isRegistered(name) ? name : null };
+      const device = objectPrep(rng, reg, constants, deviceKinds(reg).find((kind) => kind.tval === tval)!, 0, "average");
+      const sword = objectPrep(rng, reg, constants, reg.kinds.find((kind) => kind.tval === TV.SWORD)!, 0, "average");
+      sword.toH = 5;
+      sword.toD = 5;
+      const potion = objectPrep(rng, reg, constants, reg.kinds.find((kind) => kind.tval === TV.POTION)!, 0, "average");
+      const run = (target: typeof sword | null) => effects.effectDo(buildObjectEffectChain(device.effect!, state), attachGameEnv({ rng }, {
+        state, cast: { projections: bindProjections(loadPackRecords("projection") as never), maxRange: 20, playerActor: basicPlayerActor(state) },
+        item: { getItem: (request) => target && request.tester(target) ? target : null },
+        flavor, flavorDeps: NOOP_FLAVOR_AWARE_DEPS,
+      }), { origin: sourcePlayer() });
+      // effect_handler_IDENTIFY and object_learn_unknown_rune teach one rune per use.
+      expect(run(sword)).toBe(true);
+      expect(p.objKnown.toH + p.objKnown.toD).toBe(1);
+      expect(objectRunesKnown(p, runeEnv, sword, buildRuneList(runeEnv))).toBe(false);
+      expect(run(sword)).toBe(true);
+      expect(p.objKnown.toH + p.objKnown.toD).toBe(2);
+      expect(objectRunesKnown(p, runeEnv, sword, buildRuneList(runeEnv))).toBe(true);
+      expect(run(sword)).toBe(false);
+      expect(flavor.isAware(potion.kind)).toBe(false);
+      expect(run(potion)).toBe(true);
+      expect(flavor.isAware(potion.kind)).toBe(true);
+      expect(run(potion)).toBe(false);
+      expect(run(null)).toBe(false);
+    });
+  }
+
+  it("excludes both bound kinds in every selling store, including the black market", () => {
+    const reg = registry(enabled);
+    const policies = plugin.policies({ id: "qol", flags: { "qol.attunement": true }, settings: {} })!;
+    const selectors = api2PolicyEffects(policies, (capability) => manifest.capabilities?.includes(capability) === true).registrations.storeAllocationExclude!;
+    expect(selectors).toHaveLength(2);
+    const keys = new Set(selectors.map((selector) => selector.key));
+    const behaviour = new StoreBehaviourRegistry();
+    behaviour.registerAllocationFilter((kind) => !keys.has(recordKey("object", { type: tvalFindName(kind.tval), name: kind.name })!));
+    for (const kind of deviceKinds(reg)) {
+      for (const bound of new StoreRegistry(loadPackRecords("store") as unknown as StoreRecordJson[], reg).stores.filter((store) => store.feat !== FEAT.HOME)) {
+        const rng = new Rng(389);
+        const store = bindStoreRuntime(bound, rng, constants.storeInvenMax);
+        store.normalTable = [kind];
+        const alloc = new ObjAllocState(reg, constants);
+        alloc.getObjNum = () => kind;
+        const deps: MakeDeps = { reg, constants, alloc, artifacts: new ArtifactState(reg.artifacts.length), noArtifacts: true };
+        const ctx = { rng, deps, maxDepth: 50, stores: [store], behaviour };
+        expect(storeCreateRandom(ctx, store), `${String(kind.tval)} at ${store.featName}`).toBe(false);
+        expect(store.stock).toEqual([]);
+        expect(storeCreateRandom({ ...ctx, behaviour: new StoreBehaviourRegistry() }, store)).toBe(true);
+        expect(store.stock[0]?.kind).toBe(kind);
+      }
+    }
+  });
+});
 
 describe("random artifact generation from the QoL setting", () => {
   const randartRegistry = () => {

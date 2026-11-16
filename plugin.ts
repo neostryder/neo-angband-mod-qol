@@ -143,6 +143,9 @@ export default {
      */
     return {
       ...(typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {}),
+      ...(flags["qol.attunement"] === true && flags["qol.attunementStores"] !== true
+        ? { storeAllocationExclude: [{ file: "object", key: "staff--attunement" }, { file: "object", key: "rod--attunement" }] as const }
+        : {}),
       ...(flags["qol.birthOptionAnnotations"] === true ? { birthOptionAnnotations } : {}),
       ...(flags["qol.birthConfirmOptions"] === true ? { birthConfirmOptions: true } : {}),
       ...(flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {}),

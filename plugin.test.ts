@@ -64,6 +64,7 @@ describe("the qol mod's entry point", () => {
       "registry:ui-entry",
       "registry:message",
       "registry:randart-size",
+      "registry:store",
       "state:player.read",
       "state:inventory.read",
       "state:interaction.read",
@@ -108,6 +109,19 @@ describe("the qol mod's entry point", () => {
     const all = { ...allRuleFlags(), "qol.miscNiceties": true };
     expect(() => plugin.hooks({ id: "qol", flags: all, settings: {} })).not.toThrow();
     expect(() => plugin.policies({ id: "qol", flags: all, settings: {} })).not.toThrow();
+  });
+});
+
+describe("Attunement store policy", () => {
+  it("defaults to dungeon-only and removes the filter only when stores are allowed", () => {
+    expect(manifest.rules?.find((rule) => rule.flag === "qol.attunementStores")?.default).toBe(false);
+    const policies = policiesFor({ "qol.attunement": true });
+    expect(checkApi2Policies(policies)).toBeNull();
+    expect(policies.storeAllocationExclude).toEqual([{ file: "object", key: "staff--attunement" }, { file: "object", key: "rod--attunement" }]);
+    expect(api2PolicyEffects(policies, () => false).registrations.storeAllocationExclude).toBeUndefined();
+    for (const flags of [{}, { "qol.attunementStores": true }, { "qol.attunement": false }, { "qol.attunement": true, "qol.attunementStores": true }]) {
+      expect(policiesFor(flags).storeAllocationExclude).toBeUndefined();
+    }
   });
 });
 

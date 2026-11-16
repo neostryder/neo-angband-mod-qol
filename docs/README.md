@@ -15,6 +15,8 @@ The Mods screen shows each setting's full description. The identifier names a ru
 | --- | --- | --- | --- |
 | Birth option explanations | `qol.birthOptionAnnotations` | off | Mark birth options with D for difficulty and I for item generation, and explain the selected option. No birth option directly disables scoring. |
 | Review birth options | `qol.birthConfirmOptions` | off | Show every birth option that differs from its effective default before play. Press one key to continue, Escape to go back, or S to start over. |
+| Attunement devices | `qol.attunement` | off | Add a charged staff at depth 20 and a rarer recharging rod from depth 50. Each use teaches one unknown rune on a wearable or identifies an unknown item flavor. Both are dungeon-only unless Attunement in stores is on. |
+| Attunement in stores | `qol.attunementStores` | off | Allow enabled Attunement devices in random store stock, including the black market. Off keeps them dungeon-only; existing stock and sold items do not change. |
 | Random artifact set size | `qol.randartSetSize` | 1x | Builds 1x to 4x the usual number of randomized artifacts for the next new character, each rarer by the same factor. |
 | Memorial epigraphs | `qol.memorialEpigraphs` | off | Adds a one-line epigraph to end screens and the character dump. |
 | Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
@@ -45,7 +47,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `registry:randart-size`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `state:spells.read`, `engine:access`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `registry:randart-size`, `registry:store`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `state:spells.read`, `engine:access`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle

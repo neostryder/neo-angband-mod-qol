@@ -27,6 +27,7 @@
       "registry:ui-entry",
       "registry:message",
       "registry:randart-size",
+      "registry:store",
       "state:player.read",
       "state:inventory.read",
       "state:interaction.read",
@@ -46,6 +47,13 @@
       "plugin"
     ],
     "rules": [
+      {
+        "flag": "qol.attunementStores",
+        "title": "Attunement in stores",
+        "description": "Allow enabled Attunement devices in random store stock, including the black market. Off keeps them dungeon-only; existing stock and sold items do not change.",
+        "default": false,
+        "requiresReload": true
+      },
       {
         "flag": "qol.birthOptionAnnotations",
         "title": "Birth option explanations",
@@ -184,6 +192,14 @@
       }
     ],
     "sections": [
+      {
+        "id": "qol-attunement",
+        "flag": "qol.attunement",
+        "title": "Attunement devices",
+        "description": "Add a charged staff at depth 20 and a rarer recharging rod from depth 50. Each use teaches one unknown rune on a wearable or identifies an unknown item flavor. Both are dungeon-only unless Attunement in stores is on.",
+        "default": false,
+        "requiresReload": true
+      },
       {
         "id": "qol-richer-shops",
         "flag": "qol.richerShops",

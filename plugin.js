@@ -1209,6 +1209,7 @@ var plugin_default = {
     if (flags["qol.ignoreLanterns"] === true) ignore.push({ tval: "light", kindNameContains: "Lantern", ignore: true });
     return {
       ...typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {},
+      ...flags["qol.attunement"] === true && flags["qol.attunementStores"] !== true ? { storeAllocationExclude: [{ file: "object", key: "staff--attunement" }, { file: "object", key: "rod--attunement" }] } : {},
       ...flags["qol.birthOptionAnnotations"] === true ? { birthOptionAnnotations: birth_options_default } : {},
       ...flags["qol.birthConfirmOptions"] === true ? { birthConfirmOptions: true } : {},
       ...flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {},
