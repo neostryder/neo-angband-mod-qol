@@ -40,6 +40,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [Balance] The stored random artifact multiplier applies to the first new character on the wave 6 Core pack (#390).
+
 - [Visible] [UI] Rejoin wrapped prose keeps the original rows of help paragraphs that contain layout markers, even when the game classifies them as prose.
 
 - [Visible] [UI] A command's help line in the command browser now moves with it when another mod changes its key.

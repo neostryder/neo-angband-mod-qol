@@ -180,6 +180,17 @@ describe("random artifact generation from the QoL setting", () => {
       policy ? { sizeMultiplier: policy.multiplier } : undefined);
   };
 
+  it("uses the stored 4x value on the first policy evaluation for a new set", () => {
+    const settings = Object.freeze({ "qol.randartSetSize": 4 });
+    const first = plugin.policies({ id: "qol", flags: {}, settings });
+    const registration = api2PolicyEffects(first!, (capability) => manifest.capabilities?.includes(capability) === true).registrations.randartSetSize;
+    expect(registration).toEqual({ multiplier: 4 });
+    const reg = randartRegistry();
+    const arts = doRandart(reg, constants, 390, false, undefined, { sizeMultiplier: registration!.multiplier });
+    expect(arts.filter(Boolean)).toHaveLength(543);
+    expect(arts.filter((art) => art?.allocationScale === 0.25)).toHaveLength(540);
+  });
+
   it("keeps do_randart byte-identical at 1x", () => {
     const faithful = doRandart(randartRegistry(), constants, 390, false);
     expect(JSON.stringify(generate(1))).toBe(JSON.stringify(faithful));
