@@ -40,7 +40,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 
 ## What it needs
 
-- **Mod API:** `>=2.3.0 <3.0.0`
+- **Mod API:** `>=2.4.0 <3.0.0`
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
