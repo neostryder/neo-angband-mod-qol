@@ -4,6 +4,8 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
+| `qol.birthOptionAnnotations` | off | Mark birth options with D for difficulty and I for item generation, and explain the selected option. No birth option directly disables scoring. | No. |
+| `qol.birthConfirmOptions` | off | Show every birth option that differs from its effective default before play. Press one key to continue, Escape to go back, or S to start over. | No. |
 | `qol.randartSetSize` | 1x | Builds 1x, 2x, 3x, or 4x the usual number of randomized artifacts and lowers each one's chance to appear by the same factor. Fixed artifacts and sets already generated for saved characters do not change. | Yes, from the next new character with random artifacts on |
 | `qol.memorialEpigraphs` | off | Adds a one-line epigraph picked for the ending to the end screen and the character dump, with the same line in both. | Yes. |
 | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling unless Auto-more is on. | Yes. |

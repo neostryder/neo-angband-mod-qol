@@ -1087,6 +1087,85 @@ function memorialLine(report) {
   return lines[hash % lines.length].slice(0, 72);
 }
 
+// birth-options.json
+var birth_options_default = [
+  {
+    name: "birth_randarts",
+    mark: "D/I",
+    hint: "Generate random artifacts instead of the standard set."
+  },
+  {
+    name: "birth_connect_stairs",
+    mark: "D",
+    hint: "Place an arrival staircase for a route back when stairs are allowed."
+  },
+  {
+    name: "birth_force_descend",
+    mark: "D",
+    hint: "Prevent upward travel and require progress to deeper levels."
+  },
+  {
+    name: "birth_no_recall",
+    mark: "D/I",
+    hint: "Disable recall before victory and omit starting recall scrolls."
+  },
+  {
+    name: "birth_no_artifacts",
+    mark: "D/I",
+    hint: "Prevent random artifact creation."
+  },
+  {
+    name: "birth_stacking",
+    mark: "D/I",
+    hint: "Allow multiple objects on a floor square; otherwise extra drops need another square."
+  },
+  {
+    name: "birth_lose_arts",
+    mark: "D/I",
+    hint: "Make artifacts left behind unavailable on later levels."
+  },
+  {
+    name: "birth_feelings",
+    mark: "D",
+    hint: "Show the danger and treasure feelings for a dungeon level."
+  },
+  {
+    name: "birth_no_selling",
+    mark: "D/I",
+    hint: "Disable sale income and multiply dungeon gold drops by five."
+  },
+  {
+    name: "birth_start_kit",
+    mark: "D/I",
+    hint: "Start with class equipment; otherwise start with one food and one light."
+  },
+  {
+    name: "birth_ai_learn",
+    mark: "D",
+    hint: "Let monsters learn defenses and avoid ineffective spells."
+  },
+  {
+    name: "birth_know_runes",
+    mark: "D",
+    hint: "Know every rune at birth."
+  },
+  {
+    name: "birth_know_flavors",
+    mark: "D",
+    hint: "Recognize all item flavors at birth."
+  },
+  {
+    name: "birth_levels_persist",
+    mark: "D/I",
+    hint: "Keep visited levels and their remaining monsters and objects."
+  },
+  {
+    name: "birth_percent_damage",
+    mark: "D",
+    hint: "Use percentage-based weapon damage and its combat rules."
+  }
+];
+
 // plugin.ts
 var PREF_ERROR_REPORT_LIMIT = 20;
 var PURGE_ESCAPE_COUNT = 3;
@@ -1130,6 +1209,8 @@ var plugin_default = {
     if (flags["qol.ignoreLanterns"] === true) ignore.push({ tval: "light", kindNameContains: "Lantern", ignore: true });
     return {
       ...typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {},
+      ...flags["qol.birthOptionAnnotations"] === true ? { birthOptionAnnotations: birth_options_default } : {},
+      ...flags["qol.birthConfirmOptions"] === true ? { birthConfirmOptions: true } : {},
       ...flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {},
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork

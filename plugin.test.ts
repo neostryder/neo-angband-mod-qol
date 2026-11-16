@@ -111,6 +111,53 @@ describe("the qol mod's entry point", () => {
   });
 });
 
+describe("birth option review", () => {
+  it("declares separate settings with both features off by default", () => {
+    for (const flag of ["qol.birthOptionAnnotations", "qol.birthConfirmOptions"]) {
+      expect(manifest.rules?.find((rule) => rule.flag === flag)?.default).toBe(false);
+      expect(policiesFor({ [flag]: false })).toEqual({});
+    }
+    expect(policiesFor({ "qol.birthConfirmOptions": true })).toEqual({ birthConfirmOptions: true });
+    expect(policiesFor({ "qol.birthOptionAnnotations": true }).birthConfirmOptions).toBeUndefined();
+  });
+
+  it("classifies every Core birth option and supplies a bounded one-line hint", () => {
+    const policies = policiesFor({ "qol.birthOptionAnnotations": true });
+    expect(checkApi2Policies(policies)).toBeNull();
+    const rows = policies.birthOptionAnnotations!;
+    expect(rows.map((row) => row.name).sort()).toEqual(neoCore.OPTION_ENTRIES.filter((entry) => entry.type === "BIRTH").map((entry) => entry.name).sort());
+    expect(Object.fromEntries(rows.map(({ name, mark }) => [name, mark]))).toEqual({
+      birth_randarts: "D/I", birth_connect_stairs: "D", birth_force_descend: "D",
+      birth_no_recall: "D/I", birth_no_artifacts: "D/I", birth_stacking: "D/I",
+      birth_lose_arts: "D/I", birth_feelings: "D", birth_no_selling: "D/I",
+      birth_start_kit: "D/I", birth_ai_learn: "D", birth_know_runes: "D",
+      birth_know_flavors: "D", birth_levels_persist: "D/I", birth_percent_damage: "D",
+    });
+    const hooks = api2PoliciesToHooks(policies);
+    for (const row of rows) {
+      expect(row.hint?.length).toBeGreaterThan(0);
+      expect(row.hint?.length).toBeLessThanOrEqual(120);
+      expect(row.hint).not.toMatch(/[\r\n]/u);
+      expect(hooks.birthOptionAnnotation?.({ name: row.name, description: "", value: false, defaultValue: false })).toMatchObject({ mark: row.mark, hint: row.hint });
+    }
+  });
+
+  it("requests the full host review without truncating changed option facts", () => {
+    const hooks = api2PoliciesToHooks(policiesFor({ "qol.birthConfirmOptions": true }));
+    const options = Object.freeze(neoCore.OPTION_ENTRIES.filter((entry) => entry.type === "BIRTH").map((entry) => Object.freeze({
+      name: entry.name, description: entry.description,
+      value: entry.name === "birth_no_selling" ? true : !entry.normal,
+      defaultValue: entry.name === "birth_no_selling" ? false : entry.normal,
+    })));
+    expect(options.map((option) => option.description).join(" ").length).toBeGreaterThan(160);
+    expect(hooks.birthConfirmOptions?.(Object.freeze({ options }))).toBe(true);
+    expect(options).toHaveLength(15);
+    expect(options.find((option) => option.name === "birth_no_selling")?.defaultValue).toBe(false);
+    expect(hooks.birthConfirmNote).toBeUndefined();
+    expect(hooks.birthOptionHighlight).toBeUndefined();
+  });
+});
+
 describe("object feeling pause", () => {
   it("marks the object-only display_feeling message and leaves other messages alone", () => {
     const hooks = api2PoliciesToHooks(policiesFor({ "qol.pauseObjectFeeling": true }));
@@ -158,6 +205,8 @@ describe("random artifact set size", () => {
 
 describe("policy tables", () => {
   const cases: readonly (readonly [flag: string, tables: readonly string[]])[] = [
+    ["qol.birthOptionAnnotations", ["birthOptionAnnotations"]],
+    ["qol.birthConfirmOptions", ["birthConfirmOptions"]],
     ["qol.pauseObjectFeeling", ["messagePauseAfter"]],
     ["qol.autoDig", ["walkBlockedByDiggable"]],
     ["qol.forgivingPrefFiles", ["prefErrors"]],
@@ -180,7 +229,7 @@ describe("policy tables", () => {
     const policies = policiesFor(all);
     expect(checkApi2Policies(policies)).toBeNull();
     expect(Object.keys(policies).sort()).toEqual(
-      ["displayOptions", "ignore", "messagePauseAfter", "messageText", "prefErrors", "purgeInput", "walkBlockedByDiggable"],
+      ["birthConfirmOptions", "birthOptionAnnotations", "displayOptions", "ignore", "messagePauseAfter", "messageText", "prefErrors", "purgeInput", "walkBlockedByDiggable"],
     );
   });
 

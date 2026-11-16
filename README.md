@@ -43,6 +43,8 @@ See the [settings reference](SETTINGS.md) for every flag, its default, and when 
 
 | Setting | Default | What it does |
 |---|---|---|
+| **Birth option explanations** (`qol.birthOptionAnnotations`) | off | Mark birth options with D for difficulty and I for item generation, and explain the selected option. No birth option directly disables scoring. |
+| **Review birth options** (`qol.birthConfirmOptions`) | off | Show every birth option that differs from its effective default before play. Press one key to continue, Escape to go back, or S to start over. |
 | **Random artifact set size** (`qol.randartSetSize`) | 1x | Builds 1x, 2x, 3x, or 4x the usual number of randomized artifacts for the next new character and lowers each one's chance to appear by the same factor. Fixed artifacts and sets already generated for saved characters do not change. |
 | **Auto-dig on walk** (`qol.autoDig`) | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move. |
 | **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |

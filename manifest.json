@@ -47,6 +47,18 @@
     ],
     "rules": [
       {
+        "flag": "qol.birthOptionAnnotations",
+        "title": "Birth option explanations",
+        "description": "Mark birth options with D for difficulty and I for item generation, and explain the selected option. No birth option directly disables scoring.",
+        "default": false
+      },
+      {
+        "flag": "qol.birthConfirmOptions",
+        "title": "Review birth options",
+        "description": "Show every birth option that differs from its effective default before play. Press one key to continue, Escape to go back, or S to start over.",
+        "default": false
+      },
+      {
         "flag": "qol.memorialEpigraphs",
         "title": "Memorial epigraphs",
         "description": "Add a one-line epigraph, picked for the ending, to the death, retirement, and victory screens and the character dump, with the same line in both.",

@@ -13,6 +13,8 @@ The Mods screen shows each setting's full description. The identifier names a ru
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Birth option explanations | `qol.birthOptionAnnotations` | off | Mark birth options with D for difficulty and I for item generation, and explain the selected option. No birth option directly disables scoring. |
+| Review birth options | `qol.birthConfirmOptions` | off | Show every birth option that differs from its effective default before play. Press one key to continue, Escape to go back, or S to start over. |
 | Random artifact set size | `qol.randartSetSize` | 1x | Builds 1x to 4x the usual number of randomized artifacts for the next new character, each rarer by the same factor. |
 | Memorial epigraphs | `qol.memorialEpigraphs` | off | Adds a one-line epigraph to end screens and the character dump. |
 | Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
@@ -39,7 +41,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 
 ## What it needs
 
-- **Mod API:** `>=2.4.0 <3.0.0`
+- **Mod API:** `>=2.6.0 <3.0.0`
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`

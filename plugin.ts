@@ -49,6 +49,7 @@ import { UPSTREAM_MESSAGE_RULES } from "./wording";
 import { rejoinHelpProse, rejoinProse, rejoinScreenProse } from "./rejoin-prose";
 import { installContextHelp } from "./context-help";
 import { memorialLine } from "./memorial";
+import birthOptionAnnotations from "./birth-options.json";
 
 /**
  * How many parse errors one pref file may report before the rest go unmentioned.
@@ -142,6 +143,8 @@ export default {
      */
     return {
       ...(typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {}),
+      ...(flags["qol.birthOptionAnnotations"] === true ? { birthOptionAnnotations } : {}),
+      ...(flags["qol.birthConfirmOptions"] === true ? { birthConfirmOptions: true } : {}),
       ...(flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {}),
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork

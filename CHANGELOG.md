@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [UI] Birth option marks, hints, and a changed-options review are optional (#392).
+
 - [Visible] [Balance] Random artifact set size (mod API 2.4.0) builds 1x to 4x the usual number of random artifacts, each proportionally rarer, and defaults to 1x (#390).
 
 - [Visible] [UI] Context help now explains the selected command in the command browser.
