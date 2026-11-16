@@ -22,9 +22,9 @@ were not retagged.
 
 ### Added
 
-- [Visible] [Content] Optional Attunement devices teach runes or identify flavors and default to dungeon-only (#389).
+- [Visible] [Content] **Two optional Attunement devices now teach runes and flavors.** The Staff of Attunement turns up from depth 20 and the rechargeable Rod of Attunement from depth 50, and each use teaches one unknown rune on a wearable item or identifies one unknown flavor. Both are off by default and appear only in the dungeon, and a separate setting lets them into random store stock (neostryder/neo-angband#389).
 
-- [Visible] [UI] Birth option marks, hints, and a changed-options review are optional (#392).
+- [Visible] [UI] **Birth options can now show what they affect, and a review screen can list your changes before you start.** Both settings are off by default. One marks each birth option with D (difficulty) or I (item generation) and a one-line hint, and the other lists every birth option that differs from its default before the final key, with one key to skip the review (neostryder/neo-angband#392).
 
 - [Visible] [Balance] Random artifact set size (mod API 2.4.0) builds 1x to 4x the usual number of random artifacts, each proportionally rarer, and defaults to 1x (#390).
 
@@ -40,9 +40,9 @@ were not retagged.
 
 ### Fixed
 
-- [Visible] [UI] The wave 6 Core pack keeps the death screen and memorial line visible (#393).
+- [Visible] [UI] **The death screen now stays up and its closing line shows.** The fix is in Neo Angband itself, so QoL needs no update, but you need the newest Neo Angband build, wave 6 (neostryder/neo-angband#393).
 
-- [Visible] [Balance] The stored random artifact multiplier applies to the first new character on the wave 6 Core pack (#390).
+- [Visible] [Balance] **The random artifact set size setting now applies to your first new character.** The game used to read the setting too late, so a new character always got the 1x set whatever size from 1x to 4x you chose. This needs the newest Neo Angband build, wave 6 (neostryder/neo-angband#390).
 
 - [Visible] [UI] Rejoin wrapped prose keeps the original rows of help paragraphs that contain layout markers, even when the game classifies them as prose.
 

@@ -1092,77 +1092,77 @@ var birth_options_default = [
   {
     name: "birth_randarts",
     mark: "D/I",
-    hint: "Generate random artifacts instead of the standard set."
+    hint: "Replaces the standard artifacts with a randomly generated set."
   },
   {
     name: "birth_connect_stairs",
     mark: "D",
-    hint: "Place an arrival staircase for a route back when stairs are allowed."
+    hint: "If stairs are allowed, you arrive on a staircase leading back."
   },
   {
     name: "birth_force_descend",
     mark: "D",
-    hint: "Prevent upward travel and require progress to deeper levels."
+    hint: "You cannot go up, and every new level must be deeper."
   },
   {
     name: "birth_no_recall",
     mark: "D/I",
-    hint: "Disable recall before victory and omit starting recall scrolls."
+    hint: "No recall until you win, and no recall scrolls in your starting kit."
   },
   {
     name: "birth_no_artifacts",
     mark: "D/I",
-    hint: "Prevent random artifact creation."
+    hint: "No artifacts are generated."
   },
   {
     name: "birth_stacking",
     mark: "D/I",
-    hint: "Allow multiple objects on a floor square; otherwise extra drops need another square."
+    hint: "Several objects can share one floor square. If off, each needs its own."
   },
   {
     name: "birth_lose_arts",
     mark: "D/I",
-    hint: "Make artifacts left behind unavailable on later levels."
+    hint: "Artifacts you leave behind never turn up on later levels."
   },
   {
     name: "birth_feelings",
     mark: "D",
-    hint: "Show the danger and treasure feelings for a dungeon level."
+    hint: "Gives a feeling for each level's danger and treasure."
   },
   {
     name: "birth_no_selling",
     mark: "D/I",
-    hint: "Disable sale income and multiply dungeon gold drops by five."
+    hint: "Selling earns no gold, and dungeon gold drops are five times larger."
   },
   {
     name: "birth_start_kit",
     mark: "D/I",
-    hint: "Start with class equipment; otherwise start with one food and one light."
+    hint: "Begin with your class's gear. If off, you get one food and one light."
   },
   {
     name: "birth_ai_learn",
     mark: "D",
-    hint: "Let monsters learn defenses and avoid ineffective spells."
+    hint: "Monsters learn your defenses and skip spells that do nothing to you."
   },
   {
     name: "birth_know_runes",
     mark: "D",
-    hint: "Know every rune at birth."
+    hint: "Your character starts out knowing every rune."
   },
   {
     name: "birth_know_flavors",
     mark: "D",
-    hint: "Recognize all item flavors at birth."
+    hint: "Your character starts out knowing every item flavor."
   },
   {
     name: "birth_levels_persist",
     mark: "D/I",
-    hint: "Keep visited levels and their remaining monsters and objects."
+    hint: "Visited levels are kept with the monsters and objects left on them."
   },
   {
     name: "birth_percent_damage",
     mark: "D",
-    hint: "Use percentage-based weapon damage and its combat rules."
+    hint: "Weapon damage works as a percentage, with combat rules to match."
   }
 ];
 

@@ -33,7 +33,7 @@
             }
           ],
           "desc": [
-            "It teaches one unknown rune on a wearable item or identifies an unknown item flavor."
+            "Each charge reveals one unknown rune on a wearable item or one unknown flavor."
           ]
         },
         {
@@ -70,7 +70,7 @@
           ],
           "time": "100",
           "desc": [
-            "It teaches one unknown rune on a wearable item or identifies an unknown item flavor."
+            "Each zap reveals one unknown rune on a wearable item or one unknown flavor. It recharges."
           ]
         }
       ]
