@@ -40,6 +40,8 @@ were not retagged.
 
 ### Fixed
 
+- [Visible] [UI] The wave 6 Core pack keeps the death screen and memorial line visible (#393).
+
 - [Visible] [Balance] The stored random artifact multiplier applies to the first new character on the wave 6 Core pack (#390).
 
 - [Visible] [UI] Rejoin wrapped prose keeps the original rows of help paragraphs that contain layout markers, even when the game classifies them as prose.

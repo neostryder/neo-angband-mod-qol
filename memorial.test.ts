@@ -4,6 +4,16 @@ import epigraphs from "./epigraphs.json";
 import plugin from "./plugin";
 
 describe("memorial epigraphs", () => {
+  it("keeps the death epigraph with the wave 6 birth and device settings enabled", () => {
+    const flags = { "qol.memorialEpigraphs": true, "qol.birthOptionAnnotations": true, "qol.birthConfirmOptions": true, "qol.attunement": true };
+    const facts = Object.freeze({ outcome: "death" as const, name: "Adventurer", turn: 1100, seed: 390 });
+    const hook = plugin.hooks({ id: "qol", flags, settings: { "qol.randartSetSize": 4 } }).runEndLine!;
+    const expected = plugin.hooks({ id: "qol", flags: { "qol.memorialEpigraphs": true }, settings: {} }).runEndLine!(facts);
+    expect(hook(facts)).toBe(expected);
+    expect(epigraphs.death.map((line) => line.slice(0, 72))).toContain(hook(facts));
+    expect(hook(facts)?.length).toBeLessThanOrEqual(72);
+  });
+
   it("contributes no line when disabled", () => {
     for (const flags of [{}, { "qol.memorialEpigraphs": false }]) {
       expect(plugin.hooks({ id: "qol", flags, settings: {} }).runEndLine).toBeUndefined();
