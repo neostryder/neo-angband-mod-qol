@@ -12,6 +12,7 @@ import {
   ELEM,
   ArtifactState,
   FEAT,
+  KF,
   ObjAllocState,
   ObjRegistry,
   Rng,
@@ -19,7 +20,9 @@ import {
   StoreRegistry,
   bindConstants,
   bindPlayer,
+  bindProjections,
   bindStoreRuntime,
+  doRandart,
   blankPlayer,
   gearAdd,
   makeRuneEnv,
@@ -30,6 +33,7 @@ import {
 } from "@rpgm-tools/neo-angband-core";
 import type { GameState, MakeDeps, ObjPackJson, ObjectKind, PlayerPackRecords, StoreRecordJson } from "@rpgm-tools/neo-angband-core";
 import { invenDamage } from "./node_modules/@rpgm-tools/neo-angband-core/dist/game/project-obj.js";
+import plugin from "./plugin";
 
 const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
 const constants = bindConstants(loadPackFile("constants") as never);
@@ -63,6 +67,38 @@ function registry(sections: readonly string[] = [], withMod = true): ObjRegistry
   registerBookKinds(reg, players.classes);
   return reg;
 }
+
+describe("random artifact generation from the QoL setting", () => {
+  const randartRegistry = () => {
+    const reg = registry([], false);
+    reg.projections = bindProjections(loadPackRecords("projection") as never);
+    return reg;
+  };
+  const generate = (multiplier?: number) => {
+    const settings = Object.freeze(multiplier === undefined ? {} : { "qol.randartSetSize": multiplier });
+    const policy = plugin.policies({ id: "qol", flags: {}, settings })?.randartSetSize;
+    return doRandart(randartRegistry(), constants, 390, false, undefined,
+      policy ? { sizeMultiplier: policy.multiplier } : undefined);
+  };
+
+  it("keeps do_randart byte-identical at 1x", () => {
+    const faithful = doRandart(randartRegistry(), constants, 390, false);
+    expect(JSON.stringify(generate(1))).toBe(JSON.stringify(faithful));
+    expect(JSON.stringify(generate())).toBe(JSON.stringify(faithful));
+  });
+
+  it.each([2, 3, 4])("builds %sx the randomizable count with inverse allocation chances", (multiplier) => {
+    const reg = registry([], false);
+    const fixed = reg.artifacts.filter((art, index) => art && (index === reg.artifacts.length - 1 || art.name.includes("The One Ring") || reg.lookupKind(art.tval, art.sval)?.kindFlags.has(KF.QUEST_ART)));
+    const count = reg.artifacts.filter(Boolean).length - fixed.length;
+    const arts = generate(multiplier);
+    expect(arts.filter(Boolean)).toHaveLength(count * multiplier + fixed.length);
+    for (const art of fixed) expect(arts[art!.aidx]).toEqual(art);
+    const random = arts.filter((art) => art && !fixed.some((entry) => entry!.aidx === art.aidx));
+    expect(random).toHaveLength(count * multiplier);
+    for (const art of random) expect(art!.allocationScale).toBe(1 / multiplier);
+  });
+});
 
 function player() {
   const race = players.raceByName("Human")!;

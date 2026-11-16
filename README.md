@@ -41,8 +41,9 @@ flowchart TD
 
 See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
 
-| Toggle | Default | What it does |
+| Setting | Default | What it does |
 |---|---|---|
+| **Random artifact set size** (`qol.randartSetSize`) | 1x | Requests 1x, 2x, 3x, or 4x the randomizable artifact count with inverse per-artifact allocation chances for the next new character. Fixed artifacts and saved sets stay unchanged. Core startup currently leaves new characters at 1x; see [QOL-390](docs/API2-GAPS.md). |
 | **Auto-dig on walk** (`qol.autoDig`) | on | Walking into a rubble pile or mineral vein you can tunnel through starts digging, instead of just bumping into it. You still stop after each attempt and never step onto the dug-out square in the same move. |
 | **Remember my settings** (`qol.rememberSettings`) | on | Changes you make in the `=` options menu are kept, and every new character starts with them. Your existing characters are never touched. |
 | **Remember cheat options too** (`qol.rememberCheats`) | off | Include the cheat options in what is remembered. Off by default, because a cheat option permanently bars that character from the score list. |

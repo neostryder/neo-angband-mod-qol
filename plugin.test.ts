@@ -63,6 +63,7 @@ describe("the qol mod's entry point", () => {
       "registry:command",
       "registry:ui-entry",
       "registry:message",
+      "registry:randart-size",
       "state:player.read",
       "state:inventory.read",
       "state:interaction.read",
@@ -119,6 +120,38 @@ describe("object feeling pause", () => {
     expect(hooks.messagePauseAfter?.("This place seems murderous, and there are superb treasures here.")).toBe(false);
     for (const flags of [{}, { "qol.pauseObjectFeeling": false }]) {
       expect(api2PoliciesToHooks(policiesFor(flags)).messagePauseAfter).toBeUndefined();
+    }
+  });
+});
+
+describe("random artifact set size", () => {
+  it("declares a 1x through 4x setting that applies after a reload at the next new character", () => {
+    expect(manifest.settings).toEqual([{
+      id: "qol.randartSetSize",
+      title: "Random artifact set size",
+      description: "Choose 1x through 4x the standard random artifact count. Each artifact's chance to appear scales down to match. Applies at the next new character with random artifacts enabled.",
+      min: 1,
+      max: 4,
+      step: 1,
+      default: 1,
+      unit: "x",
+      requiresReload: true,
+    }]);
+    expect(manifest.capabilities).toContain("registry:randart-size");
+  });
+
+  it.each([2, 3, 4])("reads %sx from context.settings without a rule flag or engine access", (multiplier) => {
+    const settings = Object.freeze({ "qol.randartSetSize": multiplier });
+    const policies = plugin.policies({ id: "qol", flags: {}, settings })!;
+    expect(policies.randartSetSize).toEqual({ multiplier });
+    expect(checkApi2Policies(policies)).toBeNull();
+    expect(api2PolicyEffects(policies, (capability) => manifest.capabilities?.includes(capability) === true).registrations.randartSetSize).toEqual({ multiplier });
+    expect(settings).toEqual({ "qol.randartSetSize": multiplier });
+  });
+
+  it("leaves the standard policy absent at 1x or without a declared value", () => {
+    for (const settings of [{}, { "qol.randartSetSize": 1 }]) {
+      expect(plugin.policies({ id: "qol", flags: {}, settings })?.randartSetSize).toBeUndefined();
     }
   });
 });

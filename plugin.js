@@ -1123,11 +1123,13 @@ var plugin_default = {
     }
     return hooks;
   },
-  policies({ flags }) {
+  policies({ flags, settings }) {
+    const multiplier = settings["qol.randartSetSize"];
     const ignore = [];
     if (flags["qol.ignoreTorches"] === true) ignore.push({ tval: "light", kindNameContains: "Torch", ignore: true });
     if (flags["qol.ignoreLanterns"] === true) ignore.push({ tval: "light", kindNameContains: "Lantern", ignore: true });
     return {
+      ...typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {},
       ...flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {},
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork

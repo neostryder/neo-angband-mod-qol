@@ -9,12 +9,11 @@ and where the longer material is. The account of why each of these exists is in
 
 ## Settings
 
-Each one is a named toggle on the game's own Mods screen, which shows the full
-description. The identifier is the name a save and another mod see; where a
-switch has no flag of its own, the game knows it by its section id instead.
+The Mods screen shows each setting's full description. The identifier names a rule flag, a section, or a numeric setting.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
+| Random artifact set size | `qol.randartSetSize` | 1x | Requests 1x through 4x the randomizable artifact count with inverse per-artifact allocation chances for the next new character. Core startup currently ignores the multiplier; see [QOL-390](API2-GAPS.md). |
 | Memorial epigraphs | `qol.memorialEpigraphs` | off | Adds an epigraph to end screens and the character dump. |
 | Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
 | Context help | `qol.contextHelp` | off | Explains the selected action in the item context menu and command browser. |
@@ -44,7 +43,7 @@ Zoom and pan, hover cards on the Map overview, first-encounter alerts, the itemi
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `state:spells.read`, `engine:access`
+- **Capabilities:** `backup:folder`, `ui:panel.mount`, `keymap:write`, `registry:menu`, `registry:command`, `registry:ui-entry`, `registry:message`, `registry:randart-size`, `state:player.read`, `state:inventory.read`, `state:interaction.read`, `input:intent`, `state:floor.read`, `state:stores.read`, `state:spells.read`, `engine:access`
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle

@@ -130,7 +130,8 @@ export default {
     return hooks;
   },
 
-  policies({ flags }: Api2HookContext): Api2Policies | undefined {
+  policies({ flags, settings }: Api2HookContext): Api2Policies | undefined {
+    const multiplier = settings["qol.randartSetSize"];
     const ignore: Api2IgnorePolicyEntry[] = [];
     if (flags["qol.ignoreTorches"] === true) ignore.push({ tval: "light", kindNameContains: "Torch", ignore: true });
     if (flags["qol.ignoreLanterns"] === true) ignore.push({ tval: "light", kindNameContains: "Lantern", ignore: true });
@@ -140,6 +141,7 @@ export default {
      * tables itself, so none of them calls back into this mod.
      */
     return {
+      ...(typeof multiplier === "number" && multiplier > 1 ? { randartSetSize: { multiplier } } : {}),
       ...(flags["qol.pauseObjectFeeling"] === true ? { messagePauseAfter: ["You feel that "] } : {}),
       /*
        * "Auto-dig on walk" (qol.autoDig), ported from neostryder's Angband fork

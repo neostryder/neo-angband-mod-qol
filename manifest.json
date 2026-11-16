@@ -26,6 +26,7 @@
       "registry:command",
       "registry:ui-entry",
       "registry:message",
+      "registry:randart-size",
       "state:player.read",
       "state:inventory.read",
       "state:interaction.read",
@@ -154,6 +155,19 @@
         "title": "Quality ignore: always ignore lanterns",
         "description": "Treat every Lantern as ignored, whatever quality tier you have set for light sources and whether or not the torch toggle above is on. The two toggles are separate so you can ignore only torches, for example if you refuel a Lantern of Shadows from lanterns found on the ground. A lantern artifact, or a lantern inscribed !k or !*, is never ignored by this.",
         "default": false,
+        "requiresReload": true
+      }
+    ],
+    "settings": [
+      {
+        "id": "qol.randartSetSize",
+        "title": "Random artifact set size",
+        "description": "Choose 1x through 4x the standard random artifact count. Each artifact's chance to appear scales down to match. Applies at the next new character with random artifacts enabled.",
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "default": 1,
+        "unit": "x",
         "requiresReload": true
       }
     ],

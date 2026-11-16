@@ -22,6 +22,8 @@ were not retagged.
 
 ### Added
 
+- [Visible] [Balance] Random artifact set size declares a 1x through 4x multiplier through mod API 2.4.0 and defaults to 1x. Core startup currently prevents the setting from changing a new character's set (#390; QOL-390).
+
 - [Visible] [UI] Context help now explains selected commands in the command browser.
 
 - [Visible] [UI] Rejoin wrapped prose now reflows classified help paragraphs to the current width and preserves tables, key hints, art, and aligned groups.

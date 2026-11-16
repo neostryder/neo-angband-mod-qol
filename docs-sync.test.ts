@@ -27,9 +27,10 @@ describe("the settings table and the manifest", () => {
     id?: string;
     title?: string;
     default?: unknown;
+    unit?: string;
   }
 
-  const manifest = (): { rules?: Toggle[]; sections?: Toggle[] } =>
+  const manifest = (): { rules?: Toggle[]; sections?: Toggle[]; settings?: Toggle[] } =>
     validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
 
   const toggles = (): Toggle[] => {
@@ -39,7 +40,7 @@ describe("the settings table and the manifest", () => {
     const sections = (read.sections ?? []).filter(
       (s) => s.flag !== undefined || s.default !== undefined,
     );
-    return [...(read.rules ?? []), ...sections];
+    return [...(read.rules ?? []), ...sections, ...(read.settings ?? [])];
   };
 
   const identify = (t: Toggle): string => t.flag ?? t.id ?? "";
@@ -77,7 +78,7 @@ describe("the settings table and the manifest", () => {
       expect(row, `${identify(toggle)} is missing from docs/README.md`).toBeDefined();
       expect(row?.title).toBe(toggle.title);
       expect(row?.default, `${identify(toggle)} disagrees on its default`).toBe(
-        toggle.default === true ? "on" : "off",
+        typeof toggle.default === "number" ? `${toggle.default}${toggle.unit ?? ""}` : toggle.default === true ? "on" : "off",
       );
     }
   });
