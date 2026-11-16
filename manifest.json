@@ -5,7 +5,7 @@
     "id": "qol",
     "name": "Quality of Life",
     "version": "1.14.0-beta.2",
-    "api": ">=2.4.0 <3.0.0",
+    "api": ">=2.6.0 <3.0.0",
     "runtime": "in-process",
     "engine": {
       "range": ">=1.23.0-beta.1",
