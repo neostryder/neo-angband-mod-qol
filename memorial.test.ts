@@ -6,7 +6,7 @@ import plugin from "./plugin";
 describe("memorial epigraphs", () => {
   it("contributes no line when disabled", () => {
     for (const flags of [{}, { "qol.memorialEpigraphs": false }]) {
-      expect(plugin.hooks({ id: "qol", flags }).runEndLine).toBeUndefined();
+      expect(plugin.hooks({ id: "qol", flags, settings: {} }).runEndLine).toBeUndefined();
     }
   });
 
@@ -14,7 +14,7 @@ describe("memorial epigraphs", () => {
     const lines = epigraphs[list].map((line) => line.slice(0, 72));
     expect(lines).toHaveLength(16);
     expect(checkApi2Policies({ runEndLine: lines })).toBeNull();
-    const hook = plugin.hooks({ id: "qol", flags: { "qol.memorialEpigraphs": true } }).runEndLine!;
+    const hook = plugin.hooks({ id: "qol", flags: { "qol.memorialEpigraphs": true }, settings: {} }).runEndLine!;
     const policy = api2PoliciesToHooks({ runEndLine: lines }).runEndLine!;
     const picked = new Set<string>();
     for (let seed = 0; seed < 256; seed++) {

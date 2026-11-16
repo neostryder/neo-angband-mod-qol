@@ -38,7 +38,7 @@ const ENGINE = {
 };
 
 function engineHooks(flags: Readonly<Record<string, boolean>>) {
-  return plugin.engineHooks?.({ id: "qol", flags, engine: ENGINE });
+  return plugin.engineHooks?.({ id: "qol", flags, settings: {}, engine: ENGINE });
 }
 
 const terrain = loadRecords("terrain");

@@ -28,7 +28,7 @@ describe("rejoining prose", () => {
 
   it("installs no text hooks with the setting off", () => {
     for (const flags of [{}, { "qol.rejoinProse": false }]) {
-      const hooks = plugin.hooks({ id: "qol", flags });
+      const hooks = plugin.hooks({ id: "qol", flags, settings: {} });
       expect(hooks.helpText).toBeUndefined();
       expect(hooks.screenText).toBeUndefined();
       expect(hooks.characterBackground).toBeUndefined();
@@ -37,7 +37,7 @@ describe("rejoining prose", () => {
   });
 
   it("opts classified help paragraphs into wrapping and preserves every layout group", () => {
-    const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } });
+    const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true }, settings: {} });
     const paragraph = Object.freeze({ sourceBlock: 0, kind: "paragraph" as const, text: prose.replace("\n", " "), lines: Object.freeze(prose.split("\n").map((text) => Object.freeze({ text }))) });
     const page = Object.freeze([paragraph]);
     expect(hooks.helpText?.(paragraph.text, { screen: "core:help-guide", kind: "paragraph", index: 0, page })).toBe(paragraph.text);
@@ -49,7 +49,7 @@ describe("rejoining prose", () => {
   });
 
   it("preserves layout markers in raw rows even when the help classifier calls them paragraphs", () => {
-    const hook = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } }).helpText!;
+    const hook = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true }, settings: {} }).helpText!;
     for (const lines of [["Name | Weight", "Sword | 10 lb"], ["  This paragraph is indented.", "  Its indentation carries layout."], ["- The first list item", "- The second list item"]]) {
       const group = { sourceBlock: 0, kind: "paragraph" as const, text: lines.map((line) => line.trim()).join(" "), lines: lines.map((text) => ({ text })) };
       expect(hook(group.text, { screen: "core:text", kind: "paragraph", index: 0, page: [group] })).toBeNull();
@@ -57,7 +57,7 @@ describe("rejoining prose", () => {
   });
 
   it("transforms only semantic prose and flavor descriptions through the plugin", () => {
-    const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true } });
+    const hooks = plugin.hooks({ id: "qol", flags: { "qol.rejoinProse": true }, settings: {} });
     for (const part of ["prose", "detail"] as const) {
       expect(hooks.screenText?.(prose, { screen: "core:help-guide", part })).toBe(prose.replace("\n", " "));
     }

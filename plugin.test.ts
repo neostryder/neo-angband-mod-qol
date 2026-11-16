@@ -29,12 +29,13 @@ const manifest = validateManifest(manifestDocument, { code: ["plugin.js"] });
 
 const allRuleFlags = (): Record<string, boolean> =>
   Object.fromEntries((manifest.rules ?? []).map((rule) => [rule.flag, true]));
-const hooksFor = (flags: Readonly<Record<string, boolean>>): Api2Hooks => plugin.hooks({ id: "qol", flags }) ?? {};
-const policiesFor = (flags: Readonly<Record<string, boolean>>): Api2Policies => plugin.policies({ id: "qol", flags }) ?? {};
+const hooksFor = (flags: Readonly<Record<string, boolean>>): Api2Hooks => plugin.hooks({ id: "qol", flags, settings: {} }) ?? {};
+const policiesFor = (flags: Readonly<Record<string, boolean>>): Api2Policies => plugin.policies({ id: "qol", flags, settings: {} }) ?? {};
 const engineHooksFor = (flags: Readonly<Record<string, boolean>>) =>
   plugin.engineHooks?.({
     id: "qol",
     flags,
+    settings: {},
     engine: { api: "test", core: neoCore, state: undefined, registries: undefined, registry: undefined },
   });
 
@@ -104,8 +105,8 @@ describe("the qol mod's entry point", () => {
   it("is a mod with no engine access needed to declare anything", () => {
     /* hooks and policies are asked without the engine domain, so a public-tier install keeps every declared feature. */
     const all = { ...allRuleFlags(), "qol.miscNiceties": true };
-    expect(() => plugin.hooks({ id: "qol", flags: all })).not.toThrow();
-    expect(() => plugin.policies({ id: "qol", flags: all })).not.toThrow();
+    expect(() => plugin.hooks({ id: "qol", flags: all, settings: {} })).not.toThrow();
+    expect(() => plugin.policies({ id: "qol", flags: all, settings: {} })).not.toThrow();
   });
 });
 
@@ -284,7 +285,7 @@ describe("remember my settings", () => {
   ): Promise<void> {
     const { mod } = fakeMod({ flags, prefs });
     await plugin.start(mod);
-    plugin.hooks({ id: "qol", flags }).optionsChanged?.(snapshot(options));
+    plugin.hooks({ id: "qol", flags, settings: {} }).optionsChanged?.(snapshot(options));
     await settle();
     plugin.stop();
   }
@@ -313,7 +314,7 @@ describe("remember my settings", () => {
     const prefs = slot();
     const options = new neoCore.OptionState();
     options.set("use_sound", true);
-    plugin.hooks({ id: "qol", flags: ON }).optionsChanged?.(snapshot(options));
+    plugin.hooks({ id: "qol", flags: ON, settings: {} }).optionsChanged?.(snapshot(options));
     await settle();
     expect(prefs.peek()).toBeNull();
   });
@@ -381,7 +382,7 @@ describe("remember my settings", () => {
     const stored = readRememberedSettings(prefs.peek());
     expect(Object.keys(stored!.values).some((name) => name.startsWith("birth_"))).toBe(false);
 
-    const hooks = plugin.hooks({ id: "qol", flags: ON });
+    const hooks = plugin.hooks({ id: "qol", flags: ON, settings: {} });
     const { mod } = fakeMod({ flags: ON, prefs });
     await plugin.start(mod);
     hooks.optionsChanged?.({ values: { birth_randarts: true, use_sound: true }, hitpointWarn: 3, delayFactor: 0, lazymoveDelay: 0, birth: { birth_randarts: true } });
