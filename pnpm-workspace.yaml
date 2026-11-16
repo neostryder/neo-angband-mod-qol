@@ -20,4 +20,4 @@ minimumReleaseAgeExclude:
   - "@rpgm-tools/*"
 
 overrides:
-  "@rpgm-tools/neo-angband-mod-sdk": "file:D:/Repositories/_outbox/na-overhaul-core/sdk-local/3eafc1360/rpgm-tools-neo-angband-mod-sdk-1.23.0-beta.4.tgz"
+  "@rpgm-tools/neo-angband-mod-sdk": "file:D:/Repositories/_outbox/na-overhaul-core/sdk-local/c4d0bf92e/rpgm-tools-neo-angband-mod-sdk-1.23.0-beta.4.tgz"
