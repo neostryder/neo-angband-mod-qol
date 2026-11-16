@@ -4,7 +4,7 @@ import type { MenuTransformer } from "@rpgm-tools/neo-angband-core";
 const MENU_ID = "core:context-object";
 
 const ITEM_HELP: Readonly<Record<string, string>> = {
-  inspect: "Show what you have learned about this item so far.",
+  inspect: "Show the runes and properties you have found on this item.",
   equip: "Wear or wield it in the matching equipment slot.",
   takeoff: "Stop wearing or wielding this item.",
   drop: "Leave it on the floor where you stand.",
@@ -17,12 +17,12 @@ const ITEM_HELP: Readonly<Record<string, string>> = {
   cast: "Pick a spell from this book and cast it.",
   study: "Learn a new spell from this book.",
   aim: "Point the wand in a direction and use a charge.",
-  zap: "Zap the rod. It recharges over time.",
+  zap: "Zap the rod, then let it recharge over time.",
   "use-staff": "Use the staff, spending one of its charges.",
   read: "Read the scroll, using it up.",
   quaff: "Drink the potion.",
   eat: "Eat this food or mushroom.",
-  activate: "Use the item's activation. It needs time to recharge.",
+  activate: "Use the item's activation, then let it recharge.",
   refill: "Refuel your light source from this item.",
 };
 
@@ -34,7 +34,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   b: ITEM_HELP.browse!, G: ITEM_HELP.study!, m: ITEM_HELP.cast!, k: ITEM_HELP.ignore!,
   U: "Choose an item and use its ordinary action.",
   D: "Choose a direction to disarm a trap or chest.",
-  R: "Rest for a turn count or until you recover.",
+  R: "Rest for a set number of turns or until you recover.",
   l: "Look at a grid, monster, or item without spending a turn.",
   "*": "Choose a monster or location as your target.",
   "'": "Target the nearest visible monster.",
@@ -54,7 +54,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   "=": "Review interface options and character settings.", Q: "End this character's run by retiring.",
   ")": "Save a text or HTML copy of the screen.", ":": "Add a note to your character's history.",
   V: "Show the game version.", '"': "Apply one preference-file line.",
-  "+": "Alter the adjacent grid in a direction you choose.", s: "Attempt to steal from an adjacent monster.",
+  "+": "Alter the adjacent grid in a direction you choose.", s: "Try to steal from an adjacent monster.",
   ";": "Walk one step in a direction you choose.", ".": "Run in a direction until something stops you.",
   ",": "Wait in place for one turn.", p: "Explore until interrupted or no unexplored route remains.",
   n: "Repeat the previous command.",

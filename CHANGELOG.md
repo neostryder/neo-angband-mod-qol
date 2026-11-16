@@ -24,23 +24,23 @@ were not retagged.
 
 - [Visible] [Balance] Random artifact set size declares a 1x through 4x multiplier through mod API 2.4.0 and defaults to 1x. Core startup currently prevents the setting from changing a new character's set (#390; QOL-390).
 
-- [Visible] [UI] Context help now explains selected commands in the command browser.
+- [Visible] [UI] Context help now explains the selected command in the command browser.
 
-- [Visible] [UI] Rejoin wrapped prose now reflows classified help paragraphs to the current width and preserves tables, key hints, art, and aligned groups.
+- [Visible] [UI] Rejoin wrapped prose now rewraps prose help paragraphs to the current width and leaves tables, key hints, art, and aligned lines as laid out.
 
-- [Visible] [UI] An optional setting adds memorial epigraphs to death, retirement, and victory screens and the character dump.
+- [Visible] [UI] An optional setting adds a one-line epigraph to the death, retirement, and victory screens and the character dump.
 
-- [Visible] [UI] An optional setting pauses after the object part of a level feeling. Auto-more still skips the wait.
+- [Visible] [UI] An optional setting waits for a key after the object part of a level feeling. Auto-more still skips the wait.
 
 - [Visible] [Modding-API] Gear comparison now shows blows per round, known weapon damage per round with a line for each known brand and slay, and the mana cost and failure rate of each learned spell. Each new row has before, after, and delta values.
 
 ### Fixed
 
-- [Visible] [UI] Rejoin wrapped prose preserves layout markers in raw help rows even when the host classifies them as paragraphs.
+- [Visible] [UI] Rejoin wrapped prose keeps the original rows of help paragraphs that contain layout markers, even when the game classifies them as prose.
 
-- [Visible] [UI] Command-browser help stays with the action when another mod changes its key.
+- [Visible] [UI] A command's help line in the command browser now moves with it when another mod changes its key.
 
-- [Visible] [UI] Gear comparison labels learned spell rows by name and uses "fail chance (%)" for the failure row.
+- [Visible] [UI] Gear comparison now labels learned spell rows by name instead of spell index, such as "Magic Missile mana cost" and "Magic Missile fail chance (%)".
 
 - [Visible] [Modding-API] Loadouts now put a saved ring back on the second ring finger when the first is empty, instead of reporting that slot as incomplete.
 

@@ -44,7 +44,7 @@ describe("item context help", () => {
     expect(h.menus.register).toHaveBeenCalledWith(MENU_ID, expect.any(Function));
     const result = h.transform();
     expect(result.map((row) => row.hint)).toEqual([
-      "Show what you have learned about this item so far.", "Wear or wield it in the matching equipment slot.", "Drink the potion.",
+      "Show the runes and properties you have found on this item.", "Wear or wield it in the matching equipment slot.", "Drink the potion.",
     ]);
     expect(result.map(({ hint: _hint, ...row }) => row)).toEqual(rows);
   });
@@ -67,7 +67,7 @@ describe("item context help", () => {
     const previous = vi.fn((_id: string, input: readonly MenuTransformRow[]) => input.map((row) => ({ ...row, label: `Known: ${row.label}`, disabled: true })));
     const h = harness({}, previous);
     installContextHelp(h.mod);
-    expect(h.transform()[0]).toMatchObject({ id: "inspect", label: "Known: Inspect", disabled: true, hint: "Show what you have learned about this item so far." });
+    expect(h.transform()[0]).toMatchObject({ id: "inspect", label: "Known: Inspect", disabled: true, hint: "Show the runes and properties you have found on this item." });
     expect(previous).toHaveBeenCalledWith(MENU_ID, rows);
   });
 
@@ -80,7 +80,7 @@ describe("item context help", () => {
       },
     });
     installContextHelp(mod);
-    expect(h.transform()[0]?.hint).toBe("Show what you have learned about this item so far.");
+    expect(h.transform()[0]?.hint).toBe("Show the runes and properties you have found on this item.");
     expect(h.menus.register).toHaveBeenCalledTimes(8);
   });
 

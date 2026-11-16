@@ -62,19 +62,19 @@ should be the same shape, installed by the same code, gated by the same checks.
 
 ### Memorial epigraphs
 
-Memorial epigraphs adds one of 16 lines for each ending: death, retirement, or victory. The character name, ending, turn, and seed select the same line for the screen and character dump without using game randomness. The lists are in epigraphs.json. The setting is off by default and takes effect after a reload.
+Memorial epigraphs adds one short line to the death, retirement, and victory screens and to the character dump. Each ending has its own list of 16 lines, kept in epigraphs.json. The character name, ending, turn, and seed pick the line, so the screen and the dump always show the same one, and the pick never touches the game's random numbers. The setting is off by default and takes effect after a reload.
 
 ### Pause after object feeling
 
-Pause after object feeling waits for a key after the object part of a level feeling. Auto-more still skips the wait. The setting is off by default and takes effect after a reload.
+Pause after object feeling waits for a key after the object part of a level feeling, so the object part is not missed when the feeling appears in two parts (danger, then objects). The Auto-more option still skips the wait. The setting is off by default and takes effect after a reload.
 
 ### Context help
 
-Context help shows a help line under the selected action in the item context menu and command browser. Existing hints stay as they are, command help follows actions when another mod changes their keys, and the help line never reveals item properties you have not learned. The setting is off by default and takes effect after a reload.
+Context help shows a one-line explanation under the selected action in the item context menu and the command browser. Hints the game already shows stay as they are. If another mod moves a command to a different key, its help line moves with it. The help line never reveals item properties your character has not learned. The setting is off by default and takes effect after a reload.
 
 ### Rejoin wrapped prose
 
-Rejoin wrapped prose joins hard-wrapped paragraphs in classified help pages, semantic prose blocks, character backgrounds, and item flavor descriptions, then wraps the joined text to the current width. Help paragraphs with layout markers keep their original rows. Tables, key hints, ASCII art, aligned and indented lines, message text, and mod-management screens stay as they are. The setting is off by default and takes effect after a reload.
+Rejoin wrapped prose joins paragraphs that were hard-wrapped at a fixed width and rewraps them to the current screen width. It covers help pages the game classifies as prose, semantic prose blocks, character backgrounds, and item flavor descriptions. Help paragraphs that contain layout markers keep their original rows. Tables, key hints, ASCII art, aligned and indented lines, message text, and the mod-management screens stay as laid out. The setting is off by default and takes effect after a reload.
 
 ### Richer weapon and armor shops
 
@@ -96,7 +96,7 @@ No lava in town fills every grid where the town would have had lava with granite
 
 Turn on the Gear comparison setting to add "Compare gear..." to the Game menu and a "compare gear" command. Pick an item from your known carried gear, the floor under you, or known store stock, then pick a worn slot it can go in. Rings offer both hands. The screen shows the game's own before, after, and delta values for speed (110 is normal), armor, global to-hit and to-dam, blows per round, known weapon damage per round, the failure rate and mana cost of each learned spell, shots per turn, extra movement, hit points, spell points, carried weight and weight limit in pounds, stats, skills, resistances, and object and player flags.
 
-Comparing never wears, removes, or buys anything. The comparison uses only runes your character has learned, so when unknown runes are present a zero delta can still hide an effect, and the screen tells you so. Global to-hit and to-dam leave out the weapon's own bonuses. Weapon damage has a separate line for each known brand and slay. Stats above 18 appear in the game's internal encoding, so 18/50 shows as 68, and the stat table index has its own row. Spell rows use each learned spell's name and need the mod's permission to read spells.
+Comparing never wears, removes, or buys anything. The comparison uses only runes your character has learned, so when unknown runes are present a zero change can still hide an effect, and the screen tells you so. Global to-hit and to-dam leave out the weapon's own bonuses. Weapon damage has a separate line for each known brand and slay. Stats above 18 appear in the game's internal encoding, so 18/50 shows as 68, and the stat table index has its own row. Each learned spell gets before and after rows for mana cost and failure chance, labeled with the spell's name, such as "Magic Missile mana cost" and "Magic Missile fail chance (%)". Reading spells needs a permission the mod already holds.
 
 ### Loadouts
 

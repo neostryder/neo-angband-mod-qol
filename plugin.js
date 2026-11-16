@@ -895,7 +895,7 @@ function rejoinScreenProse(text, site) {
 // context-help.ts
 var MENU_ID = "core:context-object";
 var ITEM_HELP = {
-  inspect: "Show what you have learned about this item so far.",
+  inspect: "Show the runes and properties you have found on this item.",
   equip: "Wear or wield it in the matching equipment slot.",
   takeoff: "Stop wearing or wielding this item.",
   drop: "Leave it on the floor where you stand.",
@@ -908,12 +908,12 @@ var ITEM_HELP = {
   cast: "Pick a spell from this book and cast it.",
   study: "Learn a new spell from this book.",
   aim: "Point the wand in a direction and use a charge.",
-  zap: "Zap the rod. It recharges over time.",
+  zap: "Zap the rod, then let it recharge over time.",
   "use-staff": "Use the staff, spending one of its charges.",
   read: "Read the scroll, using it up.",
   quaff: "Drink the potion.",
   eat: "Eat this food or mushroom.",
-  activate: "Use the item's activation. It needs time to recharge.",
+  activate: "Use the item's activation, then let it recharge.",
   refill: "Refuel your light source from this item."
 };
 var COMMAND_HELP = {
@@ -939,7 +939,7 @@ var COMMAND_HELP = {
   k: ITEM_HELP.ignore,
   U: "Choose an item and use its ordinary action.",
   D: "Choose a direction to disarm a trap or chest.",
-  R: "Rest for a turn count or until you recover.",
+  R: "Rest for a set number of turns or until you recover.",
   l: "Look at a grid, monster, or item without spending a turn.",
   "*": "Choose a monster or location as your target.",
   "'": "Target the nearest visible monster.",
@@ -970,7 +970,7 @@ var COMMAND_HELP = {
   V: "Show the game version.",
   '"': "Apply one preference-file line.",
   "+": "Alter the adjacent grid in a direction you choose.",
-  s: "Attempt to steal from an adjacent monster.",
+  s: "Try to steal from an adjacent monster.",
   ";": "Walk one step in a direction you choose.",
   ".": "Run in a direction until something stops you.",
   ",": "Wait in place for one turn.",
@@ -1043,7 +1043,7 @@ var epigraphs_default = {
     "The stairs go down forever. Someone has to stop taking them.",
     "The last scroll of recall went one way only: up.",
     "The armor hangs on a peg in town now, still dented.",
-    "Gold in the pack and all limbs attached. Few leave the dungeon with both.",
+    "Gold in the pack, all limbs attached. Few leave the dungeon with both.",
     "Morgoth can wait. He has been waiting a long time already.",
     "Every potion left unquaffed is one fewer mystery to regret.",
     "The town at night is quiet, and that is enough these days.",
@@ -1065,7 +1065,7 @@ var epigraphs_default = {
     "The town at night has nothing left to fear, except the dogs.",
     "Grip and Fang are unimpressed. Nobody told them about Morgoth.",
     "The deepest level is just a room now, with an empty throne in it.",
-    "The out-of-depth monsters can stay that way. Nobody is coming down again.",
+    "Out-of-depth monsters can stay that way. Nobody is coming down again.",
     "Every scroll of recall left in the pack is a souvenir now.",
     "The character dump is long. The last line is the only one anyone reads.",
     "Even the Pits feel smaller on the way back up.",

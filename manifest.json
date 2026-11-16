@@ -49,28 +49,28 @@
       {
         "flag": "qol.memorialEpigraphs",
         "title": "Memorial epigraphs",
-        "description": "Add a deterministic epigraph to death, retirement, and victory screens and the character dump.",
+        "description": "Add a one-line epigraph, picked for the ending, to the death, retirement, and victory screens and the character dump, with the same line in both.",
         "default": false,
         "requiresReload": true
       },
       {
         "flag": "qol.pauseObjectFeeling",
         "title": "Pause after object feeling",
-        "description": "Wait for a key after the object part of a level feeling. Auto-more still skips the wait.",
+        "description": "Wait for a key after the object part of a two-part level feeling so you do not miss it. Auto-more still skips the wait.",
         "default": false,
         "requiresReload": true
       },
       {
         "flag": "qol.contextHelp",
         "title": "Context help",
-        "description": "Show a help line under the selected action in the item context menu and command browser.",
+        "description": "Show a one-line explanation under the selected action in the item context menu and the command browser.",
         "default": false,
         "requiresReload": true
       },
       {
         "flag": "qol.rejoinProse",
         "title": "Rejoin wrapped prose",
-        "description": "Join hard-wrapped paragraphs in classified help pages, semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, ASCII art, and aligned lines keep their layout.",
+        "description": "Join hard-wrapped paragraphs and rewrap them to the screen width in help pages the game treats as prose, semantic prose blocks, character backgrounds, and item flavor descriptions. Tables, key hints, ASCII art, and aligned lines keep their layout.",
         "default": false,
         "requiresReload": true
       },
