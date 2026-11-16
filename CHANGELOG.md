@@ -22,7 +22,7 @@ were not retagged.
 
 ### Added
 
-- [Visible] [Balance] Random artifact set size declares a 1x through 4x multiplier through mod API 2.4.0 and defaults to 1x. Core startup currently prevents the setting from changing a new character's set (#390; QOL-390).
+- [Visible] [Balance] Random artifact set size (mod API 2.4.0) builds 1x to 4x the usual number of random artifacts, each proportionally rarer, and defaults to 1x (#390).
 
 - [Visible] [UI] Context help now explains the selected command in the command browser.
 

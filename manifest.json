@@ -162,7 +162,7 @@
       {
         "id": "qol.randartSetSize",
         "title": "Random artifact set size",
-        "description": "Choose 1x through 4x the standard random artifact count. Each artifact's chance to appear scales down to match. Applies at the next new character with random artifacts enabled.",
+        "description": "Build 1x to 4x the usual number of random artifacts for your next new character with random artifacts on. Each artifact appears less often by the same factor, so you get more variety without more artifacts per level.",
         "min": 1,
         "max": 4,
         "step": 1,

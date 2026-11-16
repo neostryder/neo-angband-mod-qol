@@ -4,7 +4,7 @@ A rule that needs a reload is read once, when the game starts. The others take e
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
-| `qol.randartSetSize` | 1x | Requests 1x, 2x, 3x, or 4x the randomizable artifact count with inverse per-artifact allocation chances. Fixed artifacts and saved sets stay unchanged. Core startup currently ignores the multiplier; see [QOL-390](docs/API2-GAPS.md). | Yes; intended for the next new character with random artifacts enabled. |
+| `qol.randartSetSize` | 1x | Builds 1x, 2x, 3x, or 4x the usual number of randomized artifacts and lowers each one's chance to appear by the same factor. Fixed artifacts and sets already generated for saved characters do not change. | Yes, from the next new character with random artifacts on |
 | `qol.memorialEpigraphs` | off | Adds a one-line epigraph picked for the ending to the end screen and the character dump, with the same line in both. | Yes. |
 | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling unless Auto-more is on. | Yes. |
 | `qol.contextHelp` | off | Shows a one-line explanation under the selected action in the item context menu and the command browser. | Yes. |

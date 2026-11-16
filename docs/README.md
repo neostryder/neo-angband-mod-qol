@@ -13,7 +13,7 @@ The Mods screen shows each setting's full description. The identifier names a ru
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
-| Random artifact set size | `qol.randartSetSize` | 1x | Requests 1x through 4x the randomizable artifact count with inverse per-artifact allocation chances for the next new character. Core startup currently ignores the multiplier; see [QOL-390](API2-GAPS.md). |
+| Random artifact set size | `qol.randartSetSize` | 1x | Builds 1x to 4x the usual number of randomized artifacts for the next new character, each rarer by the same factor. |
 | Memorial epigraphs | `qol.memorialEpigraphs` | off | Adds a one-line epigraph to end screens and the character dump. |
 | Pause after object feeling | `qol.pauseObjectFeeling` | off | Waits for a key after the object part of a level feeling. |
 | Context help | `qol.contextHelp` | off | Explains the selected action in the item context menu and command browser. |
